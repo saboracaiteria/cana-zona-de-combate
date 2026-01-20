@@ -28,6 +28,22 @@
             -webkit-user-select: none;
         }
 
+        /* --- TELA DE ROTAÇÃO (Overlay) --- */
+        #rotate-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999;
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: var(--canaa-green);
+            text-align: center;
+        }
+        .rotate-icon { font-size: 50px; animation: rotateDevice 2s infinite ease-in-out; }
+        @keyframes rotateDevice { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+        
+        /* Mostra overlay apenas em retrato em dispositivos móveis */
+        @media screen and (orientation: portrait) and (max-width: 900px) {
+            #rotate-overlay { display: flex; }
+        }
+
         /* --- CAMADA HTML 3D --- */
         #html-layer {
             position: absolute;
@@ -47,66 +63,23 @@
 
         /* --- CSS DA LOGO --- */
         .scene { position: relative; }
-
-        .coin {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-            animation: spin 20s infinite linear;
-        }
-
-        .coin-face {
-            position: absolute; width: 100%; height: 100%;
-            border-radius: 50%; transform-style: preserve-3d;
-        }
-
+        .coin { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; animation: spin 20s infinite linear; }
+        .coin-face { position: absolute; width: 100%; height: 100%; border-radius: 50%; transform-style: preserve-3d; }
         .coin-face.front { transform: translateZ(20px); }
         .coin-face.back { transform: rotateY(180deg) translateZ(20px); }
-
-        .layer-base {
-            position: absolute; width: 100%; height: 100%; transform: translateZ(0px);
-        }
-
-        .lens-effect {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(130% 130% at 30% 30%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 25%, transparent 50%, rgba(0, 0, 0, 0.6) 85%, rgba(0, 0, 0, 0.9) 100%);
-            transform: translateZ(1px); pointer-events: none;
-            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
-        }
-
-        .layer-pop {
-            position: absolute; width: 100%; height: 100%;
-            transform: translateZ(25px);
-            filter: drop-shadow(0px 15px 10px rgba(0,0,0,0.6));
-        }
-
-        .coin-edge {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            border-radius: 50%;
-            background: linear-gradient(to right, #8B4513, #FFD700, #8B4513);
-            transform: translateZ(0);
-        }
-
-        @keyframes spin {
-            0% { transform: rotateY(0deg); }
-            100% { transform: rotateY(360deg); }
-        }
-
+        .layer-base { position: absolute; width: 100%; height: 100%; transform: translateZ(0px); }
+        .lens-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(130% 130% at 30% 30%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 25%, transparent 50%, rgba(0, 0, 0, 0.6) 85%, rgba(0, 0, 0, 0.9) 100%); transform: translateZ(1px); pointer-events: none; box-shadow: inset 0 0 30px rgba(0,0,0,0.8); }
+        .layer-pop { position: absolute; width: 100%; height: 100%; transform: translateZ(25px); filter: drop-shadow(0px 15px 10px rgba(0,0,0,0.6)); }
+        .coin-edge { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(to right, #8B4513, #FFD700, #8B4513); transform: translateZ(0); }
+        @keyframes spin { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
         .svg-content { width: 100%; height: 100%; overflow: visible; }
         .font-sabor { font-family: 'Montserrat', sans-serif; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; }
         .font-acai { font-family: 'Lobster', cursive; }
         .font-delivery { font-family: 'Varela Round', sans-serif; font-weight: 600; letter-spacing: 0.05em; }
-
-        .shine-effect {
-            position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(255,215,0,0.15) 0%, transparent 60%);
-            pointer-events: none; z-index: -1;
-        }
+        .shine-effect { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,215,0,0.15) 0%, transparent 60%); pointer-events: none; z-index: -1; }
 
         /* --- UI & MENUS --- */
-        #main-menu, #game-over-screen, #win-screen {
+        #main-menu, #game-over-screen, #win-screen, #level-complete-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             color: white; z-index: 200;
@@ -116,11 +89,10 @@
             animation: bgScan 10s linear infinite;
         }
 
+        #level-complete-screen { display: none; z-index: 202; }
+
         #main-menu.paused-mode {
-            animation: none !important;
-            background-image: none !important;
-            background-color: #050505 !important;
-            opacity: 1 !important;
+            animation: none !important; background-image: none !important; background-color: #050505 !important; opacity: 1 !important;
         }
         #main-menu.paused-mode::before { display: none !important; }
 
@@ -133,19 +105,19 @@
         }
 
         .menu-content {
-            position: relative; background: rgba(10, 10, 12, 0.95); padding: 40px;
+            position: relative; background: rgba(10, 10, 12, 0.95); padding: 30px;
             border: 2px solid var(--canaa-copper); border-top: 4px solid var(--canaa-gold);
             box-shadow: 0 0 20px rgba(184, 115, 51, 0.3);
             text-align: center; min-width: 300px; max-width: 90%; z-index: 1;
             clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
         }
         
-        h1 { font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 3px; color: var(--canaa-gold); text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); margin-bottom: 30px; font-size: 2.5em; }
-        h2 { font-family: 'Orbitron', sans-serif; color: var(--canaa-green); }
+        h1 { font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 3px; color: var(--canaa-gold); text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); margin-bottom: 20px; font-size: 2.2em; }
+        h2 { font-family: 'Orbitron', sans-serif; color: var(--canaa-green); margin-bottom: 15px; }
         
         .menu-btn {
             background: transparent; color: var(--canaa-green); border: 1px solid var(--canaa-green);
-            padding: 15px; margin: 10px 0; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 16px;
+            padding: 12px; margin: 8px 0; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px;
             cursor: pointer; width: 100%; text-transform: uppercase; letter-spacing: 2px; transition: all 0.2s; position: relative; overflow: hidden;
             clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
         }
@@ -154,6 +126,44 @@
         .menu-btn.secondary:hover { background: var(--canaa-copper); color: #000; box-shadow: 0 0 15px var(--canaa-copper); }
         .menu-btn.danger { border-color: #ff3333; color: #ff3333; }
         .menu-btn.danger:hover { background: #ff3333; color: white; box-shadow: 0 0 15px #ff3333; }
+
+        /* Badge Em Breve */
+        .coming-soon-btn { position: relative; opacity: 0.7; cursor: not-allowed !important; border-color: #666; color: #888; }
+        .coming-soon-btn:hover { background: transparent; color: #888; box-shadow: none; }
+        .badge {
+            position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+            background: var(--canaa-gold); color: #000; font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: 900;
+        }
+
+        /* Aviso de rotação no menu */
+        .rotation-alert {
+            display: none;
+            background: rgba(255, 215, 0, 0.15);
+            border: 1px dashed var(--canaa-gold);
+            color: var(--canaa-gold);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            animation: pulseAlert 2s infinite;
+        }
+        @keyframes pulseAlert { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
+        
+        /* Aparece apenas em retrato */
+        @media screen and (orientation: portrait) {
+            .rotation-alert { display: block; }
+        }
+
+        /* Configurações Compactas */
+        .setting-row { margin: 8px 0; text-align: left; }
+        .setting-row label { display: block; font-size: 12px; margin-bottom: 2px; color: var(--canaa-gold); font-family: 'Rajdhani', sans-serif; font-weight: bold; }
+        input[type="range"] { width: 100%; height: 5px; accent-color: var(--canaa-green); cursor: pointer; }
+
+        /* Footer */
+        .menu-footer {
+            margin-top: 20px; font-size: 10px; color: #666; font-family: 'Rajdhani'; letter-spacing: 1px; text-transform: uppercase;
+            border-top: 1px solid #333; padding-top: 10px; width: 100%;
+        }
 
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 24px; height: 24px;
@@ -176,9 +186,7 @@
             font-family: 'Orbitron', sans-serif; font-size: 32px; font-weight: 900; text-shadow: 0 0 15px var(--canaa-gold); display: none; z-index: 15; letter-spacing: 5px;
         }
         #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-shadow: inset 0 0 0 0 rgba(255,0,0,0); pointer-events: none; transition: box-shadow 0.1s; z-index: 5; }
-        .setting-row { margin: 15px 0; text-align: left; }
-        .setting-row label { display: block; font-size: 14px; margin-bottom: 5px; color: var(--canaa-gold); font-family: 'Rajdhani', sans-serif; font-weight: bold; }
-        input[type="range"] { width: 100%; accent-color: var(--canaa-green); cursor: pointer; }
+        
         #top-bar { position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 101; }
         #pause-btn { position: absolute; top: 20px; right: 20px; z-index: 150; pointer-events: auto; display: none; cursor: pointer; }
         .icon-btn {
@@ -256,28 +264,42 @@
 
     <div id="main-menu">
         <div class="menu-content" id="start-view">
+            <!-- Aviso de Rotação integrado (CSS controla a exibição) -->
+            <div class="rotation-alert">
+                📱 GIRE SEU DISPOSITIVO PARA JOGAR
+            </div>
+            
             <h1>CANAÃ<br><span style="font-size: 0.6em; color: white;">ZONA DE COMBATE</span></h1>
             <button class="menu-btn" id="play-btn">INICIAR MISSÃO</button>
+            <button class="menu-btn coming-soon-btn">
+                MULTIPLAYER
+                <span class="badge">EM BREVE</span>
+            </button>
             <button class="menu-btn secondary" id="settings-btn">SISTEMAS</button>
+            
+            <!-- RODAPÉ -->
+            <div class="menu-footer">
+                Sabor Açaiteria &nbsp;|&nbsp; Canaã dos Carajás 2026
+            </div>
         </div>
 
-        <div class="menu-content" id="settings-view" style="display: none;">
+        <div class="menu-content" id="settings-view" style="display: none; padding: 20px;">
             <h2>SISTEMAS</h2>
             <div class="setting-row">
-                <label>VOLUME: <span id="vol-val">50</span>%</label>
+                <label>VOLUME</label>
                 <input type="range" id="vol-slider" min="0" max="100" value="50">
             </div>
             <div class="setting-row">
-                <label>CAMPO DE VISÃO (FOV): <span id="fov-val">70</span></label>
+                <label>FOV</label>
                 <input type="range" id="fov-slider" min="50" max="110" value="70">
             </div>
             <div class="setting-row">
-                <label>SENSIBILIDADE: <span id="sens-val">1.0</span></label>
+                <label>SENSIBILIDADE</label>
                 <input type="range" id="sens-slider" min="1" max="100" value="50">
             </div>
-            <button class="menu-btn secondary" id="edit-hud-btn">HUD TÁTICO (MOBILE)</button>
+            <button class="menu-btn secondary" id="edit-hud-btn">HUD TÁTICO</button>
             <button class="menu-btn danger" id="abort-mission-btn">ABORTAR MISSÃO</button>
-            <button class="menu-btn" id="back-btn" style="border-color: #666; color: #ccc;">VOLTAR</button>
+            <button class="menu-btn" id="back-btn" style="border-color: #666; color: #ccc; margin-top: 5px;">VOLTAR</button>
         </div>
     </div>
 
@@ -285,8 +307,18 @@
         <div class="menu-content" style="border-color: #ff0000;">
             <h1 style="color: #ff3333; margin: 0;">SINAL PERDIDO</h1>
             <p style="color: #ccc; font-family: 'Rajdhani';">Agente eliminado em combate.</p>
-            <button class="menu-btn" id="retry-btn" style="border-color: #ff3333; color: #ff3333;">REINICIAR SISTEMA</button>
-            <button class="menu-btn secondary" id="menu-return-btn">VOLTAR</button>
+            <!-- REINICIAR SISTEMA CARREGA O SAVE DA FASE -->
+            <button class="menu-btn" id="retry-btn" style="border-color: #ff3333; color: #ff3333;">REINICIAR FASE</button>
+            <button class="menu-btn secondary" id="menu-return-btn">VOLTAR MENU</button>
+        </div>
+    </div>
+
+    <!-- TELA DE FASE COMPLETADA -->
+    <div id="level-complete-screen">
+        <div class="menu-content" style="border-color: var(--canaa-gold);">
+            <h1 style="color: var(--canaa-gold); margin: 0;">ÁREA SEGURA</h1>
+            <p style="color: #ccc; font-family: 'Rajdhani'; margin: 20px 0;">Nível Concluído. Progresso Salvo.</p>
+            <button class="menu-btn" id="continue-btn" style="border-color: var(--canaa-gold); color: #fff; background: rgba(255,215,0,0.2);">CONTINUAR OPERAÇÃO</button>
         </div>
     </div>
 
@@ -329,8 +361,6 @@
                     <div class="coin-edge" style="transform: translateZ(14px)"></div>
                     <div class="coin-edge" style="transform: translateZ(17px)"></div>
                     <div class="coin-edge" style="transform: translateZ(19px)"></div>
-
-                    <!-- FRENTE -->
                     <div class="coin-face front">
                         <div class="layer-base">
                             <svg viewBox="0 0 400 400" class="svg-content">
@@ -355,8 +385,6 @@
                             </svg>
                         </div>
                     </div>
-
-                    <!-- VERSO -->
                     <div class="coin-face back">
                         <div class="layer-base">
                             <svg viewBox="0 0 400 400" class="svg-content">
@@ -384,31 +412,11 @@
             `;
         }
 
-        // --- SHADERS PARA O CÉU REALISTA ---
-        const _VS = `
-            varying vec3 vWorldPosition;
-            void main() {
-                vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
-                vWorldPosition = worldPosition.xyz;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-            }
-        `;
+        // --- SHADERS E GLOBAIS ---
+        const _VS = `varying vec3 vWorldPosition; void main() { vec4 worldPosition = modelMatrix * vec4( position, 1.0 ); vWorldPosition = worldPosition.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
+        const _FS = `uniform vec3 topColor; uniform vec3 bottomColor; uniform float offset; uniform float exponent; varying vec3 vWorldPosition; void main() { float h = normalize( vWorldPosition + offset ).y; gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h, 0.0 ), exponent ), 0.0 ) ), 1.0 ); }`;
 
-        const _FS = `
-            uniform vec3 topColor;
-            uniform vec3 bottomColor;
-            uniform float offset;
-            uniform float exponent;
-            varying vec3 vWorldPosition;
-            void main() {
-                float h = normalize( vWorldPosition + offset ).y;
-                gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h, 0.0 ), exponent ), 0.0 ) ), 1.0 );
-            }
-        `;
-
-        // --- Globais ---
-        let scene, camera, renderer;
-        let skyMesh, skyUniforms; 
+        let scene, camera, renderer, skyMesh, skyUniforms; 
         const bulletRaycaster = new THREE.Raycaster(); 
         const aimRaycaster = new THREE.Raycaster();
         const occlusionRaycaster = new THREE.Raycaster();
@@ -418,37 +426,23 @@
         let score = 0, playerHP = 100, isPlaying = false, isPC = true, gamePaused = false;
         let currentLevel = 1;
         const maxLevels = 5;
-        
-        // LOGICA DE OBJETOS HTML NO MUNDO 3D
         let trackedHtmlObjects = []; 
-
         let settings = { fov: 70, sens: 0.003, volume: 0.5, isEditing: false };
 
         const GRAVITY = 0.015;
         const JUMP_FORCE = 0.25;
-
         const mazeSize = 20, cellSize = 5;
         const mazeMap = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,1],
-            [1,0,1,1,1,0,1,0,1,1,0,1,0,1,1,1,1,1,0,1],
-            [1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1],
-            [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0,1],
-            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
-            [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1],
-            [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
-            [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,1],
-            [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1],
-            [1,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
-            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
-            [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0,1],
-            [1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,1],
-            [1,0,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1],
-            [1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], [1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,0,1,0,1,1,0,1,0,1,1,1,1,1,0,1], [1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0,1], [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+            [1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1], [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1], [1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,1], [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1],
+            [1,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,0,1], [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0,1], [1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,1],
+            [1,0,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,0,1], [1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1], [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
         let isThirdPerson = true, isAiming = false, isManualFiring = false;
@@ -457,177 +451,129 @@
         let lastShotTime = 0, lastStepTime = 0;
         let minimapCanvas, minimapCtx;
         
+        // --- AUDIO ---
         let audioCtx;
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        // --- SISTEMA DE MÚSICA PROCEDURAL (ESTILO TOP GEAR) ---
-        let isMusicPlaying = false;
-        let nextNoteTime = 0;
-        let current16thNote = 0;
-        let musicTimerID = null;
-        let currentBar = 0;
+        // --- SISTEMA DE SAVE ---
+        function saveProgress() {
+            const saveData = {
+                level: currentLevel,
+                score: score,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('canaa_combat_save', JSON.stringify(saveData));
+            console.log("Jogo Salvo!", saveData);
+        }
 
-        // Frequencias (Oitavas)
+        function loadProgress() {
+            const saved = localStorage.getItem('canaa_combat_save');
+            if(saved) return JSON.parse(saved);
+            return null;
+        }
+
+        // --- MÚSICA (TOP GEAR STYLE) ---
+        let isMusicPlaying = false, nextNoteTime = 0, current16thNote = 0, musicTimerID = null, currentBar = 0;
         const Notes = {
             C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
             C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94, 
             C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, 
             C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00,
-            D6: 1174.66,
-            E1: 41.20, A1: 55.00
+            D6: 1174.66, E1: 41.20, A1: 55.00
         };
 
         function startMusic() {
             if (isMusicPlaying) return;
             if (!audioCtx) initAudio();
-            
-            // Retoma contexto de áudio se estiver suspenso
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             isMusicPlaying = true;
             nextNoteTime = audioCtx.currentTime;
-            current16thNote = 0;
-            currentBar = 0;
+            current16thNote = 0; currentBar = 0;
             scheduler();
         }
 
-        function stopMusic() {
-            isMusicPlaying = false;
-            clearTimeout(musicTimerID);
-        }
+        function stopMusic() { isMusicPlaying = false; clearTimeout(musicTimerID); }
 
         function scheduler() {
             if (!isMusicPlaying) return;
-            // Aumentado lookahead para 0.2s para evitar gaps
             while (nextNoteTime < audioCtx.currentTime + 0.2) {
                 playStep(nextNoteTime);
                 scheduleNextStep();
             }
-            musicTimerID = setTimeout(scheduler, 50); // Aumentado intervalo para reduzir carga
+            musicTimerID = setTimeout(scheduler, 50);
         }
 
         function scheduleNextStep() {
-            const secondsPerBeat = 60.0 / 160; // 160 BPM
+            const secondsPerBeat = 60.0 / 160; 
             nextNoteTime += 0.25 * secondsPerBeat;
             current16thNote++;
             if (current16thNote === 16) {
                 current16thNote = 0;
-                currentBar = (currentBar + 1) % 4; // 4 Bar Loop
+                currentBar = (currentBar + 1) % 4; 
             }
         }
 
         function playStep(time) {
             const vol = settings.volume * 0.35;
-            
             let bassFreq, rootNote, third, fifth, octave;
-            let oscType = 'sawtooth'; // Default Lead
+            let oscType = 'sawtooth';
 
-            // --- VARIAÇÃO POR FASE ---
             if (currentLevel === 1) { 
-                // FASE 1: FLORESTA (Top Gear Classic - Minor/Fast)
                 if (currentBar === 0) { bassFreq = Notes.E2; rootNote = Notes.E4; third = Notes.G4; fifth = Notes.B4; octave = Notes.E5; }
                 else if (currentBar === 1) { bassFreq = Notes.C2; rootNote = Notes.C4; third = Notes.E4; fifth = Notes.G4; octave = Notes.C5; }
                 else if (currentBar === 2) { bassFreq = Notes.G2; rootNote = Notes.G3; third = Notes.B3; fifth = Notes.D4; octave = Notes.G4; }
                 else { bassFreq = Notes.D2; rootNote = Notes.D4; third = Notes.A4; fifth = Notes.D5; octave = Notes.A5; }
-            } 
-            else if (currentLevel === 2) {
-                // FASE 2: DESERTO (Phrygian/Exotic - Square Waves)
+            } else if (currentLevel >= 2) {
                 oscType = 'square';
-                if (currentBar === 0) { bassFreq = Notes.E2; rootNote = Notes.E4; third = Notes.G4; fifth = Notes.C5; octave = Notes.E5; } // Phrygian feel
+                if (currentBar === 0) { bassFreq = Notes.E2; rootNote = Notes.E4; third = Notes.G4; fifth = Notes.C5; octave = Notes.E5; }
                 else if (currentBar === 1) { bassFreq = Notes.F2; rootNote = Notes.F4; third = Notes.A4; fifth = Notes.C5; octave = Notes.F5; }
                 else if (currentBar === 2) { bassFreq = Notes.G2; rootNote = Notes.G4; third = Notes.B4; fifth = Notes.D5; octave = Notes.G5; }
                 else { bassFreq = Notes.A2; rootNote = Notes.A4; third = Notes.C5; fifth = Notes.E5; octave = Notes.A5; }
             }
-            else if (currentLevel === 3) {
-                // FASE 3: GELO (Sine/Triangle - Crystal/High)
-                oscType = 'triangle';
-                // Progressão mais "aberta"
-                if (currentBar === 0) { bassFreq = Notes.A2; rootNote = Notes.A4; third = Notes.C5; fifth = Notes.E5; octave = Notes.A5; }
-                else if (currentBar === 1) { bassFreq = Notes.D3; rootNote = Notes.D5; third = Notes.F5; fifth = Notes.A5; octave = Notes.D6; }
-                else if (currentBar === 2) { bassFreq = Notes.F2; rootNote = Notes.F4; third = Notes.A4; fifth = Notes.C5; octave = Notes.F5; }
-                else { bassFreq = Notes.E2; rootNote = Notes.E4; third = Notes.G4; fifth = Notes.B4; octave = Notes.E5; }
-            }
-             else if (currentLevel >= 4) {
-                // FASE 4/5: LAVA/VOID (Distorcido/Rápido/Caótico)
-                // Aumenta o tempo se possível, ou usa notas dissonantes
-                oscType = 'sawtooth';
-                if (currentBar === 0) { bassFreq = Notes.E1; rootNote = Notes.E3; third = Notes.A3; fifth = Notes.C4; octave = Notes.E4; } // Diminished-ish
-                else if (currentBar === 1) { bassFreq = Notes.E1; rootNote = Notes.E3; third = Notes.A3; fifth = Notes.C4; octave = Notes.E4; }
-                else if (currentBar === 2) { bassFreq = Notes.F2; rootNote = Notes.F3; third = Notes.A3; fifth = Notes.C4; octave = Notes.F4; }
-                else { bassFreq = Notes.B2; rootNote = Notes.B3; third = Notes.D4; fifth = Notes.F4; octave = Notes.B4; }
+
+            if (current16thNote % 2 === 0 && bassFreq && isFinite(bassFreq)) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'square'; osc.frequency.value = bassFreq;
+                if (current16thNote % 4 !== 0) osc.frequency.value *= 2; 
+                gain.gain.setValueAtTime(vol * 0.7, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                osc.start(time); osc.stop(time + 0.1);
             }
 
-
-            // --- BAIXO ---
-            if (current16thNote % 2 === 0) { // Colcheias
-                if (bassFreq && isFinite(bassFreq)) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.type = 'square'; // Baixo sempre "gordo"
-                    osc.frequency.value = bassFreq;
-                    
-                    // Variação de oitava no contra-tempo
-                    if (current16thNote % 4 !== 0) osc.frequency.value *= 2; 
-
-                    gain.gain.setValueAtTime(vol * 0.7, time);
-                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-                    osc.start(time); osc.stop(time + 0.1);
-                }
-            }
-
-            // --- BATERIA ---
             if (current16thNote % 4 === 0) { 
                 const isSnare = (current16thNote % 8 !== 0); 
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                if (isSnare) { // Snare
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(300, time);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                if (isSnare) { 
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(300, time);
                     osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
-                    gain.gain.setValueAtTime(vol * 0.5, time);
-                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
-                } else { // Kick
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(150, time);
+                    gain.gain.setValueAtTime(vol * 0.5, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
+                } else { 
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(150, time);
                     osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-                    gain.gain.setValueAtTime(vol * 0.9, time);
-                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+                    gain.gain.setValueAtTime(vol * 0.9, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
                 }
                 osc.start(time); osc.stop(time + 0.5);
             }
 
-            // --- ARPEJO (LEAD) ---
             const arpIndex = current16thNote % 4;
             let note;
-            if (arpIndex === 0) note = rootNote;
-            else if (arpIndex === 1) note = fifth;
-            else if (arpIndex === 2) note = octave;
-            else note = third; 
+            if (arpIndex === 0) note = rootNote; else if (arpIndex === 1) note = fifth; else if (arpIndex === 2) note = octave; else note = third; 
             
             if (note && isFinite(note)) {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.type = oscType; // Muda conforme a fase
-                osc.frequency.value = note;
-                
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = oscType; osc.frequency.value = note;
                 gain.gain.setValueAtTime(vol * 0.25, time);
                 gain.gain.exponentialRampToValueAtTime(0.01, time + 0.12);
-                
-                osc.start(time);
-                osc.stop(time + 0.12);
+                osc.start(time); osc.stop(time + 0.12);
             }
         }
 
