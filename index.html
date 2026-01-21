@@ -127,12 +127,10 @@
         .menu-btn.danger { border-color: #ff3333; color: #ff3333; }
         .menu-btn.danger:hover { background: #ff3333; color: white; box-shadow: 0 0 15px #ff3333; }
 
-        /* Badge Em Breve */
-        .coming-soon-btn { position: relative; opacity: 0.7; cursor: not-allowed !important; border-color: #666; color: #888; }
-        .coming-soon-btn:hover { background: transparent; color: #888; box-shadow: none; }
-        .badge {
+        /* Badge Em Breve - Modificado para Online */
+        .online-badge {
             position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
-            background: var(--canaa-gold); color: #000; font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: 900;
+            background: var(--canaa-green); color: #000; font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: 900;
         }
 
         /* Aviso de rotação no menu */
@@ -187,6 +185,11 @@
         }
         #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-shadow: inset 0 0 0 0 rgba(255,0,0,0); pointer-events: none; transition: box-shadow 0.1s; z-index: 5; }
         
+        #multiplayer-status {
+            position: absolute; top: 55px; left: 120px; color: #00f3ff; font-family: 'Rajdhani', monospace; font-size: 12px; font-weight: bold;
+            display: none; text-shadow: 0 0 5px #00f3ff; z-index: 21;
+        }
+
         #top-bar { position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 101; }
         #pause-btn { position: absolute; top: 20px; right: 20px; z-index: 150; pointer-events: auto; display: none; cursor: pointer; }
         .icon-btn {
@@ -251,6 +254,7 @@
             NV: <span id="level-display">1</span>/5 |
             KILLS: <span id="score">0</span> / <span id="total-enemies">0</span>
         </div>
+        <div id="multiplayer-status">ONLINE: <span id="mp-count">0</span> JOGADORES</div>
         <div id="level-indicator">NÍVEL 1</div>
         <div id="pause-btn" class="icon-btn">⚙️</div>
     </div>
@@ -271,9 +275,9 @@
             
             <h1>CANAÃ<br><span style="font-size: 0.6em; color: white;">ZONA DE COMBATE</span></h1>
             <button class="menu-btn" id="play-btn">INICIAR MISSÃO</button>
-            <button class="menu-btn coming-soon-btn">
+            <button class="menu-btn" id="multiplayer-btn" style="border-color: #00f3ff; color: #00f3ff;">
                 MULTIPLAYER
-                <span class="badge">EM BREVE</span>
+                <span class="online-badge" style="background: #00f3ff; color: #000;">ONLINE</span>
             </button>
             <button class="menu-btn secondary" id="settings-btn">SISTEMAS</button>
             
@@ -341,6 +345,36 @@
 
     <script type="module">
         import * as THREE from 'three';
+        // --- FIREBASE IMPORTS ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, set, update, onValue, remove, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAF7cOVw5tCc5aNKRev8r2BHvhfNlfhvNE",
+            authDomain: "residencial-canaa.firebaseapp.com",
+            projectId: "residencial-canaa",
+            databaseURL: "https://residencial-canaa-default-rtdb.firebaseio.com/",
+            storageBucket: "residencial-canaa.firebasestorage.app",
+            messagingSenderId: "885073733262",
+            appId: "1:885073733262:web:84e6bc69d0df3918b7cbdf",
+            measurementId: "G-GC3PF7ZZPB"
+        };
+        const APP_ID = "canaa-combat-multiplayer-v1"; // Nome único para não conflitar
+        const ROOM_ID = "lobby_principal";
+        
+        // Inicializa Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Vars Multiplayer
+        let myUserId = null;
+        let myDocRef = null;
+        let remotePlayers = {}; // Armazena os meshes e dados dos outros jogadores
+        let isMultiplayerMode = false;
+        let networkInterval = null;
 
         // --- GERAÇÃO DE CÓDIGO HTML DA MOEDA ---
         function getCoinHTML() {
@@ -1046,9 +1080,135 @@
             }
         }
 
-        function resetGame() {
+        // ================================================================
+        // LÓGICA DE REDE (MULTIPLAYER)
+        // ================================================================
+        
+        async function connectMultiplayer() {
+            if(myUserId) return; // Já conectado
+
+            try {
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        myUserId = user.uid;
+                        setupPresence();
+                    }
+                });
+            } catch (error) {
+                console.error("Erro Multiplayer:", error);
+                alert("Falha ao conectar no servidor. Verifique a internet.");
+            }
+        }
+
+        function setupPresence() {
+            myDocRef = ref(db, `artifacts/${APP_ID}/public/${ROOM_ID}/${myUserId}`);
+            onDisconnect(myDocRef).remove();
+
+            set(myDocRef, {
+                id: myUserId,
+                x: 5, y: 0, z: 5, rot: 0,
+                lastUpdate: serverTimestamp()
+            });
+
+            // Loop de Envio (Heartbeat) - 20x por segundo
+            networkInterval = setInterval(() => {
+                if (!myDocRef || !isPlaying) return;
+                
+                update(myDocRef, {
+                    x: parseFloat(playerGroup.position.x.toFixed(2)),
+                    y: parseFloat(playerGroup.position.y.toFixed(2)),
+                    z: parseFloat(playerGroup.position.z.toFixed(2)),
+                    rot: parseFloat(yaw.toFixed(2)),
+                    lastUpdate: serverTimestamp()
+                }).catch(() => {});
+            }, 50);
+
+            // Loop de Recebimento
+            const roomRef = ref(db, `artifacts/${APP_ID}/public/${ROOM_ID}`);
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                const now = Date.now();
+                let onlineCount = 0;
+
+                // Identifica jogadores ativos
+                const activeIds = new Set();
+
+                Object.keys(data).forEach(key => {
+                    if (key === myUserId) return;
+                    const p = data[key];
+                    
+                    // Filtro de Lag (5s sem update = morto/off)
+                    if (p.lastUpdate && (now - p.lastUpdate < 5000)) {
+                        activeIds.add(key);
+                        onlineCount++;
+                        updateRemotePlayer(key, p);
+                    }
+                });
+
+                document.getElementById('mp-count').innerText = onlineCount;
+
+                // Remove jogadores que desconectaram
+                Object.keys(remotePlayers).forEach(key => {
+                    if(!activeIds.has(key)) {
+                        scene.remove(remotePlayers[key].mesh);
+                        delete remotePlayers[key];
+                    }
+                });
+            });
+        }
+
+        function createRemotePlayerMesh() {
+            const group = new THREE.Group();
+            
+            // Corpo (Vermelho para distinguir)
+            const body = new THREE.Mesh(
+                new THREE.CapsuleGeometry(0.4, 1, 4, 8),
+                new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.3, metalness: 0.5 })
+            );
+            body.position.y = 0.9;
+            group.add(body);
+
+            // Arma
+            const gun = new THREE.Mesh(
+                new THREE.BoxGeometry(0.12, 0.18, 0.6),
+                new THREE.MeshStandardMaterial({ color: 0x111111 })
+            );
+            gun.position.set(0.35, 0.45, -0.2);
+            group.add(gun);
+
+            // Nome Flutuante (Simples)
+            // (Poderia ser HTML overlay, mas vamos manter simples por enquanto)
+            
+            return group;
+        }
+
+        function updateRemotePlayer(id, data) {
+            if(!remotePlayers[id]) {
+                // Novo Jogador entrou
+                const mesh = createRemotePlayerMesh();
+                mesh.position.set(data.x, data.y, data.z);
+                scene.add(mesh);
+                remotePlayers[id] = { mesh: mesh, targetPos: new THREE.Vector3(data.x, data.y, data.z), targetRot: data.rot };
+            } else {
+                // Atualiza alvo para interpolação
+                const rp = remotePlayers[id];
+                rp.targetPos.set(data.x, data.y, data.z);
+                rp.targetRot = data.rot;
+            }
+        }
+
+        // ================================================================
+
+        function resetGame(mode = 'single') {
             currentLevel = 1;
             playerHP = 100; score = 0; velocityY = 0;
+            
+            isMultiplayerMode = (mode === 'multi');
+            
+            // UI
             document.getElementById('hp').innerText = playerHP;
             document.getElementById('score').innerText = score;
             document.getElementById('level-display').innerText = currentLevel;
@@ -1057,37 +1217,40 @@
             document.getElementById('pause-btn').style.display = 'flex';
             document.getElementById('damage-overlay').style.boxShadow = "none";
             
+            document.getElementById('multiplayer-status').style.display = isMultiplayerMode ? 'block' : 'none';
+
+            // Reset Posição
             playerGroup.position.set(5, 0, 5);
             createWorld(currentLevel);
-            spawnEnemies(15, currentLevel);
-            spawnHealthKits(6);
+            
+            if(isMultiplayerMode) {
+                enemies.forEach(e => scene.remove(e)); enemies = []; // Sem bots no multi por enquanto
+                healthKits.forEach(k => scene.remove(k)); healthKits = [];
+                connectMultiplayer();
+            } else {
+                spawnEnemies(15, currentLevel);
+                spawnHealthKits(6);
+            }
+
             setupSkyLogo();
             
             isPlaying = true;
             gamePaused = false;
             
-            startMusic(); // Start music on reset
+            startMusic(); 
 
             const indicator = document.getElementById('level-indicator');
-            indicator.innerText = "NÍVEL " + currentLevel;
+            indicator.innerText = isMultiplayerMode ? "ONLINE" : "NÍVEL " + currentLevel;
             indicator.style.display = 'block';
             setTimeout(() => indicator.style.display = 'none', 3000);
 
-            // CORREÇÃO: Tratamento de erro para Fullscreen e PointerLock
             if(!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log("Fullscreen bloqueado pelo navegador (ignorado):", err);
-                });
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
             }
             
             if(isPC) {
-                // Pequeno delay ajuda a evitar conflitos de foco
                 setTimeout(() => {
-                    try {
-                        document.body.requestPointerLock();
-                    } catch(e) {
-                        console.log("Pointer lock bloqueado (ignorado):", e);
-                    }
+                    try { document.body.requestPointerLock(); } catch(e) {}
                 }, 50);
             }
             
@@ -1100,7 +1263,7 @@
 
         function showGameOver() {
             isPlaying = false;
-            stopMusic(); // Stop music on game over
+            stopMusic(); 
             document.exitPointerLock();
             document.getElementById('game-over-screen').style.display = 'flex';
             document.getElementById('mobile-ui').style.display = 'none';
@@ -1109,7 +1272,16 @@
 
         function setupUI() {
             document.getElementById('play-btn').onclick = () => {
-                resetGame();
+                resetGame('single');
+                document.getElementById('main-menu').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                document.getElementById('crosshair').style.display = 'block';
+                if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
+            };
+
+            // BOTÃO MULTIPLAYER ATIVADO
+            document.getElementById('multiplayer-btn').onclick = () => {
+                resetGame('multi');
                 document.getElementById('main-menu').style.display = 'none';
                 document.getElementById('hud').style.display = 'block';
                 document.getElementById('crosshair').style.display = 'block';
@@ -1122,13 +1294,10 @@
                 document.getElementById('settings-view').style.display = 'block';
                 document.getElementById('start-view').style.display = 'none';
                 document.getElementById('main-menu').style.display = 'flex'; 
-                
-                // Ativa modo pausa (sem glitch)
                 document.getElementById('main-menu').classList.add('paused-mode');
-                stopMusic(); // Stop music on pause
+                stopMusic(); 
             });
 
-            // Botão Abortar Missão
             document.getElementById('abort-mission-btn').onclick = () => {
                  document.getElementById('settings-view').style.display = 'none';
                  document.getElementById('hud').style.display = 'none';
@@ -1136,23 +1305,24 @@
                  document.getElementById('crosshair').style.display = 'none';
                  document.getElementById('main-menu').style.display = 'flex';
                  document.getElementById('start-view').style.display = 'block';
-                 
-                 // Remove classe no-scan para o menu principal normal
                  document.getElementById('main-menu').classList.remove('paused-mode');
 
-                 isPlaying = false;
-                 gamePaused = false;
-                 stopMusic(); // Stop music on abort
-                 scene.add(camera); // Reseta câmera para animação do menu
+                 isPlaying = false; gamePaused = false; stopMusic(); 
+                 scene.add(camera);
+                 
+                 // Limpa Multiplayer
+                 if(myDocRef) remove(myDocRef);
             };
 
             document.getElementById('retry-btn').onclick = () => {
-                resetGame(); document.getElementById('hud').style.display = 'block';
+                resetGame(isMultiplayerMode ? 'multi' : 'single'); 
+                document.getElementById('hud').style.display = 'block';
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
 
             document.getElementById('win-retry-btn').onclick = () => {
-                resetGame(); document.getElementById('hud').style.display = 'block';
+                resetGame('single'); 
+                document.getElementById('hud').style.display = 'block';
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
 
@@ -1173,16 +1343,12 @@
             document.getElementById('back-btn').onclick = () => {
                 document.getElementById('settings-view').style.display = 'none';
                 if(gamePaused) {
-                    // Voltando ao jogo
                     document.getElementById('main-menu').style.display = 'none';
                     document.getElementById('hud').style.display = 'block';
                     document.getElementById('crosshair').style.display = 'block';
                     if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
-                    
                     document.getElementById('main-menu').classList.remove('paused-mode');
-
-                    isPlaying = true; gamePaused = false;
-                    startMusic(); // Resume music
+                    isPlaying = true; gamePaused = false; startMusic(); 
                     if(isPC) document.body.requestPointerLock();
                 } else {
                     document.getElementById('start-view').style.display = 'block';
@@ -1342,16 +1508,9 @@
             const gunTipPos = new THREE.Vector3();
             gunGroup.getObjectByName("flash").getWorldPosition(gunTipPos);
 
-            // CORREÇÃO: Pegar interseções de mira com TUDO (Recursivo)
-            // Isso garante que atirar na cabeça/arma do inimigo também conte como mira válida
             aimRaycaster.setFromCamera({ x: 0, y: 0 }, camera);
             const interactables = [...walls, ...enemies];
             const intersections = aimRaycaster.intersectObjects(interactables, true);
-            
-            // --- CORREÇÃO DE ALINHAMENTO "SIMPLES" (DOOM STYLE) ---
-            // A bala sai um pouco na frente da CÂMERA (olhos) e vai na direção da MIRA.
-            // Isso garante 100% de alinhamento visual com o crosshair.
-            // O flash continua na arma para efeito visual.
             
             const cameraPos = new THREE.Vector3();
             camera.getWorldPosition(cameraPos);
@@ -1359,8 +1518,6 @@
             const cameraDir = new THREE.Vector3();
             camera.getWorldDirection(cameraDir);
             
-            // Posição inicial: Câmera + um pouco pra frente (para não colidir com player)
-            // Deslocado levemente para a direita (0.2) e baixo (0.1) para simular que sai "do ombro/arma" mas alinhado
             const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
             const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
             
@@ -1370,8 +1527,6 @@
                 .add(up.multiplyScalar(-0.1));   // 10cm baixo
             
             bullet.position.copy(spawnPos);
-            
-            // Direção: Exatamente onde a câmera aponta
             bullet.userData = { velocity: cameraDir.multiplyScalar(5.0), life: 300 };
             
             scene.add(bullet);
@@ -1388,7 +1543,7 @@
             let activeEnemies = 0;
             enemies.forEach(e => { if(!e.userData.dead) activeEnemies++; });
 
-            if(activeEnemies === 0 && isPlaying) {
+            if(activeEnemies === 0 && isPlaying && !isMultiplayerMode) {
                 nextLevel();
                 return;
             }
@@ -1408,33 +1563,33 @@
                 bulletRaycaster.set(prevPos, dir);
                 bulletRaycaster.far = dist; 
                 
-                // Verifica colisão com INIMIGOS
-                const hits = bulletRaycaster.intersectObjects(enemies, true);
+                // Verifica colisão com INIMIGOS (BOTS)
+                if(!isMultiplayerMode) {
+                    const hits = bulletRaycaster.intersectObjects(enemies, true);
 
-                if (hits.length > 0) {
-                    let hitObj = hits[0].object;
-                    // Sobe na hierarquia até achar o objeto pai com os dados do inimigo
-                    while(hitObj.parent && !hitObj.userData.isEnemyRoot) hitObj = hitObj.parent;
+                    if (hits.length > 0) {
+                        let hitObj = hits[0].object;
+                        while(hitObj.parent && !hitObj.userData.isEnemyRoot) hitObj = hitObj.parent;
 
-                    if (hitObj.userData.isEnemyRoot && !hitObj.userData.dead) {
-                        hitObj.userData.hp -= 25; 
-                        triggerHitMarker();
-                        
-                        // CORREÇÃO: Buscar pelo nome para garantir que o corpo pisque, não o hitbox invisível
-                        const bodyMesh = hitObj.getObjectByName("body"); 
-                        if(bodyMesh && bodyMesh.material) {
-                            const oldEmissive = bodyMesh.material.emissive.getHex();
-                            bodyMesh.material.emissive.setHex(0xff0000);
-                            setTimeout(() => { if(bodyMesh) bodyMesh.material.emissive.setHex(oldEmissive); }, 100);
+                        if (hitObj.userData.isEnemyRoot && !hitObj.userData.dead) {
+                            hitObj.userData.hp -= 25; 
+                            triggerHitMarker();
+                            
+                            const bodyMesh = hitObj.getObjectByName("body"); 
+                            if(bodyMesh && bodyMesh.material) {
+                                const oldEmissive = bodyMesh.material.emissive.getHex();
+                                bodyMesh.material.emissive.setHex(0xff0000);
+                                setTimeout(() => { if(bodyMesh) bodyMesh.material.emissive.setHex(oldEmissive); }, 100);
+                            }
+
+                            if(hitObj.userData.hp <= 0) {
+                                hitObj.userData.dead = true;
+                                hitObj.scale.y = 0.2; hitObj.position.y = 0.1;
+                                score++; 
+                                document.getElementById('score').innerText = score;
+                            }
+                            hitSomething = true;
                         }
-
-                        if(hitObj.userData.hp <= 0) {
-                            hitObj.userData.dead = true;
-                            hitObj.scale.y = 0.2; hitObj.position.y = 0.1;
-                            score++; 
-                            document.getElementById('score').innerText = score;
-                        }
-                        hitSomething = true;
                     }
                 }
 
@@ -1468,6 +1623,7 @@
         }
 
         function updateEnemies() {
+            if(isMultiplayerMode) return; // Desativa IA de bots no multiplayer por enquanto
             const now = performance.now();
             enemies.forEach(en => {
                 if(en.userData.dead) return;
@@ -1529,14 +1685,23 @@
             minimapCtx.fillStyle = '#555';
             for(let i=0; i<mazeSize; i++) for(let j=0; j<mazeSize; j++) if(mazeMap[i][j] === 1) minimapCtx.fillRect(j*cellSize*s, i*cellSize*s, cellSize*s, cellSize*s);
             
-            // Kits Médicos (Pontos verdes no mapa) - Voltou a iterar healthKits
+            // Kits Médicos
             minimapCtx.fillStyle = '#00FF41'; 
             healthKits.forEach(k => { 
                 minimapCtx.fillRect(k.position.x*s, k.position.z*s, 3, 3); 
             });
 
-            // Inimigos
-            minimapCtx.fillStyle = '#f33'; enemies.forEach(e => { if(!e.userData.dead) minimapCtx.fillRect(e.position.x*s, e.position.z*s, 3, 3); });
+            // Inimigos (Bots) ou Players (Multiplayer)
+            minimapCtx.fillStyle = '#f33'; 
+            if(isMultiplayerMode) {
+                // Desenha pontos para jogadores remotos
+                Object.keys(remotePlayers).forEach(k => {
+                   const rp = remotePlayers[k];
+                   minimapCtx.fillRect(rp.mesh.position.x*s, rp.mesh.position.z*s, 3, 3);
+                });
+            } else {
+                enemies.forEach(e => { if(!e.userData.dead) minimapCtx.fillRect(e.position.x*s, e.position.z*s, 3, 3); });
+            }
             
             // Player
             minimapCtx.fillStyle = '#fff'; // Branco
@@ -1586,6 +1751,19 @@
                 }
                 
                 gunGroup.position.z = (isThirdPerson ? -0.5 : -0.4) + gunRecoilZ;
+                
+                // INTERPOLAÇÃO MULTIPLAYER (Suavização de movimento dos outros)
+                if(isMultiplayerMode) {
+                    Object.values(remotePlayers).forEach(rp => {
+                        rp.mesh.position.lerp(rp.targetPos, 0.2); // Suaviza posição (0.2 = velocidade de ajuste)
+                        // Suaviza rotação (Menor a diferença angular para evitar giros malucos)
+                        let rotDiff = rp.targetRot - rp.mesh.rotation.y;
+                        while(rotDiff > Math.PI) rotDiff -= Math.PI*2;
+                        while(rotDiff < -Math.PI) rotDiff += Math.PI*2;
+                        rp.mesh.rotation.y += rotDiff * 0.2;
+                    });
+                }
+
                 processShooting(); updateEnemies(); updateHealthKits(); drawMinimap(); updateBullets();
                 updateHtmlObjects(); // ATUALIZA POSIÇÃO DA LOGO NO CÉU
             } else {
