@@ -39,7 +39,6 @@
         .rotate-icon { font-size: 50px; animation: rotateDevice 2s infinite ease-in-out; }
         @keyframes rotateDevice { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
         
-        /* Mostra overlay apenas em retrato em dispositivos móveis */
         @media screen and (orientation: portrait) and (max-width: 900px) {
             #rotate-overlay { display: flex; }
         }
@@ -79,7 +78,7 @@
         .shine-effect { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,215,0,0.15) 0%, transparent 60%); pointer-events: none; z-index: -1; }
 
         /* --- UI & MENUS --- */
-        #main-menu, #game-over-screen, #win-screen, #level-complete-screen {
+        #main-menu, #game-over-screen, #win-screen, #level-complete-screen, #lobby-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             color: white; z-index: 200;
@@ -89,7 +88,7 @@
             animation: bgScan 10s linear infinite;
         }
 
-        #level-complete-screen { display: none; z-index: 202; }
+        #level-complete-screen, #lobby-screen { display: none; z-index: 202; }
 
         #main-menu.paused-mode {
             animation: none !important; background-image: none !important; background-color: #050505 !important; opacity: 1 !important;
@@ -126,38 +125,39 @@
         .menu-btn.secondary:hover { background: var(--canaa-copper); color: #000; box-shadow: 0 0 15px var(--canaa-copper); }
         .menu-btn.danger { border-color: #ff3333; color: #ff3333; }
         .menu-btn.danger:hover { background: #ff3333; color: white; box-shadow: 0 0 15px #ff3333; }
+        .menu-btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: #555; color: #555; }
 
-        /* Badge Em Breve - Modificado para Online */
+        /* Estilos do Lobby */
+        #lobby-player-list {
+            background: rgba(0, 0, 0, 0.5); border: 1px solid #333; padding: 10px; margin: 10px 0;
+            max-height: 150px; overflow-y: auto; text-align: left; font-size: 12px; color: #ccc;
+        }
+        .lobby-player-item { padding: 5px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+        .lobby-player-item.me { color: var(--canaa-green); font-weight: bold; }
+        
+        #connection-log {
+            font-size: 10px; color: #aaa; text-align: left; background: #000; padding: 5px;
+            margin-top: 10px; border: 1px solid #333; height: 60px; overflow-y: auto; font-family: monospace;
+        }
+        .log-error { color: #ff3333; }
+        .log-success { color: #00FF41; }
+
         .online-badge {
             position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
             background: var(--canaa-green); color: #000; font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: 900;
         }
 
-        /* Aviso de rotação no menu */
         .rotation-alert {
             display: none;
-            background: rgba(255, 215, 0, 0.15);
-            border: 1px dashed var(--canaa-gold);
-            color: var(--canaa-gold);
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            animation: pulseAlert 2s infinite;
+            background: rgba(255, 215, 0, 0.15); border: 1px dashed var(--canaa-gold); color: var(--canaa-gold);
+            padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 0.9em; animation: pulseAlert 2s infinite;
         }
         @keyframes pulseAlert { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
         
-        /* Aparece apenas em retrato */
-        @media screen and (orientation: portrait) {
-            .rotation-alert { display: block; }
-        }
-
-        /* Configurações Compactas */
         .setting-row { margin: 8px 0; text-align: left; }
         .setting-row label { display: block; font-size: 12px; margin-bottom: 2px; color: var(--canaa-gold); font-family: 'Rajdhani', sans-serif; font-weight: bold; }
         input[type="range"] { width: 100%; height: 5px; accent-color: var(--canaa-green); cursor: pointer; }
 
-        /* Footer */
         .menu-footer {
             margin-top: 20px; font-size: 10px; color: #666; font-family: 'Rajdhani'; letter-spacing: 1px; text-transform: uppercase;
             border-top: 1px solid #333; padding-top: 10px; width: 100%;
@@ -268,7 +268,6 @@
 
     <div id="main-menu">
         <div class="menu-content" id="start-view">
-            <!-- Aviso de Rotação integrado (CSS controla a exibição) -->
             <div class="rotation-alert">
                 📱 GIRE SEU DISPOSITIVO PARA JOGAR
             </div>
@@ -281,7 +280,6 @@
             </button>
             <button class="menu-btn secondary" id="settings-btn">SISTEMAS</button>
             
-            <!-- RODAPÉ -->
             <div class="menu-footer">
                 Sabor Açaiteria &nbsp;|&nbsp; Canaã dos Carajás 2026
             </div>
@@ -307,17 +305,39 @@
         </div>
     </div>
 
+    <!-- LOBBY SCREEN -->
+    <div id="lobby-screen">
+        <div class="menu-content" style="border-color: #00f3ff; width: 400px; max-width: 90%;">
+            <h1 style="color: #00f3ff; margin-bottom: 10px;">SALA DE OPERAÇÕES</h1>
+            <div style="font-family: 'Rajdhani'; color: #aaa; margin-bottom: 15px;">
+                Status: <span id="connection-status" style="color: #ffff00">Aguardando...</span>
+            </div>
+            
+            <div style="text-align: left; margin-bottom: 5px; color: #fff;">Operadores Online:</div>
+            <div id="lobby-player-list">
+                <!-- Lista de jogadores via JS -->
+                <div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Procurando sinal...</div>
+            </div>
+
+            <div style="text-align: left; margin-top: 10px; color: #fff; font-size: 10px;">LOG DE SISTEMA (DEBUG):</div>
+            <div id="connection-log"></div>
+
+            <button class="menu-btn" id="start-mp-btn" disabled style="margin-top: 20px; border-color: #00f3ff; color: #00f3ff;">
+                INICIAR INCURSÃO
+            </button>
+            <button class="menu-btn secondary" id="lobby-back-btn">VOLTAR</button>
+        </div>
+    </div>
+
     <div id="game-over-screen">
         <div class="menu-content" style="border-color: #ff0000;">
             <h1 style="color: #ff3333; margin: 0;">SINAL PERDIDO</h1>
             <p style="color: #ccc; font-family: 'Rajdhani';">Agente eliminado em combate.</p>
-            <!-- REINICIAR SISTEMA CARREGA O SAVE DA FASE -->
             <button class="menu-btn" id="retry-btn" style="border-color: #ff3333; color: #ff3333;">REINICIAR FASE</button>
             <button class="menu-btn secondary" id="menu-return-btn">VOLTAR MENU</button>
         </div>
     </div>
 
-    <!-- TELA DE FASE COMPLETADA -->
     <div id="level-complete-screen">
         <div class="menu-content" style="border-color: var(--canaa-gold);">
             <h1 style="color: var(--canaa-gold); margin: 0;">ÁREA SEGURA</h1>
@@ -345,12 +365,11 @@
 
     <script type="module">
         import * as THREE from 'three';
-        // --- FIREBASE IMPORTS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getDatabase, ref, set, update, onValue, remove, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, onDisconnect, update, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // --- FIREBASE CONFIG ---
+        // CONFIGURAÇÃO ORIGINAL HARDCODED
         const firebaseConfig = {
             apiKey: "AIzaSyAF7cOVw5tCc5aNKRev8r2BHvhfNlfhvNE",
             authDomain: "residencial-canaa.firebaseapp.com",
@@ -361,22 +380,128 @@
             appId: "1:885073733262:web:84e6bc69d0df3918b7cbdf",
             measurementId: "G-GC3PF7ZZPB"
         };
-        const APP_ID = "canaa-combat-multiplayer-v1"; // Nome único para não conflitar
-        const ROOM_ID = "lobby_principal";
         
         // Inicializa Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getDatabase(app);
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getDatabase(app);
+            logSystem("Firebase Inicializado.", "success");
+        } catch(e) {
+            console.error(e);
+        }
 
-        // Vars Multiplayer
+        // Vars
         let myUserId = null;
-        let myDocRef = null;
-        let remotePlayers = {}; // Armazena os meshes e dados dos outros jogadores
+        let myRef = null;
+        let remotePlayers = {}; 
         let isMultiplayerMode = false;
         let networkInterval = null;
+        
+        // OTIMIZAÇÃO DE REDE
+        let lastSentPosition = new THREE.Vector3(0, 0, 0);
+        let lastSentRotation = 0;
+        let lastSentTime = 0;
+
+        function logSystem(msg, type = "normal") {
+            const el = document.getElementById("connection-log");
+            if(!el) return;
+            const line = document.createElement("div");
+            line.innerText = `> ${msg}`;
+            if(type === "error") line.className = "log-error";
+            if(type === "success") line.className = "log-success";
+            el.appendChild(line);
+            el.scrollTop = el.scrollHeight;
+        }
+
+        // --- LÓGICA DE LOBBY ---
+        function showLobby() {
+            document.getElementById("start-view").style.display = "none";
+            document.getElementById("lobby-screen").style.display = "flex";
+            
+            connectLobby();
+        }
+
+        async function connectLobby() {
+            document.getElementById("connection-status").innerText = "Autenticando...";
+            logSystem("Tentando Login Anônimo...");
+
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                logSystem("Erro Login: " + error.message, "error");
+                document.getElementById("connection-status").innerText = "Erro Auth";
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    myUserId = user.uid;
+                    document.getElementById("connection-status").innerText = "Conectado";
+                    document.getElementById("connection-status").style.color = "#00FF41";
+                    logSystem("Autenticado ID: " + myUserId.substring(0,6) + "...", "success");
+                    
+                    document.getElementById("start-mp-btn").disabled = false;
+                    
+                    // Escuta lista de jogadores para mostrar no lobby
+                    const playersRef = ref(db, 'jogadores_online');
+                    onValue(playersRef, (snapshot) => {
+                        const data = snapshot.val();
+                        renderLobbyList(data);
+                    }, (error) => {
+                        logSystem("Erro Leitura DB: " + error.message, "error");
+                    });
+
+                } else {
+                    logSystem("Usuário deslogado.", "error");
+                }
+            });
+        }
+
+        function renderLobbyList(data) {
+            const listEl = document.getElementById("lobby-player-list");
+            listEl.innerHTML = "";
+            
+            if(!data) {
+                listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador detectado.</div>';
+                return;
+            }
+
+            const now = Date.now();
+            let count = 0;
+
+            Object.keys(data).forEach(key => {
+                const p = data[key];
+                // Filtro básico de 10s para mostrar no lobby
+                if (p.lastUpdate && (now - p.lastUpdate < 10000)) {
+                    count++;
+                    const div = document.createElement("div");
+                    div.className = "lobby-player-item";
+                    if(key === myUserId) div.classList.add("me");
+                    
+                    const name = key === myUserId ? "VOCÊ (Operador)" : `Operador ${key.substring(0,4)}`;
+                    const status = key === myUserId ? "PRONTO" : "ONLINE";
+                    
+                    div.innerHTML = `<span>${name}</span> <span>${status}</span>`;
+                    listEl.appendChild(div);
+                }
+            });
+            
+            if(count === 0) listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador detectado.</div>';
+        }
 
         // --- GERAÇÃO DE CÓDIGO HTML DA MOEDA ---
+        function createHtmlCoin() {
+            const el = document.createElement('div');
+            el.className = 'scene scene-object';
+            el.innerHTML = getCoinHTML(); 
+            // Tamanho visual da moeda no céu (DIV base)
+            el.style.width = '400px'; 
+            el.style.height = '400px';
+            document.getElementById('html-layer').appendChild(el);
+            return el;
+        }
+
         function getCoinHTML() {
             return `
                 <div class="shine-effect"></div>
@@ -748,7 +873,9 @@
 
             createWorld(currentLevel);
             createPlayer();
-            spawnEnemies(15, currentLevel);
+            
+            // Garantir que a função existe antes de chamar, ou apenas inicializar modo
+            // spawnEnemies será chamado no resetGame
             spawnHealthKits(6); 
             setupSkyLogo(); 
             
@@ -758,6 +885,14 @@
             
             window.addEventListener('resize', onResize);
             animate();
+            
+            // Inicia em modo menu
+            if(gamePaused) {
+               // ...
+            } else {
+               // Chama resetGame para setup inicial
+               // resetGame('single'); // Opcional, o botão Play já faz isso
+            }
         }
 
         function createPlayer() {
@@ -872,18 +1007,6 @@
             }
         }
 
-        // --- SISTEMA DE MOEDA (APENAS CÉU) ---
-        function createHtmlCoin() {
-            const el = document.createElement('div');
-            el.className = 'scene scene-object';
-            el.innerHTML = getCoinHTML(); 
-            // Tamanho visual da moeda no céu (DIV base)
-            el.style.width = '400px'; 
-            el.style.height = '400px';
-            document.getElementById('html-layer').appendChild(el);
-            return el;
-        }
-
         function spawnHealthKits(count) {
             healthKits.forEach(k => scene.remove(k));
             healthKits = [];
@@ -992,156 +1115,66 @@
             });
         }
 
-        function spawnEnemies(count, level) {
-            enemies.forEach(e => scene.remove(e));
-            enemies = [];
-            const enemyHP = 100 + ((level - 1) * 25);
-            const enemyCount = count + (level - 1) * 2;
-
-            for(let i=0; i<enemyCount; i++) {
-                let rx, rz; do { rx = Math.floor(Math.random()*mazeSize); rz = Math.floor(Math.random()*mazeSize); } while(mazeMap[rz][rx] === 1);
-                
-                const en = new THREE.Group();
-                en.position.set(rx*5, 0, rz*5);
-
-                const color = level === 5 ? 0xff00ff : 0xff3333; 
-                // CORREÇÃO: side: THREE.DoubleSide para acertar por dentro
-                const body = new THREE.Mesh(
-                    new THREE.CapsuleGeometry(0.5, 1.2, 4, 8), 
-                    new THREE.MeshStandardMaterial({ 
-                        color: color, 
-                        emissive: 0x220000, 
-                        metalness: 0.5, 
-                        roughness: 0.2,
-                        side: THREE.DoubleSide
-                    })
-                );
-                body.position.y = 1.0; 
-                body.name = "body"; 
-                en.add(body);
-
-                // --- HITBOX GENEROSA ---
-                // Aumentada para 3.5 (ERA 3.0) de largura para facilitar o acerto de longe
-                const hitbox = new THREE.Mesh(
-                    new THREE.BoxGeometry(3.5, 4.0, 3.5), 
-                    new THREE.MeshBasicMaterial({ 
-                        transparent: true, 
-                        opacity: 0, 
-                        depthWrite: false 
-                    }) 
-                );
-                hitbox.position.y = 1.0;
-                en.add(hitbox);
-
-                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
-                eye.position.set(0, 0.3, 0.4);
-                body.add(eye);
-
-                en.userData = { 
-                    hp: enemyHP, maxHp: enemyHP, dead: false, lastShot: 0, isEnemyRoot: true,
-                    reactionTime: Math.max(200, 1000 - (level * 150))
-                };
-                
-                const w = new THREE.Group();
-                const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.5), new THREE.MeshStandardMaterial({color:0x111}));
-                b.rotation.x = Math.PI/2; b.position.z = -0.25; w.add(b);
-                w.position.set(0.3, 0.4, 0.4); 
-                body.add(w);
-
-                scene.add(en); enemies.push(en);
-            }
-            document.getElementById('total-enemies').innerText = enemyCount;
-        }
-
-        function nextLevel() {
-            currentLevel++;
-            if(currentLevel > maxLevels) {
-                isPlaying = false;
-                document.exitPointerLock();
-                document.getElementById('hud').style.display = 'none';
-                document.getElementById('win-screen').style.display = 'flex';
-                document.getElementById('mobile-ui').style.display = 'none';
-                stopMusic(); // Stop music on win
-            } else {
-                score = 0;
-                playerGroup.position.set(5, 0, 5);
-                createWorld(currentLevel);
-                spawnEnemies(15, currentLevel);
-                spawnHealthKits(6);
-                setupSkyLogo();
-                
-                document.getElementById('level-display').innerText = currentLevel;
-                document.getElementById('score').innerText = 0;
-                
-                const indicator = document.getElementById('level-indicator');
-                indicator.innerText = "NÍVEL " + currentLevel;
-                indicator.style.display = 'block';
-                setTimeout(() => indicator.style.display = 'none', 3000);
-            }
-        }
-
         // ================================================================
-        // LÓGICA DE REDE (MULTIPLAYER)
+        // LÓGICA DE REDE (MULTIPLAYER - REALTIME DATABASE)
         // ================================================================
         
-        async function connectMultiplayer() {
-            if(myUserId) return; // Já conectado
-
-            try {
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        myUserId = user.uid;
-                        setupPresence();
-                    }
-                });
-            } catch (error) {
-                console.error("Erro Multiplayer:", error);
-                alert("Falha ao conectar no servidor. Verifique a internet.");
-            }
-        }
-
         function setupPresence() {
-            myDocRef = ref(db, `artifacts/${APP_ID}/public/${ROOM_ID}/${myUserId}`);
-            onDisconnect(myDocRef).remove();
+            // Referências do Realtime Database (RTDB) - Caminho personalizado
+            const playersRef = ref(db, 'jogadores_online');
+            const myRefVal = ref(db, `jogadores_online/${myUserId}`);
+            myRef = myRefVal;
 
-            set(myDocRef, {
+            onDisconnect(myRef).remove();
+
+            set(myRef, {
                 id: myUserId,
                 x: 5, y: 0, z: 5, rot: 0,
                 lastUpdate: serverTimestamp()
-            });
+            }).then(() => logSystem("Presença ativada no DB.", "success"))
+              .catch(err => logSystem("Erro ao ativar presença: " + err.message, "error"));
 
-            // Loop de Envio (Heartbeat) - 20x por segundo
+            // Loop de Envio
+            if (networkInterval) clearInterval(networkInterval);
             networkInterval = setInterval(() => {
-                if (!myDocRef || !isPlaying) return;
+                if (!myRef || !isPlaying) return;
                 
-                update(myDocRef, {
-                    x: parseFloat(playerGroup.position.x.toFixed(2)),
-                    y: parseFloat(playerGroup.position.y.toFixed(2)),
-                    z: parseFloat(playerGroup.position.z.toFixed(2)),
-                    rot: parseFloat(yaw.toFixed(2)),
-                    lastUpdate: serverTimestamp()
-                }).catch(() => {});
+                const now = Date.now();
+                const currentPos = playerGroup.position;
+                const currentRot = yaw;
+
+                if (currentPos.distanceTo(lastSentPosition) > 0.01 || Math.abs(currentRot - lastSentRotation) > 0.01 || (now - lastSentTime > 2000)) {
+                    update(myRef, {
+                        x: parseFloat(currentPos.x.toFixed(2)),
+                        y: parseFloat(currentPos.y.toFixed(2)),
+                        z: parseFloat(currentPos.z.toFixed(2)),
+                        rot: parseFloat(currentRot.toFixed(2)),
+                        lastUpdate: serverTimestamp()
+                    }).catch(err => {
+                        // Silencia erros no loop rápido, mas loga se crítico
+                    });
+                    
+                    lastSentPosition.copy(currentPos);
+                    lastSentRotation = currentRot;
+                    lastSentTime = now;
+                }
             }, 50);
 
-            // Loop de Recebimento
-            const roomRef = ref(db, `artifacts/${APP_ID}/public/${ROOM_ID}`);
-            onValue(roomRef, (snapshot) => {
+            // Escuta atualizações
+            onValue(playersRef, (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
 
                 const now = Date.now();
                 let onlineCount = 0;
-
-                // Identifica jogadores ativos
                 const activeIds = new Set();
 
                 Object.keys(data).forEach(key => {
                     if (key === myUserId) return;
                     const p = data[key];
-                    
-                    // Filtro de Lag (5s sem update = morto/off)
-                    if (p.lastUpdate && (now - p.lastUpdate < 5000)) {
+
+                    const lastUpdate = p.lastUpdate || 0;
+                    if (now - lastUpdate < 10000) {
                         activeIds.add(key);
                         onlineCount++;
                         updateRemotePlayer(key, p);
@@ -1150,7 +1183,6 @@
 
                 document.getElementById('mp-count').innerText = onlineCount;
 
-                // Remove jogadores que desconectaram
                 Object.keys(remotePlayers).forEach(key => {
                     if(!activeIds.has(key)) {
                         scene.remove(remotePlayers[key].mesh);
@@ -1178,22 +1210,17 @@
             );
             gun.position.set(0.35, 0.45, -0.2);
             group.add(gun);
-
-            // Nome Flutuante (Simples)
-            // (Poderia ser HTML overlay, mas vamos manter simples por enquanto)
             
             return group;
         }
 
         function updateRemotePlayer(id, data) {
             if(!remotePlayers[id]) {
-                // Novo Jogador entrou
                 const mesh = createRemotePlayerMesh();
                 mesh.position.set(data.x, data.y, data.z);
                 scene.add(mesh);
                 remotePlayers[id] = { mesh: mesh, targetPos: new THREE.Vector3(data.x, data.y, data.z), targetRot: data.rot };
             } else {
-                // Atualiza alvo para interpolação
                 const rp = remotePlayers[id];
                 rp.targetPos.set(data.x, data.y, data.z);
                 rp.targetRot = data.rot;
@@ -1216,6 +1243,7 @@
             document.getElementById('win-screen').style.display = 'none';
             document.getElementById('pause-btn').style.display = 'flex';
             document.getElementById('damage-overlay').style.boxShadow = "none";
+            document.getElementById('lobby-screen').style.display = "none";
             
             document.getElementById('multiplayer-status').style.display = isMultiplayerMode ? 'block' : 'none';
 
@@ -1224,9 +1252,10 @@
             createWorld(currentLevel);
             
             if(isMultiplayerMode) {
-                enemies.forEach(e => scene.remove(e)); enemies = []; // Sem bots no multi por enquanto
+                enemies.forEach(e => scene.remove(e)); enemies = []; 
                 healthKits.forEach(k => scene.remove(k)); healthKits = [];
-                connectMultiplayer();
+                // Conecta e ativa presença
+                setupPresence();
             } else {
                 spawnEnemies(15, currentLevel);
                 spawnHealthKits(6);
@@ -1279,13 +1308,24 @@
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
 
-            // BOTÃO MULTIPLAYER ATIVADO
+            // BOTÃO MULTIPLAYER -> VAI PRO LOBBY
             document.getElementById('multiplayer-btn').onclick = () => {
+                showLobby();
+            };
+
+            // BOTÃO INICIAR NO LOBBY -> VAI PRO JOGO
+            document.getElementById('start-mp-btn').onclick = () => {
                 resetGame('multi');
                 document.getElementById('main-menu').style.display = 'none';
                 document.getElementById('hud').style.display = 'block';
                 document.getElementById('crosshair').style.display = 'block';
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
+            };
+
+            // VOLTAR DO LOBBY
+            document.getElementById('lobby-back-btn').onclick = () => {
+                document.getElementById('lobby-screen').style.display = 'none';
+                document.getElementById('start-view').style.display = 'block';
             };
 
             document.getElementById('pause-btn').addEventListener('click', (e) => {
@@ -1310,8 +1350,12 @@
                  isPlaying = false; gamePaused = false; stopMusic(); 
                  scene.add(camera);
                  
-                 // Limpa Multiplayer
-                 if(myDocRef) remove(myDocRef);
+                 // Limpa Multiplayer ao sair
+                 if(myRef) {
+                     remove(myRef).catch(() => {});
+                     myRef = null;
+                 }
+                 if(networkInterval) clearInterval(networkInterval);
             };
 
             document.getElementById('retry-btn').onclick = () => {
@@ -1663,6 +1707,68 @@
                     }
                 }
             });
+        }
+
+        // --- DEFINIÇÃO EXPLÍCITA DA FUNÇÃO FALTANTE ---
+        function spawnEnemies(count, level) {
+            enemies.forEach(e => scene.remove(e));
+            enemies = [];
+            const enemyHP = 100 + ((level - 1) * 25);
+            const enemyCount = count + (level - 1) * 2;
+
+            for(let i=0; i<enemyCount; i++) {
+                let rx, rz; do { rx = Math.floor(Math.random()*mazeSize); rz = Math.floor(Math.random()*mazeSize); } while(mazeMap[rz][rx] === 1);
+                
+                const en = new THREE.Group();
+                en.position.set(rx*5, 0, rz*5);
+
+                const color = level === 5 ? 0xff00ff : 0xff3333; 
+                // CORREÇÃO: side: THREE.DoubleSide para acertar por dentro
+                const body = new THREE.Mesh(
+                    new THREE.CapsuleGeometry(0.5, 1.2, 4, 8), 
+                    new THREE.MeshStandardMaterial({ 
+                        color: color, 
+                        emissive: 0x220000, 
+                        metalness: 0.5, 
+                        roughness: 0.2,
+                        side: THREE.DoubleSide
+                    })
+                );
+                body.position.y = 1.0; 
+                body.name = "body"; 
+                en.add(body);
+
+                // --- HITBOX GENEROSA ---
+                const hitbox = new THREE.Mesh(
+                    new THREE.BoxGeometry(3.5, 4.0, 3.5), 
+                    new THREE.MeshBasicMaterial({ 
+                        transparent: true, 
+                        opacity: 0, 
+                        depthWrite: false 
+                    }) 
+                );
+                hitbox.position.y = 1.0;
+                en.add(hitbox);
+
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+                eye.position.set(0, 0.3, 0.4);
+                body.add(eye);
+
+                en.userData = { 
+                    hp: enemyHP, maxHp: enemyHP, dead: false, lastShot: 0, isEnemyRoot: true,
+                    reactionTime: Math.max(200, 1000 - (level * 150))
+                };
+                
+                const w = new THREE.Group();
+                const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.5), new THREE.MeshStandardMaterial({color:0x111}));
+                b.rotation.x = Math.PI/2; b.position.z = -0.25; w.add(b);
+                w.position.set(0.3, 0.4, 0.4); 
+                body.add(w);
+
+                scene.add(en); enemies.push(en);
+            }
+            if(document.getElementById('total-enemies'))
+                document.getElementById('total-enemies').innerText = enemyCount;
         }
 
         function setupMinimap() {
