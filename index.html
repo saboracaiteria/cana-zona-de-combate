@@ -1299,6 +1299,29 @@
             document.getElementById('pause-btn').style.display = 'none';
         }
 
+        // --- CORREÇÃO: Função nextLevel Faltante ---
+        function nextLevel() {
+            if(currentLevel >= maxLevels) {
+                // Vitória Final
+                isPlaying = false;
+                stopMusic();
+                document.exitPointerLock();
+                document.getElementById('win-screen').style.display = 'flex';
+                document.getElementById('mobile-ui').style.display = 'none';
+                saveProgress();
+                return;
+            }
+            
+            currentLevel++;
+            saveProgress();
+            
+            // Pausa e mostra tela de nível concluído
+            isPlaying = false;
+            document.getElementById('level-complete-screen').style.display = 'flex';
+            document.getElementById('pause-btn').style.display = 'none';
+            document.exitPointerLock();
+        }
+
         function setupUI() {
             document.getElementById('play-btn').onclick = () => {
                 resetGame('single');
@@ -1367,6 +1390,45 @@
             document.getElementById('win-retry-btn').onclick = () => {
                 resetGame('single'); 
                 document.getElementById('hud').style.display = 'block';
+                if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
+            };
+            
+            // --- CORREÇÃO: Listener do Botão Continuar ---
+            document.getElementById('continue-btn').onclick = () => {
+                document.getElementById('level-complete-screen').style.display = 'none';
+                document.getElementById('pause-btn').style.display = 'flex';
+                
+                // --- CORREÇÃO DA CÂMERA E POSIÇÃO ---
+                playerGroup.position.set(5, 0, 5); // Reseta posição para o início
+                pitch = 0; // Reseta o ângulo vertical da câmera
+                yaw = 0;   // Reseta a direção horizontal
+                velocityY = 0;
+                isGrounded = true;
+                
+                // *** CORREÇÃO CRÍTICA DA ROTAÇÃO ***
+                // Remove a rotação residual causada pela animação do menu
+                camera.rotation.set(0, 0, 0);
+                camera.quaternion.identity();
+                // ***********************************
+                
+                // --- CORREÇÃO: REINICIA CONTAGEM DE ABATES ---
+                score = 0;
+                document.getElementById('score').innerText = score;
+                // ---------------------------------------------
+
+                // Reinicia o mundo com o nível atualizado
+                createWorld(currentLevel);
+                
+                // Escala dificuldade
+                spawnEnemies(15, currentLevel);
+                
+                // Repõe kits de vida
+                spawnHealthKits(6);
+                
+                isPlaying = true;
+                startMusic();
+                
+                if(isPC) document.body.requestPointerLock();
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
 
