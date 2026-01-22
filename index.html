@@ -370,15 +370,15 @@
     <script type="module">
         import * as THREE from 'three';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // IMPORTAÇÃO FIRESTORE PARA CORRIGIR PERMISSÕES
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, runTransaction, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, set, onValue, onDisconnect, update, remove, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // CONFIGURAÇÃO DO AMBIENTE (Fallback para hardcoded se não existir)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "",
+        // CONFIGURAÇÃO ORIGINAL HARDCODED
+        const firebaseConfig = {
+            apiKey: "AIzaSyAF7cOVw5tCc5aNKRev8r2BHvhfNlfhvNE",
             authDomain: "residencial-canaa.firebaseapp.com",
             projectId: "residencial-canaa",
+            databaseURL: "https://residencial-canaa-default-rtdb.firebaseio.com/",
             storageBucket: "residencial-canaa.firebasestorage.app",
             messagingSenderId: "885073733262",
             appId: "1:885073733262:web:84e6bc69d0df3918b7cbdf",
@@ -390,25 +390,21 @@
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
-            db = getFirestore(app);
-            logSystem("Firebase (Firestore) Inicializado.", "success");
+            db = getDatabase(app);
+            logSystem("Firebase Inicializado.", "success");
         } catch(e) {
             console.error(e);
         }
 
-        // --- DEFINIÇÃO DE CAMINHO SEGURO DO DB (Firestore Collection) ---
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Firestore aceita quase tudo, mas mantemos consistência
-        const playersColPath = `artifacts/${appId}/public/data/players`;
-        const coopDocPath = `artifacts/${appId}/public/data/gamestate/coop`;
-
         // Vars
         let myUserId = null;
+        let myRef = null;
         let remotePlayers = {}; 
         let isMultiplayerMode = false;
-        let isCoopMode = false; 
+        let isCoopMode = false; // NOVA VARIÁVEL COOP
         let networkInterval = null;
-        let unsubs = []; // Armazena funções de unsubscribe do Firestore
+        let coopLevelListener = null;
+        let coopKillsListener = null;
         
         // OTIMIZAÇÃO DE REDE
         let lastSentPosition = new THREE.Vector3(0, 0, 0);
@@ -426,17 +422,12 @@
             el.scrollTop = el.scrollHeight;
         }
 
-        // --- FUNÇÃO DE ALEATORIEDADE SINCRONIZADA (SEED) ---
-        function seededRandom(seed) {
-            var x = Math.sin(seed++) * 10000;
-            return x - Math.floor(x);
-        }
-
         // --- LÓGICA DE LOBBY ---
         function showLobby(mode) {
             document.getElementById("start-view").style.display = "none";
             document.getElementById("lobby-screen").style.display = "flex";
             
+            // Configura título e botão baseado no modo
             const title = document.getElementById("lobby-title");
             const btn = document.getElementById("start-mp-btn");
             
@@ -471,25 +462,13 @@
 
         async function connectLobby() {
             document.getElementById("connection-status").innerText = "Autenticando...";
-            logSystem("Tentando Login...");
+            logSystem("Tentando Login Anônimo...");
 
             try {
-                // Tenta autenticação com token do ambiente (Padrão Canvas)
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    // Fallback para teste local
-                    await signInAnonymously(auth);
-                }
+                await signInAnonymously(auth);
             } catch (error) {
-                console.warn("Token falhou, tentando anônimo:", error);
-                try {
-                    await signInAnonymously(auth);
-                } catch (anonError) {
-                    logSystem("ERRO CRÍTICO AUTH: " + anonError.message, "error");
-                    document.getElementById("connection-status").innerText = "Erro Auth";
-                    return; 
-                }
+                logSystem("Erro Login: " + error.message, "error");
+                document.getElementById("connection-status").innerText = "Erro Auth";
             }
 
             onAuthStateChanged(auth, (user) => {
@@ -497,24 +476,19 @@
                     myUserId = user.uid;
                     document.getElementById("connection-status").innerText = "Conectado";
                     document.getElementById("connection-status").style.color = "#00FF41";
-                    logSystem("ID: " + myUserId.substring(0,6) + "...", "success");
+                    logSystem("Autenticado ID: " + myUserId.substring(0,6) + "...", "success");
                     
                     document.getElementById("start-mp-btn").disabled = false;
                     
-                    // Escuta lista de jogadores (Firestore)
-                    const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-                    const unsub = onSnapshot(playersCol, (snapshot) => {
-                        const playersData = {};
-                        snapshot.forEach(doc => {
-                            playersData[doc.id] = doc.data();
-                        });
-                        renderLobbyList(playersData);
+                    // Escuta lista de jogadores para mostrar no lobby
+                    const playersRef = ref(db, 'jogadores_online');
+                    onValue(playersRef, (snapshot) => {
+                        const data = snapshot.val();
+                        renderLobbyList(data);
                     }, (error) => {
-                        logSystem("Erro Leitura Firestore: " + error.message, "error");
+                        logSystem("Erro Leitura DB: " + error.message, "error");
                     });
-                    
-                    // Salva unsub para limpar depois se necessário (mas lobby geralmente mantemos)
-                    
+
                 } else {
                     logSystem("Usuário deslogado.", "error");
                 }
@@ -525,16 +499,18 @@
             const listEl = document.getElementById("lobby-player-list");
             listEl.innerHTML = "";
             
+            if(!data) {
+                listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador detectado.</div>';
+                return;
+            }
+
             const now = Date.now();
             let count = 0;
 
             Object.keys(data).forEach(key => {
                 const p = data[key];
-                // Filtro básico de 15s para considerar online (Firestore timestamp pode ser complexo, simplificando com Date.now local se salvo)
-                // Se o lastUpdate for timestamp do Firestore, convertemos
-                let lastUpdate = p.lastUpdate ? (p.lastUpdate.seconds ? p.lastUpdate.seconds * 1000 : p.lastUpdate) : 0;
-                
-                if (now - lastUpdate < 15000) {
+                // Filtro básico de 10s para mostrar no lobby
+                if (p.lastUpdate && (now - p.lastUpdate < 10000)) {
                     count++;
                     const div = document.createElement("div");
                     div.className = "lobby-player-item";
@@ -799,6 +775,7 @@
 
         function playSound(type) {
             if (!audioCtx) return;
+            // Garante que o contexto esteja rodando ao tocar efeitos
             if(audioCtx.state === 'suspended') audioCtx.resume();
             
             const osc = audioCtx.createOscillator();
@@ -934,6 +911,8 @@
             createWorld(currentLevel);
             createPlayer();
             
+            // Garantir que a função existe antes de chamar, ou apenas inicializar modo
+            // spawnEnemies será chamado no resetGame
             spawnHealthKits(6); 
             setupSkyLogo(); 
             
@@ -943,6 +922,14 @@
             
             window.addEventListener('resize', onResize);
             animate();
+            
+            // Inicia em modo menu
+            if(gamePaused) {
+               // ...
+            } else {
+               // Chama resetGame para setup inicial
+               // resetGame('single'); // Opcional, o botão Play já faz isso
+            }
         }
 
         function createPlayer() {
@@ -966,7 +953,7 @@
             playerArm.position.set(0.35, 0.45, 0);
             playerMesh.add(playerArm);
 
-            camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, 0.1, 2500); 
+            camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, 0.1, 2500); // Far plane aumentado para ver a logo
             scene.add(camera);
             
             gunGroup = new THREE.Group();
@@ -1061,20 +1048,10 @@
             healthKits.forEach(k => scene.remove(k));
             healthKits = [];
             for(let i=0; i<count; i++) {
-                // SEED FIXA baseada no nível e índice para sync coop
-                let seed = currentLevel * 1000 + i;
-                
-                let rx, rz; 
-                do { 
-                    rx = Math.floor(seededRandom(seed) * mazeSize); 
-                    rz = Math.floor(seededRandom(seed+1) * mazeSize); 
-                    seed += 2;
-                } while(mazeMap[rz][rx] === 1);
-                
+                let rx, rz; do { rx = Math.floor(Math.random()*mazeSize); rz = Math.floor(Math.random()*mazeSize); } while(mazeMap[rz][rx] === 1);
                 // Caixa Verde Simples
                 const kit = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x00FF41, emissive: 0x004400, metalness: 0.8 }));
                 kit.position.set(rx*5, 0.5, rz*5);
-                kit.userData = { id: `kit_L${currentLevel}_${i}` }; // ID ÚNICO PARA SYNC
                 scene.add(kit);
                 healthKits.push(kit);
             }
@@ -1087,8 +1064,10 @@
             const skyLogoEl = createHtmlCoin();
             trackedHtmlObjects.push({
                 el: skyLogoEl,
+                // Direção para o céu (Frente e para cima) - NORMALIZADA
+                // 0 (X), 0.4 (Y - para cima), -1 (Z - para frente)
                 direction: new THREE.Vector3(0.2, 1.5, -0.5).normalize(), 
-                distance: 800, 
+                distance: 800, // Distância "infinita" relativa
                 type: 'sky',
                 active: true
             });
@@ -1104,6 +1083,7 @@
             const widthHalf = window.innerWidth / 2;
             const heightHalf = window.innerHeight / 2;
             
+            // CORREÇÃO: Usar posição MUNDIAL da câmera
             const camPos = new THREE.Vector3();
             camera.getWorldPosition(camPos); 
 
@@ -1112,17 +1092,21 @@
 
                 let pos;
                 if(obj.type === 'sky') {
+                    // Posição baseada na posição MUNDIAL da câmera
                     pos = camPos.clone().add(obj.direction.clone().multiplyScalar(obj.distance));
                 } else {
                     pos = obj.pos.clone();
                 }
 
+                // Raycast para oclusão (Checa se tem parede na frente)
                 const dir = new THREE.Vector3().subVectors(pos, camPos).normalize();
                 const dist = camPos.distanceTo(pos);
                 
+                // Configura o raio para começar na posição MUNDIAL da câmera
                 occlusionRaycaster.set(camPos, dir);
                 const intersects = occlusionRaycaster.intersectObjects(walls);
 
+                // Variável de visibilidade baseada na oclusão
                 let isOccluded = false;
                 if(intersects.length > 0 && intersects[0].distance < dist) {
                     isOccluded = true;
@@ -1131,16 +1115,22 @@
                 const tempPos = pos.clone();
                 tempPos.project(camera); 
 
+                // Se Z < 1 (na frente da câmera) E não ocluído
                 if(tempPos.z < 1 && !isOccluded) {
                     obj.el.style.display = 'block';
+
                     const x = (tempPos.x * widthHalf) + widthHalf;
                     const y = -(tempPos.y * heightHalf) + heightHalf;
+
                     obj.el.style.left = `${x}px`;
                     obj.el.style.top = `${y}px`;
-                    const scaleFactor = 0.2; 
+
+                    const scaleFactor = 0.2; // Escala fixa para sky reduzida
+
                     obj.el.style.transform = `translate(-50%, -50%) scale(${scaleFactor})`;
-                    obj.el.style.zIndex = 0; 
+                    obj.el.style.zIndex = 0; // Sky atrás
                     obj.el.style.opacity = 1; 
+
                 } else {
                     obj.el.style.display = 'none';
                 }
@@ -1149,20 +1139,12 @@
 
         function updateHealthKits() {
             healthKits.forEach((kit, index) => {
+                // Sem rotação: kit estático
                 if(playerGroup.position.distanceTo(kit.position) < 1.5) {
                     if(playerHP < 100) {
-                        if(isCoopMode) {
-                            // Marca kit como tomado no DB (Firestore)
-                            const kitId = kit.userData.id;
-                            const coopRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'coop');
-                            // Usamos set com merge para atualizar o mapa de kits
-                            setDoc(coopRef, { taken_kits: { [kitId]: true } }, { merge: true });
-                        }
-
                         playSound('heal');
                         playerHP = Math.min(100, playerHP + 25);
                         document.getElementById('hp').innerText = playerHP;
-                        
                         scene.remove(kit);
                         healthKits.splice(index, 1);
                     }
@@ -1171,184 +1153,193 @@
         }
 
         // ================================================================
-        // LÓGICA DE REDE (FIRESTORE)
+        // LÓGICA DE REDE (MULTIPLAYER - REALTIME DATABASE)
         // ================================================================
         
         function setupPresence() {
-            if(!myUserId) return;
+            // Referências do Realtime Database (RTDB) - Caminho personalizado
+            const playersRef = ref(db, 'jogadores_online');
+            const myRefVal = ref(db, `jogadores_online/${myUserId}`);
+            myRef = myRefVal;
 
-            const playerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', myUserId);
-            
-            // Define dados iniciais
-            setDoc(playerDocRef, {
+            onDisconnect(myRef).remove();
+
+            // REGRAS PVP: Inicializa com HP, Kills e Deaths
+            set(myRef, {
                 id: myUserId,
                 x: 5, y: 0, z: 5, rot: 0,
                 hp: 100,
                 kills: 0,
                 deaths: 0,
                 lastUpdate: serverTimestamp()
-            }).then(() => logSystem("Presença ativada.", "success"))
-              .catch(err => logSystem("Erro presença: " + err.message, "error"));
+            }).then(() => logSystem("PvP Ativo: Presença confirmada.", "success"))
+              .catch(err => logSystem("Erro ao ativar presença: " + err.message, "error"));
 
-            // Listener para remover quando fechar a aba
-            window.addEventListener('beforeunload', () => {
-                deleteDoc(playerDocRef);
-            });
+            // REGRAS PVP: Ouvinte para danos recebidos (Auto-monitoramento)
+            onValue(myRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
 
-            // Listener para minha própria doc (dano recebido)
-            const unsubMe = onSnapshot(playerDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
+                // Detecta se tomei dano (HP no banco menor que HP local)
+                if (data.hp < playerHP) {
+                    playerHP = data.hp;
+                    document.getElementById('hp').innerText = playerHP;
                     
-                    // HP Sync (se tomei dano)
-                    if (data.hp < playerHP) {
-                        playerHP = data.hp;
-                        document.getElementById('hp').innerText = playerHP;
-                        document.getElementById('damage-overlay').style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
-                        setTimeout(() => document.getElementById('damage-overlay').style.boxShadow = "none", 200);
-                        playSound('shoot');
+                    // Efeito visual de dano
+                    document.getElementById('damage-overlay').style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
+                    setTimeout(() => document.getElementById('damage-overlay').style.boxShadow = "none", 200);
+                    playSound('shoot'); // Reutiliza som de impacto por enquanto
 
-                        if (playerHP <= 0) {
-                            respawnPvP();
-                        }
+                    // Verifica morte
+                    if (playerHP <= 0) {
+                        respawnPvP();
                     }
-                    
-                    // Kills Sync (apenas para atualizar HUD em PvP)
-                    if (!isCoopMode && data.kills > score) {
+                }
+                
+                // Sincroniza Kills se atualizado no servidor
+                if (data.kills !== undefined && !isCoopMode) { // Só em PVP
+                    // Se kills mudou (alguém morreu pra mim), atualiza HUD
+                    if (data.kills > score) {
                         score = data.kills;
                         document.getElementById('score').innerText = score;
-                        triggerHitMarker();
+                        triggerHitMarker(); // Feedback extra de kill
                     }
                 }
             });
-            unsubs.push(unsubMe);
 
-            // Loop de Envio de Posição (Throttled 100ms)
+            // Loop de Envio
             if (networkInterval) clearInterval(networkInterval);
             networkInterval = setInterval(() => {
-                if (!isPlaying) return;
+                if (!myRef || !isPlaying) return;
                 
                 const now = Date.now();
                 const currentPos = playerGroup.position;
                 const currentRot = yaw;
 
-                if (currentPos.distanceTo(lastSentPosition) > 0.05 || Math.abs(currentRot - lastSentRotation) > 0.05 || (now - lastSentTime > 2000)) {
-                    updateDoc(playerDocRef, {
+                if (currentPos.distanceTo(lastSentPosition) > 0.01 || Math.abs(currentRot - lastSentRotation) > 0.01 || (now - lastSentTime > 2000)) {
+                    update(myRef, {
                         x: parseFloat(currentPos.x.toFixed(2)),
                         y: parseFloat(currentPos.y.toFixed(2)),
                         z: parseFloat(currentPos.z.toFixed(2)),
                         rot: parseFloat(currentRot.toFixed(2)),
                         lastUpdate: serverTimestamp()
-                    }).catch(e => {}); // Silencia erros de rede menores
+                    }).catch(err => {});
                     
                     lastSentPosition.copy(currentPos);
                     lastSentRotation = currentRot;
                     lastSentTime = now;
                 }
-            }, 100);
+            }, 50);
 
-            // Escuta outros players
-            const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-            const unsubOthers = onSnapshot(playersCol, (snapshot) => {
+            // Escuta atualizações (Outros players)
+            onValue(playersRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                const now = Date.now();
+                let onlineCount = 0;
                 const activeIds = new Set();
-                snapshot.forEach(docSnap => {
-                    if (docSnap.id === myUserId) return;
-                    
-                    const p = docSnap.data();
-                    activeIds.add(docSnap.id);
-                    updateRemotePlayer(docSnap.id, p);
+
+                Object.keys(data).forEach(key => {
+                    if (key === myUserId) return;
+                    const p = data[key];
+
+                    const lastUpdate = p.lastUpdate || 0;
+                    if (now - lastUpdate < 10000) {
+                        activeIds.add(key);
+                        onlineCount++;
+                        updateRemotePlayer(key, p);
+                    }
                 });
 
-                // Remove desconectados
+                document.getElementById('mp-count').innerText = onlineCount;
+
                 Object.keys(remotePlayers).forEach(key => {
                     if(!activeIds.has(key)) {
                         scene.remove(remotePlayers[key].mesh);
                         delete remotePlayers[key];
                     }
                 });
-                
-                document.getElementById('mp-count').innerText = activeIds.size;
             });
-            unsubs.push(unsubOthers);
         }
 
-        // --- LÓGICA DE COOP (FIRESTORE) ---
+        // --- LÓGICA DE COOP ---
         function setupCoopPresence() {
+            // No Coop, usamos a mesma presença básica para ver outros players
             setupPresence();
             
-            const coopDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'coop');
+            // Mas adicionamos ouvintes para o estado global do jogo (Nível e Kills do time)
+            const coopRef = ref(db, 'coop_state');
             
-            // Garante que o doc existe
-            setDoc(coopDocRef, { level: 1 }, { merge: true });
-
-            const unsubCoop = onSnapshot(coopDocRef, (docSnap) => {
-                if(!docSnap.exists()) return;
-                const data = docSnap.data();
-
-                // Nível
-                if (data.level && data.level !== currentLevel) {
-                    logSystem("Nível Coop: " + data.level, "success");
-                    if (data.level > currentLevel) {
+            // Escuta mudança de nível
+            coopLevelListener = onValue(ref(db, 'coop_state/level'), (snap) => {
+                const serverLevel = snap.val();
+                if (serverLevel && serverLevel !== currentLevel) {
+                    logSystem("Nível Coop Sincronizado: " + serverLevel, "success");
+                    // Se o nível avançou no servidor, avança aqui também
+                    if (serverLevel > currentLevel) {
+                        // Simula a transição normal
                         nextLevel(); 
-                        currentLevel = data.level; // Força sync
+                        // Mas garante que o nível lógico é o do servidor
+                        currentLevel = serverLevel;
                     } else {
-                        currentLevel = data.level;
+                        // Se entrou num jogo em andamento ou resetou
+                        currentLevel = serverLevel;
                         createWorld(currentLevel);
                         spawnEnemies(15, currentLevel);
-                        spawnHealthKits(6);
                     }
                     document.getElementById('level-display').innerText = currentLevel;
                 }
-
-                // Kills
-                if (data.kills) {
-                    score = data.kills;
-                    document.getElementById('score').innerText = score;
-                }
-
-                // Inimigos Mortos Sync
-                if (data.dead_enemies) {
-                    for(let i = enemies.length - 1; i >= 0; i--) {
-                        const en = enemies[i];
-                        if (en.userData.id && data.dead_enemies[en.userData.id] && !en.userData.dead) {
-                            en.userData.dead = true;
-                            en.scale.y = 0.2; en.position.y = 0.1;
-                        }
-                    }
-                }
-
-                // Kits Pegos Sync
-                if (data.taken_kits) {
-                    for(let i = healthKits.length - 1; i >= 0; i--) {
-                        const kit = healthKits[i];
-                        if (kit.userData.id && data.taken_kits[kit.userData.id]) {
-                            scene.remove(kit);
-                            healthKits.splice(i, 1);
-                        }
-                    }
-                }
             });
-            unsubs.push(unsubCoop);
+
+            // Escuta abates do time
+            coopKillsListener = onValue(ref(db, 'coop_state/kills'), (snap) => {
+                const kills = snap.val() || 0;
+                score = kills;
+                document.getElementById('score').innerText = score;
+                
+                // Meta de kills para passar de fase no coop (ex: 20 + 5 por nível)
+                const required = 20 + (currentLevel * 5);
+                
+                // Se atingiu a meta, o servidor (ou o cliente que fez a kill) deve resetar
+                // Aqui apenas atualizamos a UI, a lógica de reset é no tiro
+            });
         }
 
+        // REGRAS PVP: Função de Respawn
         function respawnPvP() {
+            // Escolhe posição aleatória válida
             let rx, rz; 
             do { 
                 rx = Math.floor(Math.random()*mazeSize); 
                 rz = Math.floor(Math.random()*mazeSize); 
             } while(mazeMap[rz][rx] === 1);
 
+            // Reseta Status Local
             playerHP = 100;
             document.getElementById('hp').innerText = 100;
             playerGroup.position.set(rx*5, 0, rz*5);
-            logSystem("Respawn...", "error");
+            
+            logSystem("Você foi abatido. Renascendo...", "error");
 
-            const playerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', myUserId);
-            updateDoc(playerDocRef, { hp: 100, x: rx*5, z: rz*5 });
+            // Atualiza DB (Revive e incrementa mortes)
+            // Usamos transaction para garantir integridade se possível, mas update simples serve aqui
+            runTransaction(myRef, (currentData) => {
+                if (currentData) {
+                    currentData.hp = 100;
+                    currentData.deaths = (currentData.deaths || 0) + 1;
+                    currentData.x = rx*5;
+                    currentData.z = rz*5;
+                    return currentData;
+                }
+                return currentData;
+            });
         }
 
         function createRemotePlayerMesh() {
             const group = new THREE.Group();
+            
+            // Corpo (Vermelho para distinguir inimigos PvP, Verde no Coop?)
             const color = isCoopMode ? 0x00FF41 : 0xff0000;
             const body = new THREE.Mesh(
                 new THREE.CapsuleGeometry(0.4, 1, 4, 8),
@@ -1357,12 +1348,14 @@
             body.position.y = 0.9;
             group.add(body);
 
+            // Arma
             const gun = new THREE.Mesh(
                 new THREE.BoxGeometry(0.12, 0.18, 0.6),
                 new THREE.MeshStandardMaterial({ color: 0x111111 })
             );
             gun.position.set(0.35, 0.45, -0.2);
             group.add(gun);
+            
             return group;
         }
 
@@ -1370,14 +1363,18 @@
             if(!remotePlayers[id]) {
                 const mesh = createRemotePlayerMesh();
                 mesh.position.set(data.x, data.y, data.z);
+                // REGRAS PVP: Salva o ID no mesh para identificar quem acertamos
                 mesh.userData = { id: id, isPlayer: true }; 
+                // Propaga ID para filhos para o raycaster pegar
                 mesh.children.forEach(c => c.userData = { id: id, isPlayer: true });
+                
                 scene.add(mesh);
                 remotePlayers[id] = { mesh: mesh, targetPos: new THREE.Vector3(data.x, data.y, data.z), targetRot: data.rot };
             } else {
                 const rp = remotePlayers[id];
                 rp.targetPos.set(data.x, data.y, data.z);
                 rp.targetRot = data.rot;
+                // Atualiza ID caso tenha se perdido (segurança)
                 rp.mesh.userData.id = id;
             }
         }
@@ -1391,7 +1388,7 @@
             isMultiplayerMode = (mode === 'multi' || mode === 'coop');
             isCoopMode = (mode === 'coop');
             
-            // UI Update
+            // UI
             document.getElementById('hp').innerText = playerHP;
             document.getElementById('score').innerText = score;
             document.getElementById('level-display').innerText = currentLevel;
@@ -1401,33 +1398,37 @@
             document.getElementById('damage-overlay').style.boxShadow = "none";
             document.getElementById('lobby-screen').style.display = "none";
             
+            // Atualiza status multiplayer com indicação de Coop
             const mpStatus = document.getElementById('multiplayer-status');
             mpStatus.style.display = isMultiplayerMode ? 'block' : 'none';
             if(isCoopMode) {
-                mpStatus.innerHTML = `CO-OP: <span id="mp-count">0</span>`;
+                mpStatus.innerHTML = `CO-OP BETA: <span id="mp-count">0</span> OPERADORES`;
                 mpStatus.style.color = "#00FF41";
             } else {
-                mpStatus.innerHTML = `PVP: <span id="mp-count">0</span>`;
+                mpStatus.innerHTML = `ONLINE: <span id="mp-count">0</span> JOGADORES`;
                 mpStatus.style.color = "#00f3ff";
             }
 
-            // Reset Player
+            // Reset Posição
             playerGroup.position.set(5, 0, 5);
             createWorld(currentLevel);
             
-            // Clean up old logic
-            unsubs.forEach(u => u()); unsubs = [];
-            if(networkInterval) clearInterval(networkInterval);
-
             if(isMultiplayerMode) {
                 enemies.forEach(e => scene.remove(e)); enemies = []; 
                 healthKits.forEach(k => scene.remove(k)); healthKits = [];
                 
+                // Limpa listeners antigos
+                if(coopLevelListener) coopLevelListener(); // Desinscreve
+                if(coopKillsListener) coopKillsListener();
+
                 if (isCoopMode) {
+                    // No modo Coop, spawnamos inimigos locais para cada cliente
+                    // O progresso é compartilhado via "kills" no banco
                     spawnEnemies(15, currentLevel); 
                     spawnHealthKits(6);
                     setupCoopPresence();
                 } else {
+                    // PVP: Sem inimigos bots
                     setupPresence();
                 }
             } else {
@@ -1436,14 +1437,20 @@
             }
 
             setupSkyLogo();
+            
             isPlaying = true;
             gamePaused = false;
+            
             startMusic(); 
 
             const indicator = document.getElementById('level-indicator');
             indicator.innerText = isCoopMode ? "ZONA COOP 1" : (isMultiplayerMode ? "ZONA PVP" : "NÍVEL " + currentLevel);
             indicator.style.display = 'block';
             setTimeout(() => indicator.style.display = 'none', 3000);
+
+            if(!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            }
             
             if(isPC) {
                 setTimeout(() => {
@@ -1467,8 +1474,10 @@
             document.getElementById('pause-btn').style.display = 'none';
         }
 
+        // --- CORREÇÃO: Função nextLevel Faltante ---
         function nextLevel() {
             if(currentLevel >= maxLevels) {
+                // Vitória Final
                 isPlaying = false;
                 stopMusic();
                 document.exitPointerLock();
@@ -1481,6 +1490,7 @@
             currentLevel++;
             saveProgress();
             
+            // Pausa e mostra tela de nível concluído
             isPlaying = false;
             document.getElementById('level-complete-screen').style.display = 'flex';
             document.getElementById('pause-btn').style.display = 'none';
@@ -1496,8 +1506,17 @@
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
 
-            document.getElementById('multiplayer-btn').onclick = () => showLobby('pvp');
-            document.getElementById('coop-btn').onclick = () => showLobby('coop');
+            // BOTÃO MULTIPLAYER -> VAI PRO LOBBY
+            document.getElementById('multiplayer-btn').onclick = () => {
+                showLobby('pvp');
+            };
+            
+            // BOTÃO COOP -> VAI PRO LOBBY (Modo Coop)
+            document.getElementById('coop-btn').onclick = () => {
+                showLobby('coop');
+            };
+
+            // VOLTAR DO LOBBY
             document.getElementById('lobby-back-btn').onclick = () => {
                 document.getElementById('lobby-screen').style.display = 'none';
                 document.getElementById('start-view').style.display = 'block';
@@ -1525,10 +1544,14 @@
                  isPlaying = false; gamePaused = false; stopMusic(); 
                  scene.add(camera);
                  
-                 // Limpa Multiplayer
-                 unsubs.forEach(u => u()); unsubs = [];
+                 // Limpa Multiplayer ao sair
+                 if(myRef) {
+                     remove(myRef).catch(() => {});
+                     myRef = null;
+                 }
                  if(networkInterval) clearInterval(networkInterval);
-                 if(myUserId) deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myUserId));
+                 if(coopLevelListener) coopLevelListener();
+                 if(coopKillsListener) coopKillsListener();
             };
 
             document.getElementById('retry-btn').onclick = () => {
@@ -1543,19 +1566,36 @@
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
             
+            // --- CORREÇÃO: Listener do Botão Continuar ---
             document.getElementById('continue-btn').onclick = () => {
                 document.getElementById('level-complete-screen').style.display = 'none';
                 document.getElementById('pause-btn').style.display = 'flex';
                 
-                playerGroup.position.set(5, 0, 5);
-                pitch = 0; yaw = 0; velocityY = 0; isGrounded = true;
-                camera.rotation.set(0, 0, 0); camera.quaternion.identity();
+                // --- CORREÇÃO DA CÂMERA E POSIÇÃO ---
+                playerGroup.position.set(5, 0, 5); // Reseta posição para o início
+                pitch = 0; // Reseta o ângulo vertical da câmera
+                yaw = 0;   // Reseta a direção horizontal
+                velocityY = 0;
+                isGrounded = true;
                 
+                // *** CORREÇÃO CRÍTICA DA ROTAÇÃO ***
+                // Remove a rotação residual causada pela animação do menu
+                camera.rotation.set(0, 0, 0);
+                camera.quaternion.identity();
+                // ***********************************
+                
+                // --- CORREÇÃO: REINICIA CONTAGEM DE ABATES (Local e Remota no Coop) ---
                 score = 0;
                 document.getElementById('score').innerText = score;
+                // ---------------------------------------------
 
+                // Reinicia o mundo com o nível atualizado
                 createWorld(currentLevel);
+                
+                // Escala dificuldade
                 spawnEnemies(15, currentLevel);
+                
+                // Repõe kits de vida
                 spawnHealthKits(6);
                 
                 isPlaying = true;
@@ -1596,15 +1636,18 @@
 
             document.getElementById('vol-slider').oninput = (e) => {
                 settings.volume = parseInt(e.target.value) / 100;
+                document.getElementById('vol-val').innerText = parseInt(e.target.value);
             };
 
             document.getElementById('fov-slider').oninput = (e) => {
                 settings.fov = parseInt(e.target.value);
+                document.getElementById('fov-val').innerText = settings.fov;
                 camera.fov = settings.fov; camera.updateProjectionMatrix();
             };
 
             document.getElementById('sens-slider').oninput = (e) => {
                 settings.sens = (parseInt(e.target.value) / 50) * 0.003;
+                document.getElementById('sens-val').innerText = (parseInt(e.target.value) / 50).toFixed(1);
             };
 
             document.getElementById('edit-hud-btn').onclick = () => {
@@ -1704,6 +1747,7 @@
         }
 
         function setupHUDDrag() {
+            // Adicionado minimap-canvas à lista de elementos móveis
             const ids = ['fire-btn', 'jump-btn', 'aim-btn', 'joystick-zone', 'minimap-canvas'];
             ids.forEach(id => {
                 const el = document.getElementById(id);
@@ -1737,7 +1781,7 @@
         function spawnBullet() {
             const bullet = new THREE.Mesh(
                 new THREE.SphereGeometry(0.1, 4, 4),
-                new THREE.MeshBasicMaterial({ color: 0x00FF41 }) 
+                new THREE.MeshBasicMaterial({ color: 0x00FF41 }) // Laser verde
             );
             
             const gunTipPos = new THREE.Vector3();
@@ -1757,9 +1801,9 @@
             const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
             
             const spawnPos = cameraPos.clone()
-                .add(cameraDir.clone().multiplyScalar(1.0)) 
-                .add(right.multiplyScalar(0.15)) 
-                .add(up.multiplyScalar(-0.1));   
+                .add(cameraDir.clone().multiplyScalar(1.0)) // 1m a frente
+                .add(right.multiplyScalar(0.15)) // 15cm direita
+                .add(up.multiplyScalar(-0.1));   // 10cm baixo
             
             bullet.position.copy(spawnPos);
             bullet.userData = { velocity: cameraDir.multiplyScalar(5.0), life: 300 };
@@ -1778,6 +1822,10 @@
             let activeEnemies = 0;
             enemies.forEach(e => { if(!e.userData.dead) activeEnemies++; });
 
+            // CONDIÇÃO DE VITÓRIA:
+            // Singleplayer: 0 inimigos vivos.
+            // PVP: Não tem vitória por matar inimigos (endless).
+            // Coop: Vitória baseada em KILLS TOTAIS DO TIME, não inimigos locais.
             if(!isMultiplayerMode && activeEnemies === 0 && isPlaying) {
                 nextLevel();
                 return;
@@ -1798,42 +1846,45 @@
                 bulletRaycaster.set(prevPos, dir);
                 bulletRaycaster.far = dist; 
                 
-                // PVP / COOP Friendly Fire Check
+                // REGRAS PVP / COOP: Verifica colisão com OUTROS JOGADORES
                 if(isMultiplayerMode) {
                     const playerMeshes = Object.values(remotePlayers).map(rp => rp.mesh);
                     const hits = bulletRaycaster.intersectObjects(playerMeshes, true);
 
                     if (hits.length > 0) {
                         let hitObj = hits[0].object;
+                        // Sobe a hierarquia até achar o grupo com o ID
                         while(hitObj.parent && !hitObj.userData.id) hitObj = hitObj.parent;
 
                         if (hitObj.userData.id) {
                             const targetId = hitObj.userData.id;
                             
-                            // Em PVP, causa dano
+                            // Se for PVP, causa dano e registra kill
                             if (!isCoopMode) {
                                 hitSomething = true;
                                 triggerHitMarker(); 
 
-                                // Aplica dano via Firestore Transação
-                                runTransaction(db, async (transaction) => {
-                                    const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', targetId);
-                                    const targetDoc = await transaction.get(targetRef);
-                                    if (targetDoc.exists() && targetDoc.data().hp > 0) {
-                                        const newHp = targetDoc.data().hp - 10;
-                                        transaction.update(targetRef, { hp: newHp });
-                                        if (newHp <= 0) {
-                                            const myRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', myUserId);
-                                            transaction.update(myRef, { kills: (score + 1) });
+                                // Aplica dano no banco de dados (Transacional)
+                                const targetRef = ref(db, `jogadores_online/${targetId}`);
+                                runTransaction(targetRef, (targetData) => {
+                                    if (targetData && targetData.hp > 0) {
+                                        targetData.hp -= 10; 
+                                        if (targetData.hp <= 0) {
+                                            targetData.hp = 0;
+                                            registerKill();
                                         }
+                                        return targetData;
                                     }
+                                    return targetData; 
                                 });
                             } 
+                            // Se for COOP, tiro atravessa (Fogo Amigo Desativado)
+                            // Não faz hitSomething = true para a bala continuar
                         }
                     }
                 }
 
-                // Inimigos (Single/Coop)
+                // Verifica colisão com INIMIGOS (BOTS) - Apenas Singleplayer e COOP
                 if((!isMultiplayerMode || isCoopMode) && !hitSomething) {
                     const hits = bulletRaycaster.intersectObjects(enemies, true);
 
@@ -1856,19 +1907,9 @@
                                 hitObj.userData.dead = true;
                                 hitObj.scale.y = 0.2; hitObj.position.y = 0.1;
                                 
+                                // Lógica de Score
                                 if (isCoopMode) {
-                                    // Sincroniza Kills Coop
-                                    if(hitObj.userData.id) {
-                                        const coopRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'coop');
-                                        setDoc(coopRef, { dead_enemies: { [hitObj.userData.id]: true } }, { merge: true });
-                                        // Incrementa Kills (Atomico é complexo sem cloud function, usando update simples)
-                                        updateDoc(coopRef, { kills: score + 1 }).catch(()=>{});
-                                        
-                                        // Verifica Level UP localmente para trigger (servidor/listener fará o resto)
-                                        if (score + 1 >= 20 + (currentLevel * 5)) {
-                                            updateDoc(coopRef, { level: currentLevel + 1, kills: 0, dead_enemies: {}, taken_kits: {} });
-                                        }
-                                    }
+                                    registerTeamKill(); // Contribui para o time
                                 } else {
                                     score++; 
                                     document.getElementById('score').innerText = score;
@@ -1879,11 +1920,13 @@
                     }
                 }
 
+                // Se não bateu em inimigo, verifica PAREDES
                 if(!hitSomething) {
-                    const isNewBullet = b.userData.life > 298; 
+                    const isNewBullet = b.userData.life > 298; // Ajustado para nova vida max
                     const wallRay = new THREE.Raycaster(prevPos, dir, 0, dist);
                     const wallHits = wallRay.intersectObjects(walls);
                     if(wallHits.length > 0) {
+                        // Ignora colisão com parede se a bala acabou de nascer e está "dentro" da parede (glitch visual)
                         if (isNewBullet && wallHits[0].distance < 0.5) hitSomething = false; 
                         else hitSomething = true;
                     }
@@ -1894,6 +1937,31 @@
                     bullets.splice(i, 1);
                 }
             }
+        }
+
+        // Função auxiliar para registrar Kill no PVP
+        function registerKill() {
+            if(!myRef) return;
+            runTransaction(ref(db, `jogadores_online/${myUserId}/kills`), (kills) => {
+                return (kills || 0) + 1;
+            });
+        }
+        
+        // Função auxiliar para registrar Kill no COOP (Global)
+        function registerTeamKill() {
+            const coopStateRef = ref(db, 'coop_state');
+            runTransaction(coopStateRef, (state) => {
+                if (!state) state = { kills: 0, level: 1 };
+                state.kills = (state.kills || 0) + 1;
+                
+                // Verifica se passou de nível (ex: 20 + 5 por nível)
+                const required = 20 + (state.level * 5);
+                if (state.kills >= required) {
+                    state.level = (state.level || 1) + 1;
+                    state.kills = 0; // Reseta kills para o próximo nível
+                }
+                return state;
+            });
         }
 
         function processShooting() {
@@ -1907,6 +1975,8 @@
         }
 
         function updateEnemies() {
+            // Em modo PVP, bots são desativados.
+            // Em modo COOP, bots são ativados localmente.
             if(isMultiplayerMode && !isCoopMode) return; 
             
             const now = performance.now();
@@ -1945,9 +2015,9 @@
 
                             if(playerHP <= 0) {
                                 if (isCoopMode) {
-                                    respawnPvP();
+                                    respawnPvP(); // No coop, morre e respawna como no PVP
                                 } else {
-                                    showGameOver(); 
+                                    showGameOver(); // Singleplayer acaba
                                 }
                             }
                         }
@@ -1964,18 +2034,13 @@
             const enemyCount = count + (level - 1) * 2;
 
             for(let i=0; i<enemyCount; i++) {
-                let seed = level * 2000 + i;
-                let rx, rz; 
-                do { 
-                    rx = Math.floor(seededRandom(seed) * mazeSize); 
-                    rz = Math.floor(seededRandom(seed+1) * mazeSize); 
-                    seed += 2;
-                } while(mazeMap[rz][rx] === 1);
+                let rx, rz; do { rx = Math.floor(Math.random()*mazeSize); rz = Math.floor(Math.random()*mazeSize); } while(mazeMap[rz][rx] === 1);
                 
                 const en = new THREE.Group();
                 en.position.set(rx*5, 0, rz*5);
 
                 const color = level === 5 ? 0xff00ff : 0xff3333; 
+                // CORREÇÃO: side: THREE.DoubleSide para acertar por dentro
                 const body = new THREE.Mesh(
                     new THREE.CapsuleGeometry(0.5, 1.2, 4, 8), 
                     new THREE.MeshStandardMaterial({ 
@@ -1990,6 +2055,7 @@
                 body.name = "body"; 
                 en.add(body);
 
+                // --- HITBOX GENEROSA ---
                 const hitbox = new THREE.Mesh(
                     new THREE.BoxGeometry(3.5, 4.0, 3.5), 
                     new THREE.MeshBasicMaterial({ 
@@ -2007,8 +2073,7 @@
 
                 en.userData = { 
                     hp: enemyHP, maxHp: enemyHP, dead: false, lastShot: 0, isEnemyRoot: true,
-                    reactionTime: Math.max(200, 1000 - (level * 150)),
-                    id: `enemy_L${level}_${i}` 
+                    reactionTime: Math.max(200, 1000 - (level * 150))
                 };
                 
                 const w = new THREE.Group();
@@ -2035,19 +2100,24 @@
         function drawMinimap() {
             minimapCtx.clearRect(0,0,100,100); const s = 100 / 100;
             
+            // Fundo quadrado
             minimapCtx.fillStyle = '#111';
             minimapCtx.fillRect(0,0,100,100);
 
+            // Paredes
             minimapCtx.fillStyle = '#555';
             for(let i=0; i<mazeSize; i++) for(let j=0; j<mazeSize; j++) if(mazeMap[i][j] === 1) minimapCtx.fillRect(j*cellSize*s, i*cellSize*s, cellSize*s, cellSize*s);
             
+            // Kits Médicos
             minimapCtx.fillStyle = '#00FF41'; 
             healthKits.forEach(k => { 
                 minimapCtx.fillRect(k.position.x*s, k.position.z*s, 3, 3); 
             });
 
+            // Inimigos (Bots) ou Players (Multiplayer)
             minimapCtx.fillStyle = '#f33'; 
             if(isMultiplayerMode) {
+                // Desenha pontos para jogadores remotos (Verde no coop, Vermelho no PVP)
                 minimapCtx.fillStyle = isCoopMode ? '#00FF41' : '#f33'; 
                 Object.keys(remotePlayers).forEach(k => {
                    const rp = remotePlayers[k];
@@ -2055,12 +2125,14 @@
                 });
             } 
             
+            // Desenha bots locais se estiver no Coop ou Single
             if (!isMultiplayerMode || isCoopMode) {
-                minimapCtx.fillStyle = '#f33'; 
+                minimapCtx.fillStyle = '#f33'; // Bots são sempre vermelhos
                 enemies.forEach(e => { if(!e.userData.dead) minimapCtx.fillRect(e.position.x*s, e.position.z*s, 3, 3); });
             }
             
-            minimapCtx.fillStyle = '#fff'; 
+            // Player
+            minimapCtx.fillStyle = '#fff'; // Branco
             minimapCtx.beginPath(); minimapCtx.arc(playerGroup.position.x*s, playerGroup.position.z*s, 3, 0, 7); minimapCtx.fill();
         }
 
@@ -2108,9 +2180,11 @@
                 
                 gunGroup.position.z = (isThirdPerson ? -0.5 : -0.4) + gunRecoilZ;
                 
+                // INTERPOLAÇÃO MULTIPLAYER (Suavização de movimento dos outros)
                 if(isMultiplayerMode) {
                     Object.values(remotePlayers).forEach(rp => {
-                        rp.mesh.position.lerp(rp.targetPos, 0.2); 
+                        rp.mesh.position.lerp(rp.targetPos, 0.2); // Suaviza posição (0.2 = velocidade de ajuste)
+                        // Suaviza rotação (Menor a diferença angular para evitar giros malucos)
                         let rotDiff = rp.targetRot - rp.mesh.rotation.y;
                         while(rotDiff > Math.PI) rotDiff -= Math.PI*2;
                         while(rotDiff < -Math.PI) rotDiff += Math.PI*2;
@@ -2119,14 +2193,15 @@
                 }
 
                 processShooting(); updateEnemies(); updateHealthKits(); drawMinimap(); updateBullets();
-                updateHtmlObjects(); 
+                updateHtmlObjects(); // ATUALIZA POSIÇÃO DA LOGO NO CÉU
             } else {
                 if(!gamePaused) {
+                    // Câmera girando no menu
                     const t = Date.now() * 0.0006;
                     camera.position.set(Math.cos(t)*40 + 45, 30, Math.sin(t)*40 + 45);
                     camera.lookAt(45, 0, 45);
                     renderer.render(scene, camera);
-                    return; 
+                    return; // Sai antes de renderizar a cena normal
                 }
             }
             renderer.render(scene, camera);
