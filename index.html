@@ -367,7 +367,8 @@
         import * as THREE from 'three';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, onDisconnect, update, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        // ADICIONADO: runTransaction para gerenciar dano e kills com segurança
+        import { getDatabase, ref, set, onValue, onDisconnect, update, remove, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         // CONFIGURAÇÃO ORIGINAL HARDCODED
         const firebaseConfig = {
@@ -1127,12 +1128,48 @@
 
             onDisconnect(myRef).remove();
 
+            // REGRAS PVP: Inicializa com HP, Kills e Deaths
             set(myRef, {
                 id: myUserId,
                 x: 5, y: 0, z: 5, rot: 0,
+                hp: 100,
+                kills: 0,
+                deaths: 0,
                 lastUpdate: serverTimestamp()
-            }).then(() => logSystem("Presença ativada no DB.", "success"))
+            }).then(() => logSystem("PvP Ativo: Presença confirmada.", "success"))
               .catch(err => logSystem("Erro ao ativar presença: " + err.message, "error"));
+
+            // REGRAS PVP: Ouvinte para danos recebidos (Auto-monitoramento)
+            onValue(myRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                // Detecta se tomei dano (HP no banco menor que HP local)
+                if (data.hp < playerHP) {
+                    playerHP = data.hp;
+                    document.getElementById('hp').innerText = playerHP;
+                    
+                    // Efeito visual de dano
+                    document.getElementById('damage-overlay').style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
+                    setTimeout(() => document.getElementById('damage-overlay').style.boxShadow = "none", 200);
+                    playSound('shoot'); // Reutiliza som de impacto por enquanto
+
+                    // Verifica morte
+                    if (playerHP <= 0) {
+                        respawnPvP();
+                    }
+                }
+                
+                // Sincroniza Kills se atualizado no servidor
+                if (data.kills !== undefined) {
+                    // Se kills mudou (alguém morreu pra mim), atualiza HUD
+                    if (data.kills > score) {
+                        score = data.kills;
+                        document.getElementById('score').innerText = score;
+                        triggerHitMarker(); // Feedback extra de kill
+                    }
+                }
+            });
 
             // Loop de Envio
             if (networkInterval) clearInterval(networkInterval);
@@ -1150,9 +1187,7 @@
                         z: parseFloat(currentPos.z.toFixed(2)),
                         rot: parseFloat(currentRot.toFixed(2)),
                         lastUpdate: serverTimestamp()
-                    }).catch(err => {
-                        // Silencia erros no loop rápido, mas loga se crítico
-                    });
+                    }).catch(err => {});
                     
                     lastSentPosition.copy(currentPos);
                     lastSentRotation = currentRot;
@@ -1160,7 +1195,7 @@
                 }
             }, 50);
 
-            // Escuta atualizações
+            // Escuta atualizações (Outros players)
             onValue(playersRef, (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
@@ -1192,13 +1227,43 @@
             });
         }
 
+        // REGRAS PVP: Função de Respawn
+        function respawnPvP() {
+            // Escolhe posição aleatória válida
+            let rx, rz; 
+            do { 
+                rx = Math.floor(Math.random()*mazeSize); 
+                rz = Math.floor(Math.random()*mazeSize); 
+            } while(mazeMap[rz][rx] === 1);
+
+            // Reseta Status Local
+            playerHP = 100;
+            document.getElementById('hp').innerText = 100;
+            playerGroup.position.set(rx*5, 0, rz*5);
+            
+            logSystem("Você foi abatido. Renascendo...", "error");
+
+            // Atualiza DB (Revive e incrementa mortes)
+            // Usamos transaction para garantir integridade se possível, mas update simples serve aqui
+            runTransaction(myRef, (currentData) => {
+                if (currentData) {
+                    currentData.hp = 100;
+                    currentData.deaths = (currentData.deaths || 0) + 1;
+                    currentData.x = rx*5;
+                    currentData.z = rz*5;
+                    return currentData;
+                }
+                return currentData;
+            });
+        }
+
         function createRemotePlayerMesh() {
             const group = new THREE.Group();
             
-            // Corpo (Vermelho para distinguir)
+            // Corpo (Vermelho para distinguir inimigos PvP)
             const body = new THREE.Mesh(
                 new THREE.CapsuleGeometry(0.4, 1, 4, 8),
-                new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.3, metalness: 0.5 })
+                new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3, metalness: 0.5 })
             );
             body.position.y = 0.9;
             group.add(body);
@@ -1218,12 +1283,19 @@
             if(!remotePlayers[id]) {
                 const mesh = createRemotePlayerMesh();
                 mesh.position.set(data.x, data.y, data.z);
+                // REGRAS PVP: Salva o ID no mesh para identificar quem acertamos
+                mesh.userData = { id: id, isPlayer: true }; 
+                // Propaga ID para filhos para o raycaster pegar
+                mesh.children.forEach(c => c.userData = { id: id, isPlayer: true });
+                
                 scene.add(mesh);
                 remotePlayers[id] = { mesh: mesh, targetPos: new THREE.Vector3(data.x, data.y, data.z), targetRot: data.rot };
             } else {
                 const rp = remotePlayers[id];
                 rp.targetPos.set(data.x, data.y, data.z);
                 rp.targetRot = data.rot;
+                // Atualiza ID caso tenha se perdido (segurança)
+                rp.mesh.userData.id = id;
             }
         }
 
@@ -1669,8 +1741,43 @@
                 bulletRaycaster.set(prevPos, dir);
                 bulletRaycaster.far = dist; 
                 
-                // Verifica colisão com INIMIGOS (BOTS)
-                if(!isMultiplayerMode) {
+                // REGRAS PVP: Verifica colisão com JOGADORES
+                if(isMultiplayerMode) {
+                    const playerMeshes = Object.values(remotePlayers).map(rp => rp.mesh);
+                    const hits = bulletRaycaster.intersectObjects(playerMeshes, true);
+
+                    if (hits.length > 0) {
+                        let hitObj = hits[0].object;
+                        // Sobe a hierarquia até achar o grupo com o ID
+                        while(hitObj.parent && !hitObj.userData.id) hitObj = hitObj.parent;
+
+                        if (hitObj.userData.id) {
+                            const targetId = hitObj.userData.id;
+                            hitSomething = true;
+                            triggerHitMarker(); // Mostra que acertou
+
+                            // Aplica dano no banco de dados (Transacional)
+                            const targetRef = ref(db, `jogadores_online/${targetId}`);
+                            runTransaction(targetRef, (targetData) => {
+                                if (targetData && targetData.hp > 0) {
+                                    targetData.hp -= 10; // Dano do tiro
+                                    if (targetData.hp <= 0) {
+                                        targetData.hp = 0;
+                                        // O servidor (ou o cliente da vitima) vai resetar a vida,
+                                        // mas aqui podemos registrar o Kill para NÓS mesmos
+                                        // Precisamos incrementar NOSSO kill count
+                                        registerKill();
+                                    }
+                                    return targetData;
+                                }
+                                return targetData; // Aborta se não existe ou já morreu
+                            });
+                        }
+                    }
+                }
+
+                // Verifica colisão com INIMIGOS (BOTS - Singleplayer)
+                if(!isMultiplayerMode && !hitSomething) {
                     const hits = bulletRaycaster.intersectObjects(enemies, true);
 
                     if (hits.length > 0) {
@@ -1716,6 +1823,14 @@
                     bullets.splice(i, 1);
                 }
             }
+        }
+
+        // Função auxiliar para registrar Kill no PVP
+        function registerKill() {
+            if(!myRef) return;
+            runTransaction(ref(db, `jogadores_online/${myUserId}/kills`), (kills) => {
+                return (kills || 0) + 1;
+            });
         }
 
         function processShooting() {
