@@ -275,8 +275,12 @@
             <h1>CANAÃ<br><span style="font-size: 0.6em; color: white;">ZONA DE COMBATE</span></h1>
             <button class="menu-btn" id="play-btn">INICIAR MISSÃO</button>
             <button class="menu-btn" id="multiplayer-btn" style="border-color: #00f3ff; color: #00f3ff;">
-                MULTIPLAYER
+                MULTIPLAYER (PVP)
                 <span class="online-badge" style="background: #00f3ff; color: #000;">ONLINE</span>
+            </button>
+            <button class="menu-btn" id="coop-btn" style="border-color: #00FF41; color: #00FF41;">
+                CO-OP (PVE)
+                <span class="online-badge" style="background: #00FF41; color: #000;">BETA</span>
             </button>
             <button class="menu-btn secondary" id="settings-btn">SISTEMAS</button>
             
@@ -308,7 +312,7 @@
     <!-- LOBBY SCREEN -->
     <div id="lobby-screen">
         <div class="menu-content" style="border-color: #00f3ff; width: 400px; max-width: 90%;">
-            <h1 style="color: #00f3ff; margin-bottom: 10px;">SALA DE OPERAÇÕES</h1>
+            <h1 style="color: #00f3ff; margin-bottom: 10px;" id="lobby-title">SALA DE OPERAÇÕES</h1>
             <div style="font-family: 'Rajdhani'; color: #aaa; margin-bottom: 15px;">
                 Status: <span id="connection-status" style="color: #ffff00">Aguardando...</span>
             </div>
@@ -367,7 +371,6 @@
         import * as THREE from 'three';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // ADICIONADO: runTransaction para gerenciar dano e kills com segurança
         import { getDatabase, ref, set, onValue, onDisconnect, update, remove, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         // CONFIGURAÇÃO ORIGINAL HARDCODED
@@ -398,7 +401,10 @@
         let myRef = null;
         let remotePlayers = {}; 
         let isMultiplayerMode = false;
+        let isCoopMode = false; // NOVA VARIÁVEL COOP
         let networkInterval = null;
+        let coopLevelListener = null;
+        let coopKillsListener = null;
         
         // OTIMIZAÇÃO DE REDE
         let lastSentPosition = new THREE.Vector3(0, 0, 0);
@@ -417,10 +423,40 @@
         }
 
         // --- LÓGICA DE LOBBY ---
-        function showLobby() {
+        function showLobby(mode) {
             document.getElementById("start-view").style.display = "none";
             document.getElementById("lobby-screen").style.display = "flex";
             
+            // Configura título e botão baseado no modo
+            const title = document.getElementById("lobby-title");
+            const btn = document.getElementById("start-mp-btn");
+            
+            if(mode === 'coop') {
+                title.innerText = "SALA DE COOPERAÇÃO";
+                title.style.color = "#00FF41";
+                btn.style.borderColor = "#00FF41";
+                btn.style.color = "#00FF41";
+                btn.onclick = () => {
+                    resetGame('coop');
+                    document.getElementById('main-menu').style.display = 'none';
+                    document.getElementById('hud').style.display = 'block';
+                    document.getElementById('crosshair').style.display = 'block';
+                    if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
+                };
+            } else {
+                title.innerText = "SALA DE PVP";
+                title.style.color = "#00f3ff";
+                btn.style.borderColor = "#00f3ff";
+                btn.style.color = "#00f3ff";
+                btn.onclick = () => {
+                    resetGame('multi');
+                    document.getElementById('main-menu').style.display = 'none';
+                    document.getElementById('hud').style.display = 'block';
+                    document.getElementById('crosshair').style.display = 'block';
+                    if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
+                };
+            }
+
             connectLobby();
         }
 
@@ -1161,7 +1197,7 @@
                 }
                 
                 // Sincroniza Kills se atualizado no servidor
-                if (data.kills !== undefined) {
+                if (data.kills !== undefined && !isCoopMode) { // Só em PVP
                     // Se kills mudou (alguém morreu pra mim), atualiza HUD
                     if (data.kills > score) {
                         score = data.kills;
@@ -1227,6 +1263,49 @@
             });
         }
 
+        // --- LÓGICA DE COOP ---
+        function setupCoopPresence() {
+            // No Coop, usamos a mesma presença básica para ver outros players
+            setupPresence();
+            
+            // Mas adicionamos ouvintes para o estado global do jogo (Nível e Kills do time)
+            const coopRef = ref(db, 'coop_state');
+            
+            // Escuta mudança de nível
+            coopLevelListener = onValue(ref(db, 'coop_state/level'), (snap) => {
+                const serverLevel = snap.val();
+                if (serverLevel && serverLevel !== currentLevel) {
+                    logSystem("Nível Coop Sincronizado: " + serverLevel, "success");
+                    // Se o nível avançou no servidor, avança aqui também
+                    if (serverLevel > currentLevel) {
+                        // Simula a transição normal
+                        nextLevel(); 
+                        // Mas garante que o nível lógico é o do servidor
+                        currentLevel = serverLevel;
+                    } else {
+                        // Se entrou num jogo em andamento ou resetou
+                        currentLevel = serverLevel;
+                        createWorld(currentLevel);
+                        spawnEnemies(15, currentLevel);
+                    }
+                    document.getElementById('level-display').innerText = currentLevel;
+                }
+            });
+
+            // Escuta abates do time
+            coopKillsListener = onValue(ref(db, 'coop_state/kills'), (snap) => {
+                const kills = snap.val() || 0;
+                score = kills;
+                document.getElementById('score').innerText = score;
+                
+                // Meta de kills para passar de fase no coop (ex: 20 + 5 por nível)
+                const required = 20 + (currentLevel * 5);
+                
+                // Se atingiu a meta, o servidor (ou o cliente que fez a kill) deve resetar
+                // Aqui apenas atualizamos a UI, a lógica de reset é no tiro
+            });
+        }
+
         // REGRAS PVP: Função de Respawn
         function respawnPvP() {
             // Escolhe posição aleatória válida
@@ -1260,10 +1339,11 @@
         function createRemotePlayerMesh() {
             const group = new THREE.Group();
             
-            // Corpo (Vermelho para distinguir inimigos PvP)
+            // Corpo (Vermelho para distinguir inimigos PvP, Verde no Coop?)
+            const color = isCoopMode ? 0x00FF41 : 0xff0000;
             const body = new THREE.Mesh(
                 new THREE.CapsuleGeometry(0.4, 1, 4, 8),
-                new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3, metalness: 0.5 })
+                new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.5 })
             );
             body.position.y = 0.9;
             group.add(body);
@@ -1305,7 +1385,8 @@
             currentLevel = 1;
             playerHP = 100; score = 0; velocityY = 0;
             
-            isMultiplayerMode = (mode === 'multi');
+            isMultiplayerMode = (mode === 'multi' || mode === 'coop');
+            isCoopMode = (mode === 'coop');
             
             // UI
             document.getElementById('hp').innerText = playerHP;
@@ -1317,7 +1398,16 @@
             document.getElementById('damage-overlay').style.boxShadow = "none";
             document.getElementById('lobby-screen').style.display = "none";
             
-            document.getElementById('multiplayer-status').style.display = isMultiplayerMode ? 'block' : 'none';
+            // Atualiza status multiplayer com indicação de Coop
+            const mpStatus = document.getElementById('multiplayer-status');
+            mpStatus.style.display = isMultiplayerMode ? 'block' : 'none';
+            if(isCoopMode) {
+                mpStatus.innerHTML = `CO-OP BETA: <span id="mp-count">0</span> OPERADORES`;
+                mpStatus.style.color = "#00FF41";
+            } else {
+                mpStatus.innerHTML = `ONLINE: <span id="mp-count">0</span> JOGADORES`;
+                mpStatus.style.color = "#00f3ff";
+            }
 
             // Reset Posição
             playerGroup.position.set(5, 0, 5);
@@ -1326,8 +1416,21 @@
             if(isMultiplayerMode) {
                 enemies.forEach(e => scene.remove(e)); enemies = []; 
                 healthKits.forEach(k => scene.remove(k)); healthKits = [];
-                // Conecta e ativa presença
-                setupPresence();
+                
+                // Limpa listeners antigos
+                if(coopLevelListener) coopLevelListener(); // Desinscreve
+                if(coopKillsListener) coopKillsListener();
+
+                if (isCoopMode) {
+                    // No modo Coop, spawnamos inimigos locais para cada cliente
+                    // O progresso é compartilhado via "kills" no banco
+                    spawnEnemies(15, currentLevel); 
+                    spawnHealthKits(6);
+                    setupCoopPresence();
+                } else {
+                    // PVP: Sem inimigos bots
+                    setupPresence();
+                }
             } else {
                 spawnEnemies(15, currentLevel);
                 spawnHealthKits(6);
@@ -1341,7 +1444,7 @@
             startMusic(); 
 
             const indicator = document.getElementById('level-indicator');
-            indicator.innerText = isMultiplayerMode ? "ONLINE" : "NÍVEL " + currentLevel;
+            indicator.innerText = isCoopMode ? "ZONA COOP 1" : (isMultiplayerMode ? "ZONA PVP" : "NÍVEL " + currentLevel);
             indicator.style.display = 'block';
             setTimeout(() => indicator.style.display = 'none', 3000);
 
@@ -1405,16 +1508,12 @@
 
             // BOTÃO MULTIPLAYER -> VAI PRO LOBBY
             document.getElementById('multiplayer-btn').onclick = () => {
-                showLobby();
+                showLobby('pvp');
             };
-
-            // BOTÃO INICIAR NO LOBBY -> VAI PRO JOGO
-            document.getElementById('start-mp-btn').onclick = () => {
-                resetGame('multi');
-                document.getElementById('main-menu').style.display = 'none';
-                document.getElementById('hud').style.display = 'block';
-                document.getElementById('crosshair').style.display = 'block';
-                if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
+            
+            // BOTÃO COOP -> VAI PRO LOBBY (Modo Coop)
+            document.getElementById('coop-btn').onclick = () => {
+                showLobby('coop');
             };
 
             // VOLTAR DO LOBBY
@@ -1451,10 +1550,12 @@
                      myRef = null;
                  }
                  if(networkInterval) clearInterval(networkInterval);
+                 if(coopLevelListener) coopLevelListener();
+                 if(coopKillsListener) coopKillsListener();
             };
 
             document.getElementById('retry-btn').onclick = () => {
-                resetGame(isMultiplayerMode ? 'multi' : 'single'); 
+                resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); 
                 document.getElementById('hud').style.display = 'block';
                 if(!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
@@ -1483,7 +1584,7 @@
                 camera.quaternion.identity();
                 // ***********************************
                 
-                // --- CORREÇÃO: REINICIA CONTAGEM DE ABATES ---
+                // --- CORREÇÃO: REINICIA CONTAGEM DE ABATES (Local e Remota no Coop) ---
                 score = 0;
                 document.getElementById('score').innerText = score;
                 // ---------------------------------------------
@@ -1721,7 +1822,11 @@
             let activeEnemies = 0;
             enemies.forEach(e => { if(!e.userData.dead) activeEnemies++; });
 
-            if(activeEnemies === 0 && isPlaying && !isMultiplayerMode) {
+            // CONDIÇÃO DE VITÓRIA:
+            // Singleplayer: 0 inimigos vivos.
+            // PVP: Não tem vitória por matar inimigos (endless).
+            // Coop: Vitória baseada em KILLS TOTAIS DO TIME, não inimigos locais.
+            if(!isMultiplayerMode && activeEnemies === 0 && isPlaying) {
                 nextLevel();
                 return;
             }
@@ -1741,7 +1846,7 @@
                 bulletRaycaster.set(prevPos, dir);
                 bulletRaycaster.far = dist; 
                 
-                // REGRAS PVP: Verifica colisão com JOGADORES
+                // REGRAS PVP / COOP: Verifica colisão com OUTROS JOGADORES
                 if(isMultiplayerMode) {
                     const playerMeshes = Object.values(remotePlayers).map(rp => rp.mesh);
                     const hits = bulletRaycaster.intersectObjects(playerMeshes, true);
@@ -1753,31 +1858,34 @@
 
                         if (hitObj.userData.id) {
                             const targetId = hitObj.userData.id;
-                            hitSomething = true;
-                            triggerHitMarker(); // Mostra que acertou
+                            
+                            // Se for PVP, causa dano e registra kill
+                            if (!isCoopMode) {
+                                hitSomething = true;
+                                triggerHitMarker(); 
 
-                            // Aplica dano no banco de dados (Transacional)
-                            const targetRef = ref(db, `jogadores_online/${targetId}`);
-                            runTransaction(targetRef, (targetData) => {
-                                if (targetData && targetData.hp > 0) {
-                                    targetData.hp -= 10; // Dano do tiro
-                                    if (targetData.hp <= 0) {
-                                        targetData.hp = 0;
-                                        // O servidor (ou o cliente da vitima) vai resetar a vida,
-                                        // mas aqui podemos registrar o Kill para NÓS mesmos
-                                        // Precisamos incrementar NOSSO kill count
-                                        registerKill();
+                                // Aplica dano no banco de dados (Transacional)
+                                const targetRef = ref(db, `jogadores_online/${targetId}`);
+                                runTransaction(targetRef, (targetData) => {
+                                    if (targetData && targetData.hp > 0) {
+                                        targetData.hp -= 10; 
+                                        if (targetData.hp <= 0) {
+                                            targetData.hp = 0;
+                                            registerKill();
+                                        }
+                                        return targetData;
                                     }
-                                    return targetData;
-                                }
-                                return targetData; // Aborta se não existe ou já morreu
-                            });
+                                    return targetData; 
+                                });
+                            } 
+                            // Se for COOP, tiro atravessa (Fogo Amigo Desativado)
+                            // Não faz hitSomething = true para a bala continuar
                         }
                     }
                 }
 
-                // Verifica colisão com INIMIGOS (BOTS - Singleplayer)
-                if(!isMultiplayerMode && !hitSomething) {
+                // Verifica colisão com INIMIGOS (BOTS) - Apenas Singleplayer e COOP
+                if((!isMultiplayerMode || isCoopMode) && !hitSomething) {
                     const hits = bulletRaycaster.intersectObjects(enemies, true);
 
                     if (hits.length > 0) {
@@ -1798,8 +1906,14 @@
                             if(hitObj.userData.hp <= 0) {
                                 hitObj.userData.dead = true;
                                 hitObj.scale.y = 0.2; hitObj.position.y = 0.1;
-                                score++; 
-                                document.getElementById('score').innerText = score;
+                                
+                                // Lógica de Score
+                                if (isCoopMode) {
+                                    registerTeamKill(); // Contribui para o time
+                                } else {
+                                    score++; 
+                                    document.getElementById('score').innerText = score;
+                                }
                             }
                             hitSomething = true;
                         }
@@ -1832,6 +1946,23 @@
                 return (kills || 0) + 1;
             });
         }
+        
+        // Função auxiliar para registrar Kill no COOP (Global)
+        function registerTeamKill() {
+            const coopStateRef = ref(db, 'coop_state');
+            runTransaction(coopStateRef, (state) => {
+                if (!state) state = { kills: 0, level: 1 };
+                state.kills = (state.kills || 0) + 1;
+                
+                // Verifica se passou de nível (ex: 20 + 5 por nível)
+                const required = 20 + (state.level * 5);
+                if (state.kills >= required) {
+                    state.level = (state.level || 1) + 1;
+                    state.kills = 0; // Reseta kills para o próximo nível
+                }
+                return state;
+            });
+        }
 
         function processShooting() {
             const now = performance.now();
@@ -1844,7 +1975,10 @@
         }
 
         function updateEnemies() {
-            if(isMultiplayerMode) return; // Desativa IA de bots no multiplayer por enquanto
+            // Em modo PVP, bots são desativados.
+            // Em modo COOP, bots são ativados localmente.
+            if(isMultiplayerMode && !isCoopMode) return; 
+            
             const now = performance.now();
             enemies.forEach(en => {
                 if(en.userData.dead) return;
@@ -1879,7 +2013,13 @@
                             overlay.style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
                             setTimeout(() => overlay.style.boxShadow = "none", 200);
 
-                            if(playerHP <= 0) showGameOver();
+                            if(playerHP <= 0) {
+                                if (isCoopMode) {
+                                    respawnPvP(); // No coop, morre e respawna como no PVP
+                                } else {
+                                    showGameOver(); // Singleplayer acaba
+                                }
+                            }
                         }
                     }
                 }
@@ -1977,12 +2117,17 @@
             // Inimigos (Bots) ou Players (Multiplayer)
             minimapCtx.fillStyle = '#f33'; 
             if(isMultiplayerMode) {
-                // Desenha pontos para jogadores remotos
+                // Desenha pontos para jogadores remotos (Verde no coop, Vermelho no PVP)
+                minimapCtx.fillStyle = isCoopMode ? '#00FF41' : '#f33'; 
                 Object.keys(remotePlayers).forEach(k => {
                    const rp = remotePlayers[k];
                    minimapCtx.fillRect(rp.mesh.position.x*s, rp.mesh.position.z*s, 3, 3);
                 });
-            } else {
+            } 
+            
+            // Desenha bots locais se estiver no Coop ou Single
+            if (!isMultiplayerMode || isCoopMode) {
+                minimapCtx.fillStyle = '#f33'; // Bots são sempre vermelhos
                 enemies.forEach(e => { if(!e.userData.dead) minimapCtx.fillRect(e.position.x*s, e.position.z*s, 3, 3); });
             }
             
