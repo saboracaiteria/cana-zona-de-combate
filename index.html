@@ -1900,7 +1900,11 @@
             const enemyCount = count + (level - 1) * 2;
 
             for(let i=0; i<enemyCount; i++) {
-                let rx, rz; do { rx = Math.floor(Math.random()*mazeSize); rz = Math.floor(Math.random()*mazeSize); } while(mazeMap[rz][rx] === 1);
+                let rx, rz; 
+                do { 
+                    rx = Math.floor(Math.random()*mazeSize); 
+                    rz = Math.floor(Math.random()*mazeSize); 
+                } while(mazeMap[rz][rx] === 1);
                 
                 const en = new THREE.Group();
                 en.position.set(rx*5, 0, rz*5);
@@ -1936,7 +1940,11 @@
                 body.add(eye);
 
                 en.userData = { 
-                    hp: enemyHP, maxHp: enemyHP, dead: false, lastShot: 0, isEnemyRoot: true,
+                    hp: enemyHP, 
+                    maxHp: enemyHP, 
+                    dead: false, 
+                    lastShot: 0, 
+                    isEnemyRoot: true,
                     reactionTime: Math.max(200, 1000 - (level * 150))
                 };
                 
@@ -1946,7 +1954,8 @@
                 w.position.set(0.3, 0.4, 0.4); 
                 body.add(w);
 
-                scene.add(en); enemies.push(en);
+                scene.add(en);
+                enemies.push(en);
             }
         }
 
@@ -1956,42 +1965,58 @@
             minimapCanvas.width = 100; minimapCanvas.height = 100;
             minimapCanvas.className = 'minimap-container';
             minimapCanvas.style.cssText = "position:absolute; top:75px; left:15px; background:rgba(0,0,0,0.8); pointer-events:none; z-index:50;";
-            document.body.appendChild(minimapCanvas); minimapCtx = minimapCanvas.getContext('2d');
+            document.body.appendChild(minimapCanvas);
+            minimapCtx = minimapCanvas.getContext('2d');
         }
 
         function drawMinimap() {
-            minimapCtx.clearRect(0,0,100,100); const s = 100 / 100;
+            minimapCtx.clearRect(0,0,100,100);
+            const s = 100 / (mazeSize * cellSize);
             
             minimapCtx.fillStyle = '#111';
             minimapCtx.fillRect(0,0,100,100);
 
             minimapCtx.fillStyle = '#555';
-            for(let i=0; i<mazeSize; i++) for(let j=0; j<mazeSize; j++) if(mazeMap[i][j] === 1) minimapCtx.fillRect(j*cellSize*s, i*cellSize*s, cellSize*s, cellSize*s);
+            for(let i=0; i<mazeSize; i++) {
+                for(let j=0; j<mazeSize; j++) {
+                    if(mazeMap[i][j] === 1) {
+                        minimapCtx.fillRect(j*cellSize*s, i*cellSize*s, cellSize*s, cellSize*s);
+                    }
+                }
+            }
             
             minimapCtx.fillStyle = '#00FF41'; 
             healthKits.forEach(k => { 
                 minimapCtx.fillRect(k.position.x*s, k.position.z*s, 3, 3); 
             });
 
-            minimapCtx.fillStyle = '#f33'; 
             if(isMultiplayerMode) {
                 minimapCtx.fillStyle = isCoopMode ? '#00FF41' : '#f33'; 
-                Object.keys(remotePlayers).forEach(k => {
-                   const rp = remotePlayers[k];
-                   minimapCtx.fillRect(rp.mesh.position.x*s, rp.mesh.position.z*s, 3, 3);
+                Object.values(remotePlayers).forEach(rp => {
+                    minimapCtx.fillRect(rp.mesh.position.x*s, rp.mesh.position.z*s, 3, 3);
                 });
             } 
             
             if (!isMultiplayerMode || isCoopMode) {
                 minimapCtx.fillStyle = '#f33'; 
-                enemies.forEach(e => { if(!e.userData.dead) minimapCtx.fillRect(e.position.x*s, e.position.z*s, 3, 3); });
+                enemies.forEach(e => { 
+                    if(!e.userData.dead) {
+                        minimapCtx.fillRect(e.position.x*s, e.position.z*s, 3, 3);
+                    }
+                });
             }
             
             minimapCtx.fillStyle = '#fff'; 
-            minimapCtx.beginPath(); minimapCtx.arc(playerGroup.position.x*s, playerGroup.position.z*s, 3, 0, 7); minimapCtx.fill();
+            minimapCtx.beginPath();
+            minimapCtx.arc(playerGroup.position.x*s, playerGroup.position.z*s, 3, 0, Math.PI*2);
+            minimapCtx.fill();
         }
 
-        function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -2001,6 +2026,7 @@
                     moveInput.x = (keyState.a ? -1 : 0) + (keyState.d ? 1 : 0); 
                     moveInput.y = (keyState.w ? -1 : 0) + (keyState.s ? 1 : 0); 
                 }
+                
                 const speed = 0.28;
                 const fwd = new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
                 const rgt = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
@@ -2009,15 +2035,26 @@
                 
                 if ((moveInput.x !== 0 || moveInput.y !== 0) && isGrounded) {
                     const now = performance.now();
-                    if (now - lastStepTime > 350) { playSound('step'); lastStepTime = now; }
+                    if (now - lastStepTime > 350) { 
+                        playSound('step'); 
+                        lastStepTime = now; 
+                    }
                 }
 
-                if(!checkWall(playerGroup.position.x + mX, playerGroup.position.z)) playerGroup.position.x += mX;
-                if(!checkWall(playerGroup.position.x, playerGroup.position.z + mZ)) playerGroup.position.z += mZ;
+                if(!checkWall(playerGroup.position.x + mX, playerGroup.position.z)) {
+                    playerGroup.position.x += mX;
+                }
+                if(!checkWall(playerGroup.position.x, playerGroup.position.z + mZ)) {
+                    playerGroup.position.z += mZ;
+                }
                 
                 if(!isGrounded) velocityY -= GRAVITY;
                 playerGroup.position.y += velocityY;
-                if(playerGroup.position.y <= 0) { playerGroup.position.y = 0; velocityY = 0; isGrounded = true; }
+                if(playerGroup.position.y <= 0) { 
+                    playerGroup.position.y = 0; 
+                    velocityY = 0; 
+                    isGrounded = true; 
+                }
 
                 playerGroup.rotation.y = yaw;
                 camera.rotation.x = pitch + recoil;
@@ -2027,7 +2064,10 @@
                 
                 const ads = isAiming || (performance.now() - lastShotTime < 400);
                 if(isThirdPerson) {
-                    camera.position.lerp(ads ? new THREE.Vector3(0.45, 1.75, 1.3) : new THREE.Vector3(0.7, 1.9, 2.5), 0.25);
+                    camera.position.lerp(
+                        ads ? new THREE.Vector3(0.45, 1.75, 1.3) : new THREE.Vector3(0.7, 1.9, 2.5), 
+                        0.25
+                    );
                     playerArm.rotation.x = (Math.PI / 2) + pitch;
                 } else {
                     camera.position.set(0, 1.7, 0);
@@ -2037,7 +2077,7 @@
                 
                 if(isMultiplayerMode) {
                     Object.values(remotePlayers).forEach(rp => {
-                        rp.mesh.position.lerp(rp.targetPos, 0.2); 
+                        rp.mesh.position.lerp(rp.targetPos, 0.2);
                         let rotDiff = rp.targetRot - rp.mesh.rotation.y;
                         while(rotDiff > Math.PI) rotDiff -= Math.PI*2;
                         while(rotDiff < -Math.PI) rotDiff += Math.PI*2;
@@ -2045,20 +2085,27 @@
                     });
                 }
 
-                processShooting(); updateEnemies(); updateHealthKits(); drawMinimap(); updateBullets();
+                processShooting();
+                updateEnemies();
+                updateHealthKits();
+                drawMinimap();
+                updateBullets();
                 updateHtmlObjects(); 
-            } else {
-                if(!gamePaused) {
-                    const t = Date.now() * 0.0006;
-                    camera.position.set(Math.cos(t)*40 + 45, 30, Math.sin(t)*40 + 45);
-                    camera.lookAt(45, 0, 45);
-                    renderer.render(scene, camera);
-                    return; 
-                }
+            } else if(!gamePaused) {
+                // Menu orbit
+                const t = Date.now() * 0.0006;
+                camera.position.set(
+                    Math.cos(t)*40 + 45,
+                    30,
+                    Math.sin(t)*40 + 45
+                );
+                camera.lookAt(45, 0, 45);
             }
+
             renderer.render(scene, camera);
         }
 
+        // Inicia o jogo
         init();
     </script>
 </body>
