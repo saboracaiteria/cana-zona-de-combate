@@ -2870,11 +2870,35 @@
                 const d = minDist;
                 if (d < 25 && d > 1.5) {
                     const dir = new THREE.Vector3().subVectors(target.position, e.position).normalize();
-                    const np = e.position.clone().add(dir.clone().multiplyScalar(0.075));
+                    // NEW AI LOGIC: Speed boost if low HP
+                    let moveSpeed = 0.075;
+                    if (e.userData.hp <= 50) moveSpeed *= 1.5;
+
+                    const np = e.position.clone().add(dir.clone().multiplyScalar(moveSpeed));
+
+                    // GRAVITY FOR BOTS
+                    if (e.userData.velocityY === undefined) e.userData.velocityY = 0;
+                    if (e.userData.isGrounded === undefined) e.userData.isGrounded = true;
+
+                    e.userData.velocityY -= 0.015; // Gravity
+                    np.y += e.userData.velocityY;
+
+                    if (np.y <= 0) {
+                        np.y = 0;
+                        e.userData.velocityY = 0;
+                        e.userData.isGrounded = true;
+                    } else {
+                        e.userData.isGrounded = false;
+                    }
 
                     // Bot rotation (facing target)
                     const targetYaw = Math.atan2(dir.x, dir.z) + Math.PI;
                     e.rotation.y = targetYaw;
+
+                    // NEW AI LOGIC: Jump if low HP (evasion) or stuck
+                    if (e.userData.hp <= 50 && e.userData.isGrounded && Math.random() < 0.02) {
+                         e.userData.velocityY = 0.25; // Jump
+                    }
 
                     if (!checkWall(np.x, np.z)) {
                         e.position.copy(np);
@@ -2896,6 +2920,9 @@
                             e.userData.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
                         }
                     } else {
+                        // Stuck on wall -> try Jump
+                         if (e.userData.isGrounded) e.userData.velocityY = 0.25;
+
                         // Reset legs when stopped (Still crouched)
                         if (e.userData.pivots) {
                             const baseCrouch = 0.3;
@@ -3118,25 +3145,41 @@
                     }
 
                     // 1. REALISTIC ANIMATION LOGIC (Local Player)
-                    // INVERTED LOGIC AS PER USER REQUEST (Prev: baseCrouch=-0.4, baseKnee=0.8)
-                    // New: baseCrouch=0.3, baseKnee=-0.6 to bend forward correctly
-                    const baseCrouch = 0.3;
-                    const baseKnee = -0.6;
-                    // Oscillation for walk
-                    const legSwing = Math.sin(walkCycle) * 0.5;
                     
-                    playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
-                    playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
-                    
-                    playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
-                    playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
+                    if (!isGrounded) {
+                        // JUMP ANIMATION: One knee up (Left), One straight (Right)
+                        
+                        // Left Leg (Up): 90 degrees forward relative to waist
+                        // Using positive rotation for forward swing based on walk logic (0.3 is forward)
+                        playerMeshParts.lLegPivot.rotation.x = 1.6; 
+                        
+                        // Knee bent (Shin goes back/down)
+                        // Negative rotation for shin bend based on walk logic (-0.6 is bent)
+                        playerMeshParts.lCanelaPivot.rotation.x = -1.8;
 
-                    // Body Bobbing (Weight transfer)
-                    playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
-                    
-                    // Subtle torso twist
-                    if (playerMeshParts.torso) {
-                        playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
+                        // Right Leg (Down): Straight (Impulse leg)
+                        playerMeshParts.rLegPivot.rotation.x = 0.2;
+                        playerMeshParts.rCanelaPivot.rotation.x = -0.1;
+                    } else {
+                        // WALKING / IDLE
+                        const baseCrouch = 0.3;
+                        const baseKnee = -0.6;
+                        // Oscillation for walk
+                        const legSwing = Math.sin(walkCycle) * 0.5;
+                        
+                        playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
+                        playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
+                        
+                        playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
+                        playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
+
+                        // Body Bobbing (Weight transfer)
+                        playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
+                        
+                        // Subtle torso twist
+                        if (playerMeshParts.torso) {
+                            playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
+                        }
                     }
 
                     const currentPitch = (Math.PI / 2) + pitch + recoilAngle;
