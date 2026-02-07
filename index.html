@@ -1938,7 +1938,7 @@
 
             // 1. HIERARCHY STRUCTURE (Pivots stay, Meshes toggle visibility)
             const pelvePivot = new THREE.Object3D();
-            pelvePivot.position.y = 0.97; // Adjusted to keep feet on ground
+            pelvePivot.position.y = 0.85; // LOWERED to simulate crouch
             playerGroup.add(pelvePivot);
 
             const mPelve = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.25), matBlack);
@@ -1978,13 +1978,13 @@
             const rCoxa = new THREE.Mesh(LegGeo, matGreen); rCoxa.position.y = -0.2; rLegPivot.add(rCoxa);
             const rCanelaPivot = new THREE.Object3D(); rCanelaPivot.position.y = -0.22; rCoxa.add(rCanelaPivot);
             const rCanela = new THREE.Mesh(LegGeo, matGreen); rCanela.position.y = -0.2; rCanelaPivot.add(rCanela);
-            const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, 0.05); rCanela.add(rBota);
+            const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, -0.1); rCanela.add(rBota);
 
             const lLegPivot = new THREE.Object3D(); lLegPivot.position.set(-0.12, -0.1, 0); pelvePivot.add(lLegPivot);
             const lCoxa = new THREE.Mesh(LegGeo, matGreen); lCoxa.position.y = -0.2; lLegPivot.add(lCoxa);
             const lCanelaPivot = new THREE.Object3D(); lCanelaPivot.position.y = -0.22; lCoxa.add(lCanelaPivot);
             const lCanela = new THREE.Mesh(LegGeo, matGreen); lCanela.position.y = -0.2; lCanelaPivot.add(lCanela);
-            const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, 0.05); lCanela.add(lBota);
+            const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, -0.1); lCanela.add(lBota);
 
             // 4. ARMS (Attached to peitoPivot)
             const rArmPivot = new THREE.Object3D(); rArmPivot.position.set(0.32, 0.1, 0); peitoPivot.add(rArmPivot);
@@ -2182,7 +2182,7 @@
             const matBota = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
             const pelve = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.25), matBlack);
-            pelve.position.y = 0.97; // Adjusted to keep feet on ground
+            pelve.position.y = 0.85; // LOWERED
             pelve.rotation.y = 0; // Fixed: Was Math.PI (backwards)
             en.add(pelve);
 
@@ -2210,13 +2210,13 @@
             const rCoxa = new THREE.Mesh(LegGeo, matEnemy); rCoxa.position.y = -0.2; rLegPivot.add(rCoxa);
             const rCanelaPivot = new THREE.Object3D(); rCanelaPivot.position.y = -0.22; rCoxa.add(rCanelaPivot);
             const rCanela = new THREE.Mesh(LegGeo, matEnemy); rCanela.position.y = -0.2; rCanelaPivot.add(rCanela);
-            const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, 0.05); rCanela.add(rBota);
+            const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, -0.1); rCanela.add(rBota);
 
             const lLegPivot = new THREE.Object3D(); lLegPivot.name = "lLegPivot"; lLegPivot.position.set(-0.12, -0.1, 0); pelve.add(lLegPivot);
             const lCoxa = new THREE.Mesh(LegGeo, matEnemy); lCoxa.position.y = -0.2; lLegPivot.add(lCoxa);
             const lCanelaPivot = new THREE.Object3D(); lCanelaPivot.position.y = -0.22; lCoxa.add(lCanelaPivot);
             const lCanela = new THREE.Mesh(LegGeo, matEnemy); lCanela.position.y = -0.2; lCanelaPivot.add(lCanela);
-            const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, 0.05); lCanela.add(lBota);
+            const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, -0.1); lCanela.add(lBota);
 
             const rArmPivot = new THREE.Object3D(); rArmPivot.name = "rArmPivot"; rArmPivot.position.set(0.32, 0.1, 0); peito.add(rArmPivot);
             const rBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.35), matSkin); rBiceps.position.y = -0.15; rArmPivot.add(rBiceps);
@@ -2300,7 +2300,7 @@
             const matBota = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
             const pelve = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.25), matBlack);
-            pelve.position.y = 0.97; // Adjusted to keep feet on ground
+            pelve.position.y = 0.85; // LOWERED
             pelve.rotation.y = 0; // Fixed: Was Math.PI (backwards)
             g.add(pelve);
 
@@ -2330,13 +2330,13 @@
             const rCoxa = new THREE.Mesh(LegGeo, matCamo); rCoxa.position.y = -0.2; rLegPivot.add(rCoxa);
             const rCanelaPivot = new THREE.Object3D(); rCanelaPivot.position.y = -0.22; rCoxa.add(rCanelaPivot);
             const rCanela = new THREE.Mesh(LegGeo, matCamo); rCanela.position.y = -0.2; rCanelaPivot.add(rCanela);
-            const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, 0.05); rCanela.add(rBota);
+            const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, -0.1); rCanela.add(rBota);
 
             const lLegPivot = new THREE.Object3D(); lLegPivot.name = "lLegPivot"; lLegPivot.position.set(-0.12, -0.1, 0); pelve.add(lLegPivot);
             const lCoxa = new THREE.Mesh(LegGeo, matCamo); lCoxa.position.y = -0.2; lLegPivot.add(lCoxa);
             const lCanelaPivot = new THREE.Object3D(); lCanelaPivot.position.y = -0.22; lCoxa.add(lCanelaPivot);
             const lCanela = new THREE.Mesh(LegGeo, matCamo); lCanela.position.y = -0.2; lCanelaPivot.add(lCanela);
-            const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, 0.05); lCanela.add(lBota);
+            const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, -0.1); lCanela.add(lBota);
 
             const rArmPivot = new THREE.Object3D(); rArmPivot.name = "rArmPivot"; rArmPivot.position.set(0.32, 0.1, 0); peito.add(rArmPivot);
             const rBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.35), matSkin); rBiceps.position.y = -0.15; rArmPivot.add(rBiceps);
@@ -2881,21 +2881,29 @@
                         // Leg animation
                         e.userData.walkCycle += 0.2;
                         const wc = e.userData.walkCycle;
+                        
+                        // NEW REALISTIC WALK LOGIC (Cautious/Crouched)
+                        // INVERTED LOGIC AS PER USER REQUEST (Prev: baseCrouch=-0.4, baseKnee=0.8)
+                        // New: baseCrouch=0.3, baseKnee=-0.6 to bend forward correctly
+                        const baseCrouch = 0.3;
+                        const baseKnee = -0.6;
                         const legSwing = Math.sin(wc) * 0.5;
-                        const kneeFlex = Math.abs(Math.cos(wc)) * 0.4;
+                        
                         if (e.userData.pivots) {
-                            e.userData.pivots.lLeg.rotation.x = legSwing;
-                            e.userData.pivots.lCanela.rotation.x = -kneeFlex;
-                            e.userData.pivots.rLeg.rotation.x = -legSwing;
-                            e.userData.pivots.rCanela.rotation.x = -Math.abs(Math.sin(wc)) * 0.4;
+                            e.userData.pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                            e.userData.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
+                            e.userData.pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                            e.userData.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
                         }
                     } else {
-                        // Reset legs when stopped
+                        // Reset legs when stopped (Still crouched)
                         if (e.userData.pivots) {
-                            e.userData.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lLeg.rotation.x, 0, 0.1);
-                            e.userData.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lCanela.rotation.x, 0, 0.1);
-                            e.userData.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rLeg.rotation.x, 0, 0.1);
-                            e.userData.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rCanela.rotation.x, 0, 0.1);
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            e.userData.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lLeg.rotation.x, baseCrouch, 0.1);
+                            e.userData.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lCanela.rotation.x, baseKnee, 0.1);
+                            e.userData.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rLeg.rotation.x, baseCrouch, 0.1);
+                            e.userData.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rCanela.rotation.x, baseKnee, 0.1);
                         }
                     }
 
@@ -3039,14 +3047,17 @@
                     if (distMoved > 0.01) {
                         m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
                         const wc = m.userData.walkCycle;
+                        
+                        // NEW REALISTIC REMOTE ANIMATION - INVERTED LEG ROTATIONS
+                        const baseCrouch = 0.3; // Thigh Fwd
+                        const baseKnee = -0.6; // Shin Back
                         const legSwing = Math.sin(wc) * 0.5;
-                        const kneeFlex = Math.abs(Math.cos(wc)) * 0.4;
 
                         if (r.pivots) {
-                            if (r.pivots.lLeg) r.pivots.lLeg.rotation.x = legSwing;
-                            if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = -kneeFlex;
-                            if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = -legSwing;
-                            if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = -Math.abs(Math.sin(wc)) * 0.4;
+                            if (r.pivots.lLeg) r.pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                            if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
+                            if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                            if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
 
                             // Remote player arms pointing forward
                             if (r.pivots.rArm) r.pivots.rArm.rotation.x = Math.PI / 2;
@@ -3054,10 +3065,12 @@
                         }
                     } else {
                         if (r.pivots) {
-                            if (r.pivots.lLeg) r.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(r.pivots.lLeg.rotation.x, 0, 0.1);
-                            if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(r.pivots.lCanela.rotation.x, 0, 0.1);
-                            if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(r.pivots.rLeg.rotation.x, 0, 0.1);
-                            if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(r.pivots.rCanela.rotation.x, 0, 0.1);
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            if (r.pivots.lLeg) r.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(r.pivots.lLeg.rotation.x, baseCrouch, 0.1);
+                            if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(r.pivots.lCanela.rotation.x, baseKnee, 0.1);
+                            if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(r.pivots.rLeg.rotation.x, baseCrouch, 0.1);
+                            if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(r.pivots.rCanela.rotation.x, baseKnee, 0.1);
 
                             // Remote player arms pointing forward
                             if (r.pivots.rArm) r.pivots.rArm.rotation.x = Math.PI / 2;
@@ -3104,16 +3117,27 @@
                         window.playerBodyMeshes.forEach(m => m.visible = isThirdPerson);
                     }
 
-                    // 1. LEGS ANIMATION (Coxa/Canela)
-                    const walkSpeed = 0.2;
+                    // 1. REALISTIC ANIMATION LOGIC (Local Player)
+                    // INVERTED LOGIC AS PER USER REQUEST (Prev: baseCrouch=-0.4, baseKnee=0.8)
+                    // New: baseCrouch=0.3, baseKnee=-0.6 to bend forward correctly
+                    const baseCrouch = 0.3;
+                    const baseKnee = -0.6;
+                    // Oscillation for walk
                     const legSwing = Math.sin(walkCycle) * 0.5;
-                    const kneeFlex = Math.abs(Math.cos(walkCycle)) * 0.4; // Flexion at knee
+                    
+                    playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
+                    playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
+                    
+                    playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
+                    playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
 
-                    playerMeshParts.lLegPivot.rotation.x = legSwing;
-                    playerMeshParts.lCanelaPivot.rotation.x = -kneeFlex; // Bend backward
-
-                    playerMeshParts.rLegPivot.rotation.x = -legSwing;
-                    playerMeshParts.rCanelaPivot.rotation.x = -Math.abs(Math.sin(walkCycle)) * 0.4; // Bend backward
+                    // Body Bobbing (Weight transfer)
+                    playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
+                    
+                    // Subtle torso twist
+                    if (playerMeshParts.torso) {
+                        playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
+                    }
 
                     const currentPitch = (Math.PI / 2) + pitch + recoilAngle;
                     const isShooting = (performance.now() - lastShotTime < 1500) || isAiming;
@@ -3136,17 +3160,15 @@
                         playerMeshParts.rElbow.rotation.set(0.2, 0, 0);
                         playerMeshParts.lElbow.rotation.set(0.2, 0, 0);
                     } else {
-                        // 3. TPS BODY LOGIC
-                        if (isShooting) {
-                            playerMeshParts.rArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.x, currentPitch, 0.2);
-                            playerMeshParts.lArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.x, currentPitch, 0.2);
-                            playerMeshParts.lArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.z, 0.5, 0.2);
-                        } else {
-                            playerMeshParts.rArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.x, Math.PI / 8 + Math.sin(walkCycle) * 0.2, 0.1);
-                            playerMeshParts.lArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.x, Math.PI / 8 - Math.sin(walkCycle) * 0.2, 0.1);
-                            playerMeshParts.rArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.z, 0, 0.1);
-                            playerMeshParts.lArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.z, 0, 0.1);
-                        }
+                        // 3. TPS BODY LOGIC (Braços sempre levantados)
+                        // Use currentPitch directly to keep arms raised towards aim
+                        playerMeshParts.rArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.x, currentPitch, 0.2);
+                        playerMeshParts.lArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.x, currentPitch, 0.2);
+                        
+                        // Keep aiming inward slightly
+                        playerMeshParts.lArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.z, 0.5, 0.2);
+                        playerMeshParts.rArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.z, 0, 0.1);
+
                         playerMeshParts.rArmPivot.position.set(0.32, 0.1, 0);
                         playerMeshParts.lArmPivot.position.set(-0.32, 0.1, 0);
                     }
