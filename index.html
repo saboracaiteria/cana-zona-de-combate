@@ -1142,21 +1142,11 @@
         let baseSoldier = null, baseFps = null; // Added baseFps
         let mixers = []; // [mixer, lastAction, actionsMap]
         const clock = new THREE.Clock(); // For animation update
-        const SOLDIER_SCALE = 1.0; // Reduced from 1.5. If still huge, user said 100x?
-        // Wait, if it's 100x, 1.5 -> 0.015? 
-        // Let's assume the model is ~2 units tall and user is seeing camera issues or near-plane clipping? 
-        // No, user said "larger than map".
-        // Let's go with 0.5 first.
-        // Actually, let's try to normalize it in the loader.
-        // But a constant is easier to iterate. I'll set it to 1.0 for now but ADD a BoundingBox check in loader to auto-scale?
-        // No, keep it simple.
-        // I will trust the user partially but 100x is a lot. Maybe 10x?
-        // If I change 1.5 -> 0.15.
-        // Let's use 0.5 and ask user.
+        const SOLDIER_SCALE = 1.0; 
 
         let head, rightArm, leftArm, playerMeshParts, muzzleFlashLight;
         const config = { speed: 0.15, rotationSpeed: 0.005, aimFOV: 40, baseFOV: 75, shoulderOffset: 0.8 };
-        let walkCycle = 0, recoilAngle = 0, fovKick = 0;
+        let walkCycle = 0, recoilAngle = 0, fovKick = 0, gunRecoil = 0; // Adicionada variavel gunRecoil
         let roomPath = '';
         let isMasterClient = false;
 
@@ -2628,49 +2618,6 @@
             document.getElementById('mode-switch-btn').onclick = () => { isPC = !isPC; document.getElementById('mode-switch-btn').innerText = isPC ? "💻" : "📱"; };
             document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === document.body && isPlaying) { yaw -= e.movementX * settings.sens; pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * settings.sens)); } });
             document.addEventListener('keydown', (e) => {
-                // FPS Calibration
-
-                /*
-                // FPS CALIBRATION CONTROLS (Only in FPS mode)
-                if (!isThirdPerson && fpsGroup) {
-                    const step = e.shiftKey ? 0.1 : 0.01; // Shift for big steps
-                    const rStep = 0.1;
- 
-                    if (e.code === 'ArrowUp') fpsGroup.position.y += step;
-                    if (e.code === 'ArrowDown') fpsGroup.position.y -= step;
-                    if (e.code === 'ArrowLeft') fpsGroup.position.x -= step;
-                    if (e.code === 'ArrowRight') fpsGroup.position.x += step;
- 
-                    // Z Axis (page up/down)
-                    if (e.code === 'PageUp') fpsGroup.position.z -= step; // Forward
-                    if (e.code === 'PageDown') fpsGroup.position.z += step; // Back
- 
-                    // Rotation (I/K/J/L)
-                    if (e.code === 'KeyI') fpsGroup.rotation.x -= rStep;
-                    if (e.code === 'KeyK') fpsGroup.rotation.x += rStep;
-                    if (e.code === 'KeyJ') fpsGroup.rotation.y -= rStep;
-                    if (e.code === 'KeyL') fpsGroup.rotation.y += rStep;
- 
-                    // Scale (+/-)
-                    if (e.code === 'Equal' || e.code === 'NumpadAdd') {
-                        const s = fpsGroup.scale.x + 0.0005;
-                        fpsGroup.scale.set(s, s, s);
-                    }
-                    if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
-                        const s = Math.max(0.0001, fpsGroup.scale.x - 0.0005);
-                        fpsGroup.scale.set(s, s, s);
-                    }
- 
-                    // Log to debug immediately
-                    const d = document.getElementById('debug-overlay');
-                    if (d) {
-                        d.innerText = `FPS CALIBRATION:\nPos: ${fpsGroup.position.toArray().map(v => v.toFixed(3))}\nRot: ${fpsGroup.rotation.toArray().slice(0, 3).map(v => v.toFixed(2))}\nScale: ${fpsGroup.scale.x.toFixed(4)}\n[Arrows]=Move XY | [PgUp/Dn]=Move Z | [IJKL]=Rotate | [+/-]=Scale`;
-                        d.style.color = 'cyan';
-                        d.style.borderColor = 'cyan';
-                    }
-                }
- 
-                } */
                 if (!isPlaying) return; const k = e.code; if (k === 'KeyW') keyState.w = true; if (k === 'KeyA') keyState.a = true; if (k === 'KeyS') keyState.s = true; if (k === 'KeyD') keyState.d = true; if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } if (k === 'KeyV') toggleCameraMode();
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
@@ -2738,14 +2685,16 @@
         function processShooting() {
             const now = performance.now(); if (!isManualFiring || now - lastShotTime < 140) return;
             lastShotTime = now; playSound('shoot'); recoilAngle = 0.05; pitch = Math.min(1.4, pitch + 0.01);
+            
+            // --- ATUALIZAÇÃO SOLICITADA ---
+            // Simular o tranco da arma (Movimento rápido para frente/trás)
+            gunRecoil = 0.25; // Impulso instantâneo
+
             // Apply kick zoom in both modes
             fovKick = 2;
 
-
-
             const f = gunGroup.getObjectByName("flash"); if (f) { f.visible = true; setTimeout(() => f.visible = false, 40); }
             muzzleFlashLight.intensity = 3; setTimeout(() => muzzleFlashLight.intensity = 0, 50); spawnBullet();
-
         }
         function checkWall(x, z) { for (let w of walls) if (Math.abs(x - w.position.x) < 2.8 && Math.abs(z - w.position.z) < 2.8) return true; return false; }
         function handleRemoteShoot(data) {
@@ -3105,6 +3054,10 @@
                 if (ch) { if (isAiming && !isThirdPerson) ch.style.opacity = '0'; else ch.style.opacity = '0.9'; }
                 recoilAngle = THREE.MathUtils.lerp(recoilAngle, 0, 0.15); fovKick = THREE.MathUtils.lerp(fovKick, 0, 0.4);
 
+                // --- ATUALIZAÇÃO SOLICITADA ---
+                // Suavizar o recuo de volta para 0
+                gunRecoil = THREE.MathUtils.lerp(gunRecoil, 0, 0.2);
+
                 // ZOOM ENABLED IN BOTH MODES
                 const base = settings.fov;
                 const targetFOV = isAiming ? config.aimFOV : base;
@@ -3155,8 +3108,10 @@
                         playerMeshParts.lArmPivot.rotation.set(currentPitch, 0, 0);
 
                         // Unified position: Arms stay on the sides even when aiming (Zoom only)
-                        playerMeshParts.rArmPivot.position.lerp(new THREE.Vector3(0.25, 0.1 - swayY + kickY, 0.1 + kickZ + wallRetract), 0.2);
-                        playerMeshParts.lArmPivot.position.lerp(new THREE.Vector3(-0.25, 0.1 - swayY + kickY, 0.12 + kickZ + wallRetract), 0.2);
+                        // --- ATUALIZAÇÃO SOLICITADA ---
+                        // Adicionado '+ gunRecoil' ao eixo Z para simular o movimento rápido de recuo/disparo
+                        playerMeshParts.rArmPivot.position.lerp(new THREE.Vector3(0.25, 0.1 - swayY + kickY, 0.1 + kickZ + wallRetract + gunRecoil), 0.3);
+                        playerMeshParts.lArmPivot.position.lerp(new THREE.Vector3(-0.25, 0.1 - swayY + kickY, 0.12 + kickZ + wallRetract + gunRecoil), 0.3);
                         playerMeshParts.rElbow.rotation.set(0.2, 0, 0);
                         playerMeshParts.lElbow.rotation.set(0.2, 0, 0);
                     } else {
@@ -3230,5 +3185,6 @@
         })();
     </script>
 </body>
+
 
 </html>
