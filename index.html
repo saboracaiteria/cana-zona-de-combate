@@ -702,29 +702,37 @@
             cursor: pointer;
         }
 
+        /* NOVA MIRA EM CRUZ */
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 8px;
-            height: 8px;
-            background: #00FF41;
+            width: 20px;
+            height: 20px;
+            background: transparent;
             transform: translate(-50%, -50%);
             pointer-events: none;
             opacity: 0.8;
             z-index: 10;
             display: none;
-            border-radius: 50%;
-            box-shadow: 0 0 5px #00FF41;
+            /* Cross shape using gradients */
+            background-image: linear-gradient(#00FF41, #00FF41), linear-gradient(#00FF41, #00FF41);
+            background-size: 2px 100%, 100% 2px;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 0;
+            box-shadow: none;
         }
 
         .hit-marker {
             width: 16px !important;
             height: 16px !important;
             background: transparent !important;
-            border: 2px solid #ff0000;
+            background-image: none !important; /* Remove cross for hit marker */
+            border: 2px solid #ff0000 !important;
+            border-radius: 50% !important; /* Circle hit marker */
             transform: translate(-50%, -50%) rotate(45deg) !important;
-            box-shadow: 0 0 10px #ff0000;
+            box-shadow: 0 0 10px #ff0000 !important;
         }
 
         #hud {
@@ -2668,8 +2676,16 @@
                 if (gunGroup.parent !== rightArm) {
                     rightArm.add(gunGroup);
                 }
-                gunGroup.position.set(0, -0.65, -0.1);
-                gunGroup.rotation.set(-Math.PI / 2, 0, 0);
+                // Reset gun pos based on camera mode
+                if (isThirdPerson) {
+                    gunGroup.position.set(0, -0.65, -0.1);
+                    gunGroup.rotation.set(-Math.PI / 2, 0, 0);
+                } else {
+                    // FPS Gun Alignment
+                    // Lowered slightly to align better with center screen
+                    gunGroup.position.set(0, -0.65, -0.1); 
+                    gunGroup.rotation.set(-Math.PI / 2, 0, 0);
+                }
             }
 
             // Cleanup ghost procedural arms if any
@@ -2687,8 +2703,8 @@
             lastShotTime = now; playSound('shoot'); recoilAngle = 0.05; pitch = Math.min(1.4, pitch + 0.01);
             
             // --- ATUALIZAÇÃO SOLICITADA ---
-            // Simular o tranco da arma (Movimento rápido para frente/trás)
-            gunRecoil = 0.25; // Impulso instantâneo
+            // Simular o tranco da arma (Movimento rápido para frente/trás) - AUMENTADO
+            gunRecoil = 0.6; // Impulso instantâneo mais forte
 
             // Apply kick zoom in both modes
             fovKick = 2;
@@ -3051,7 +3067,12 @@
                 });
 
                 const ch = document.getElementById('crosshair');
-                if (ch) { if (isAiming && !isThirdPerson) ch.style.opacity = '0'; else ch.style.opacity = '0.9'; }
+                // LOGICA ALTERADA: Mira visivel sempre, exceto se quiser esconder no ADS
+                // O usuario pediu "em primeira pessoa esta sem mira", entao forçamos visibilidade
+                if (ch) { 
+                    ch.style.opacity = '0.9'; 
+                }
+                
                 recoilAngle = THREE.MathUtils.lerp(recoilAngle, 0, 0.15); fovKick = THREE.MathUtils.lerp(fovKick, 0, 0.4);
 
                 // --- ATUALIZAÇÃO SOLICITADA ---
@@ -3098,7 +3119,7 @@
                     const isShooting = (performance.now() - lastShotTime < 1500) || isAiming;
 
                     if (!isThirdPerson) {
-                        // 2. FPS ARMS LOGIC
+                        // 2. FPS ARMS LOGIC (Alinhamento Corrigido)
                         const swayY = Math.sin(walkCycle * 2) * 0.03;
                         const kickY = recoilAngle * 0.1;
                         const kickZ = recoilAngle * 0.1;
@@ -3108,10 +3129,10 @@
                         playerMeshParts.lArmPivot.rotation.set(currentPitch, 0, 0);
 
                         // Unified position: Arms stay on the sides even when aiming (Zoom only)
-                        // --- ATUALIZAÇÃO SOLICITADA ---
-                        // Adicionado '+ gunRecoil' ao eixo Z para simular o movimento rápido de recuo/disparo
-                        playerMeshParts.rArmPivot.position.lerp(new THREE.Vector3(0.25, 0.1 - swayY + kickY, 0.1 + kickZ + wallRetract + gunRecoil), 0.3);
-                        playerMeshParts.lArmPivot.position.lerp(new THREE.Vector3(-0.25, 0.1 - swayY + kickY, 0.12 + kickZ + wallRetract + gunRecoil), 0.3);
+                        // AJUSTE: Braço mais baixo (0.1 -> 0.05) para alinhar cano com centro
+                        // O gunRecoil afeta o Z
+                        playerMeshParts.rArmPivot.position.lerp(new THREE.Vector3(0.25, 0.05 - swayY + kickY, 0.1 + kickZ + wallRetract + gunRecoil), 0.3);
+                        playerMeshParts.lArmPivot.position.lerp(new THREE.Vector3(-0.25, 0.05 - swayY + kickY, 0.12 + kickZ + wallRetract + gunRecoil), 0.3);
                         playerMeshParts.rElbow.rotation.set(0.2, 0, 0);
                         playerMeshParts.lElbow.rotation.set(0.2, 0, 0);
                     } else {
