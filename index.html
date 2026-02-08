@@ -1054,6 +1054,12 @@
                     value="70"></div>
             <div class="setting-row"><label>SENSITIVITY</label><input type="range" id="sens-slider" min="1" max="100"
                     value="50"></div>
+            <div class="setting-row"><label>GRAPHICS</label>
+                <select id="graphics-select" style="background: #000; color: var(--canaa-green); border: 1px solid var(--canaa-green); font-family: 'Rajdhani'; padding: 5px;">
+                    <option value="high">HIGH</option>
+                    <option value="low">LOW</option>
+                </select>
+            </div>
             <button class="menu-btn secondary" id="edit-hud-btn">EDIT HUD</button>
             <button class="menu-btn danger" id="abort-mission-btn">ABORT</button>
             <div
@@ -1142,7 +1148,7 @@
         const bulletRaycaster = new THREE.Raycaster(), aimRaycaster = new THREE.Raycaster(), occlusionRaycaster = new THREE.Raycaster();
         let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null;
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
-        let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false };
+        let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'high' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
         const mazeMap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
 
@@ -1248,13 +1254,23 @@
         async function getInviteLink(roomId) {
             try {
                 const sdk = getCrazySDK();
+                // Gerar um ID de sala único se não houver um na URL
+                const urlParams = new URLSearchParams(window.location.search);
+                let currentRoom = urlParams.get('room');
+                if (!currentRoom) {
+                    currentRoom = Math.random().toString(36).substring(2, 8);
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + currentRoom;
+                    window.history.pushState({ path: newUrl }, '', newUrl);
+                }
+
                 if (sdk && sdk.game) {
                     const link = await sdk.game.inviteLink({
-                        roomId: roomId || 'default-room'
+                        roomId: currentRoom
                     });
                     console.log("📍 inviteLink() generated:", link);
                     return link;
                 }
+                return window.location.href;
             } catch (e) {
                 console.warn("inviteLink error:", e);
             }
@@ -1354,15 +1370,20 @@
             document.getElementById("start-view").style.display = "none";
             document.getElementById("lobby-screen").style.display = "flex";
             const title = document.getElementById("lobby-title"), btn = document.getElementById("start-mp-btn");
+            
+            // Lógica de Sala Fixa para garantir que todos entrem na mesma partida
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomID = urlParams.get('room') || 'global';
+            
             if (mode === 'coop') {
-                roomPath = 'rooms/coop'; isCoopMode = true;
+                roomPath = `rooms/coop/${roomID}`; isCoopMode = true;
                 title.innerText = "CO-OP PVE"; title.style.color = "#FF00FF"; btn.style.borderColor = "#FF00FF"; btn.style.color = "#FF00FF";
                 btn.onclick = () => {
                     update(ref(db, `${roomPath}/state`), { gameRunning: true });
                     resetGame('coop');
                 };
             } else {
-                roomPath = 'rooms/pvp'; isCoopMode = false;
+                roomPath = `rooms/pvp/${roomID}`; isCoopMode = false;
                 title.innerText = "PVP ONLINE"; title.style.color = "#00f3ff"; btn.style.borderColor = "#00f3ff"; btn.style.color = "#00f3ff";
                 btn.onclick = () => {
                     update(ref(db, `${roomPath}/state`), { gameRunning: true });
@@ -2677,6 +2698,7 @@
             document.getElementById('vol-slider').oninput = (e) => { settings.volume = parseInt(e.target.value) / 100; if (bgmPlayer) bgmPlayer.volume = settings.volume; };
             document.getElementById('fov-slider').oninput = (e) => { settings.fov = parseInt(e.target.value); camera.fov = settings.fov; camera.updateProjectionMatrix(); };
             document.getElementById('sens-slider').oninput = (e) => { settings.sens = (parseInt(e.target.value) / 50) * 0.01; };
+            document.getElementById('graphics-select').onchange = (e) => { applyGraphicsSettings(e.target.value); };
             document.getElementById('edit-hud-btn').onclick = () => { settings.isEditing = true; document.body.classList.add('editing-hud'); document.getElementById('main-menu').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'block'; document.getElementById('save-hud-btn').style.display = 'block'; };
             document.getElementById('save-hud-btn').onclick = () => { settings.isEditing = false; document.body.classList.remove('editing-hud'); document.getElementById('save-hud-btn').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('mobile-ui').style.display = 'none'; };
             document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
@@ -3083,6 +3105,30 @@
             if (isMultiplayerMode) { minimapCtx.fillStyle = isCoopMode ? '#00FF41' : '#f33'; Object.values(remotePlayers).forEach(r => minimapCtx.fillRect(r.mesh.position.x * s, r.mesh.position.z * s, 3, 3)); }
             if (!isMultiplayerMode || isCoopMode) { minimapCtx.fillStyle = '#f33'; enemies.forEach(e => { if (!e.userData.dead) minimapCtx.fillRect(e.position.x * s, e.position.z * s, 3, 3); }); }
             minimapCtx.fillStyle = '#fff'; minimapCtx.beginPath(); minimapCtx.arc(playerGroup.position.x * s, playerGroup.position.z * s, 3, 0, Math.PI * 2); minimapCtx.fill();
+        }
+
+        function applyGraphicsSettings(quality) {
+            settings.graphics = quality;
+            if (quality === 'low') {
+                renderer.shadowMap.enabled = false;
+                renderer.setPixelRatio(1);
+                scene.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        if (child.material.map) child.material.map.generateMipmaps = false;
+                    }
+                });
+                if (muzzleFlashLight) muzzleFlashLight.visible = false;
+            } else {
+                renderer.shadowMap.enabled = true;
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                scene.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        if (child.material.map) child.material.map.generateMipmaps = true;
+                    }
+                });
+                if (muzzleFlashLight) muzzleFlashLight.visible = true;
+            }
+            console.log("Graphics set to:", quality);
         }
 
         function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
