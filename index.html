@@ -1436,7 +1436,18 @@
             if (unsubCoopKills) unsubCoopKills();
             if (unsubCoopEnemies) unsubCoopEnemies();
             if (unsubCoopKits) unsubCoopKits();
-            Object.values(remotePlayers).forEach(rp => scene.remove(rp.mesh));
+            Object.values(remotePlayers).forEach(rp => {
+                scene.remove(rp.mesh);
+                rp.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                            else child.material.dispose();
+                        }
+                    }
+                });
+            });
             remotePlayers = {};
             networkInterval = null; myRef = null;
         }
@@ -1471,7 +1482,8 @@
                         y: parseFloat(p.y.toFixed(2)), 
                         z: parseFloat(p.z.toFixed(2)), 
                         rot: parseFloat(r.toFixed(2)), 
-                        pitch: parseFloat(pitch.toFixed(2)), // Enviar PITCH (Olhar cima/baixo)
+                        pitch: parseFloat(pitch.toFixed(2)),
+                        isMoving: (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d),
                         lastUpdate: serverTimestamp() 
                     });
                     lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now;
@@ -1569,12 +1581,13 @@
                 m.position.set(d.x, d.y, d.z);
                 m.userData = { id: id, isPlayer: true };
                 scene.add(m);
-                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0 };
+                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0, isMoving: d.isMoving || false };
             } else {
                 const r = remotePlayers[id]; 
                 r.targetPos.set(d.x, d.y, d.z); 
                 r.targetRot = d.rot;
                 r.targetPitch = d.pitch || 0;
+                r.isMoving = d.isMoving || false;
             }
         }
 
@@ -2480,8 +2493,8 @@
                     const botCount = 15 + (currentLevel - 1) * 2;
                     spawnEnemies(botCount, currentLevel);
                 } else if (isCoopMode) {
-                    // Coop: Wait for setupCoopPresence to confirm Master Client status
-                    console.log("Coop Mode: Waiting for Master Client confirmation to spawn enemies...");
+                    // Coop: Host spawns bots
+                    if (isMasterClient) { spawnEnemies(15 + (currentLevel - 1) * 2, currentLevel); }
                 } else {
                     console.log("PvP Mode: No bots.");
                 }
@@ -3086,54 +3099,50 @@
                 Object.values(remotePlayers).forEach(r => {
                     const m = r.mesh;
                     if (!m) return;
-                    const prevPos = m.position.clone();
+                    
+                    // Lerp position and rotation
                     m.position.lerp(r.targetPos, 0.15);
-                    m.rotation.y = THREE.MathUtils.lerp(m.rotation.y, r.targetRot, 0.15);
+                    let rd = r.targetRot - m.rotation.y;
+                    while (rd > Math.PI) rd -= Math.PI * 2;
+                    while (rd < -Math.PI) rd += Math.PI * 2;
+                    m.rotation.y += rd * 0.15;
 
-                    // --- APPLY TARGET PITCH TO HEAD AND ARMS (REMOTE) ---
-                    // CORREÇÃO: Usar m.userData.pivots em vez de r.pivots (r é o wrapper, não tem pivots)
                     const pivots = m.userData.pivots;
-
                     if (pivots) {
+                        // Apply Pitch to head and arms
                         if (pivots.head) pivots.head.rotation.x = r.targetPitch;
                         const remotePitch = (Math.PI / 2) + r.targetPitch;
                         if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
                         if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
-                        if (pivots.rArm) pivots.rArm.rotation.z = 0;
-                        if (pivots.lArm) pivots.lArm.rotation.z = 0.5; // Slight inward aim
-                    }
-
-                    // Leg animation for remote players
-                    const distMoved = m.position.distanceTo(prevPos);
-                    const isRemoteGrounded = m.position.y <= 0.2; // Check if on ground (Threshold slightly increased for network lag)
-
-                    if (!isRemoteGrounded && pivots) {
-                        // REMOTE JUMP ANIMATION (Same as local)
-                        if (pivots.lLeg) pivots.lLeg.rotation.x = 1.6;
-                        if (pivots.lCanela) pivots.lCanela.rotation.x = -1.8;
-                        if (pivots.rLeg) pivots.rLeg.rotation.x = 0.2;
-                        if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
-                    } else if (distMoved > 0.01 && pivots) {
-                        // REMOTE WALK ANIMATION
-                        m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
-                        const wc = m.userData.walkCycle;
                         
-                        const baseCrouch = 0.3; // Thigh Fwd
-                        const baseKnee = -0.6; // Shin Back
-                        const legSwing = Math.sin(wc) * 0.5;
-
-                        if (pivots.lLeg) pivots.lLeg.rotation.x = baseCrouch + legSwing;
-                        if (pivots.lCanela) pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
-                        if (pivots.rLeg) pivots.rLeg.rotation.x = baseCrouch - legSwing;
-                        if (pivots.rCanela) pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
-                    } else if (pivots) {
-                         // REMOTE IDLE
-                        const baseCrouch = 0.3;
-                        const baseKnee = -0.6;
-                        if (pivots.lLeg) pivots.lLeg.rotation.x = THREE.MathUtils.lerp(pivots.lLeg.rotation.x, baseCrouch, 0.1);
-                        if (pivots.lCanela) pivots.lCanela.rotation.x = THREE.MathUtils.lerp(pivots.lCanela.rotation.x, baseKnee, 0.1);
-                        if (pivots.rLeg) pivots.rLeg.rotation.x = THREE.MathUtils.lerp(pivots.rLeg.rotation.x, baseCrouch, 0.1);
-                        if (pivots.rCanela) pivots.rCanela.rotation.x = THREE.MathUtils.lerp(pivots.rCanela.rotation.x, baseKnee, 0.1);
+                        // Animation State
+                        const isRemoteGrounded = m.position.y <= 0.2;
+                        if (!isRemoteGrounded) {
+                            // JUMP
+                            if (pivots.lLeg) pivots.lLeg.rotation.x = 1.6;
+                            if (pivots.lCanela) pivots.lCanela.rotation.x = -1.8;
+                            if (pivots.rLeg) pivots.rLeg.rotation.x = 0.2;
+                            if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
+                        } else if (r.isMoving) {
+                            // WALK
+                            m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
+                            const wc = m.userData.walkCycle;
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            const legSwing = Math.sin(wc) * 0.5;
+                            if (pivots.lLeg) pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                            if (pivots.lCanela) pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
+                            if (pivots.rLeg) pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                            if (pivots.rCanela) pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
+                        } else {
+                            // IDLE
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            if (pivots.lLeg) pivots.lLeg.rotation.x = THREE.MathUtils.lerp(pivots.lLeg.rotation.x, baseCrouch, 0.1);
+                            if (pivots.lCanela) pivots.lCanela.rotation.x = THREE.MathUtils.lerp(pivots.lCanela.rotation.x, baseKnee, 0.1);
+                            if (pivots.rLeg) pivots.rLeg.rotation.x = THREE.MathUtils.lerp(pivots.rLeg.rotation.x, baseCrouch, 0.1);
+                            if (pivots.rCanela) pivots.rCanela.rotation.x = THREE.MathUtils.lerp(pivots.rCanela.rotation.x, baseKnee, 0.1);
+                        }
                     }
                 });
 
@@ -3282,7 +3291,55 @@
 
 
 
-                if (isMultiplayerMode) Object.values(remotePlayers).forEach(r => { r.mesh.position.lerp(r.targetPos, 0.2); let rd = r.targetRot - r.mesh.rotation.y; while (rd > Math.PI) rd -= Math.PI * 2; while (rd < -Math.PI) rd += Math.PI * 2; r.mesh.rotation.y += rd * 0.2; });
+                if (isMultiplayerMode) Object.values(remotePlayers).forEach(r => {
+                    const m = r.mesh;
+                    if (!m) return;
+                    
+                    // Lerp position and rotation
+                    m.position.lerp(r.targetPos, 0.15);
+                    let rd = r.targetRot - m.rotation.y;
+                    while (rd > Math.PI) rd -= Math.PI * 2;
+                    while (rd < -Math.PI) rd += Math.PI * 2;
+                    m.rotation.y += rd * 0.15;
+
+                    const pivots = m.userData.pivots;
+                    if (pivots) {
+                        // Apply Pitch to head and arms
+                        if (pivots.head) pivots.head.rotation.x = r.targetPitch;
+                        const remotePitch = (Math.PI / 2) + r.targetPitch;
+                        if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
+                        if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
+                        
+                        // Animation State
+                        const isRemoteGrounded = m.position.y <= 0.2;
+                        if (!isRemoteGrounded) {
+                            // JUMP
+                            if (pivots.lLeg) pivots.lLeg.rotation.x = 1.6;
+                            if (pivots.lCanela) pivots.lCanela.rotation.x = -1.8;
+                            if (pivots.rLeg) pivots.rLeg.rotation.x = 0.2;
+                            if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
+                        } else if (r.isMoving) {
+                            // WALK
+                            m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
+                            const wc = m.userData.walkCycle;
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            const legSwing = Math.sin(wc) * 0.5;
+                            if (pivots.lLeg) pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                            if (pivots.lCanela) pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
+                            if (pivots.rLeg) pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                            if (pivots.rCanela) pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
+                        } else {
+                            // IDLE
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            if (pivots.lLeg) pivots.lLeg.rotation.x = THREE.MathUtils.lerp(pivots.lLeg.rotation.x, baseCrouch, 0.1);
+                            if (pivots.lCanela) pivots.lCanela.rotation.x = THREE.MathUtils.lerp(pivots.lCanela.rotation.x, baseKnee, 0.1);
+                            if (pivots.rLeg) pivots.rLeg.rotation.x = THREE.MathUtils.lerp(pivots.rLeg.rotation.x, baseCrouch, 0.1);
+                            if (pivots.rCanela) pivots.rCanela.rotation.x = THREE.MathUtils.lerp(pivots.rCanela.rotation.x, baseKnee, 0.1);
+                        }
+                    }
+                });
                 processShooting(); updateEnemies(); updateHealthKits(); drawMinimap(); updateBullets(); updateHtmlObjects();
             } else if (!gamePaused) { const t = Date.now() * 0.0006; camera.position.set(Math.cos(t) * 40 + 45, 30, Math.sin(t) * 40 + 45); camera.lookAt(45, 0, 45); }
             renderer.render(scene, camera);
