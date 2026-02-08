@@ -1555,8 +1555,27 @@
                 }
 
                 // Se sou CLIENTE e não tenho inimigos (ou contagem difere muito), sincronizar
-                if (!isMasterClient && enemies.length === 0) {
-                    syncEnemiesFromData(data, currentLevel);
+                if (!isMasterClient) {
+                    const dataKeys = Object.keys(data);
+                    if (enemies.length === 0 || Math.abs(enemies.length - dataKeys.length) > 2) {
+                        syncEnemiesFromData(data, currentLevel);
+                    } else {
+                        // Atualizar posições dos inimigos existentes
+                        dataKeys.forEach(key => {
+                            const d = data[key];
+                            const idx = parseInt(key);
+                            const enemy = enemies.find(e => e.userData.index === idx);
+                            if (enemy) {
+                                if (d.dead) {
+                                    if (!enemy.userData.dead) killEnemyLocal(enemy, false);
+                                } else {
+                                    enemy.userData.targetPos = new THREE.Vector3(d.x, enemy.position.y, d.z);
+                                    enemy.userData.targetRot = d.rot;
+                                    enemy.userData.hp = d.hp;
+                                }
+                            }
+                        });
+                    }
                 }
             });
         }
@@ -1592,12 +1611,16 @@
         }
 
         function respawnPvP() {
-            if (isMultiplayerMode) { playerLives--; if (playerLives <= 0) { showGameOver(); return; } }
+            if (isMultiplayerMode) { 
+                playerLives--; 
+                document.getElementById('lives-count').innerText = playerLives;
+                if (playerLives <= 0) { showGameOver(); return; } 
+            }
             let rx, rz; do { rx = Math.floor(Math.random() * mazeSize); rz = Math.floor(Math.random() * mazeSize); } while (mazeMap[rz][rx] === 1);
             playerHP = 100; document.getElementById('hp').innerText = 100;
-            document.getElementById('lives-count').innerText = playerLives;
             playerGroup.position.set(rx * 5, 0, rz * 5); pitch = 0; yaw = 0;
             if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5 });
+            isPlaying = true; // Garantir que o jogo continue
         }
 
         function endPVPMatch(isVictory) {
@@ -2602,7 +2625,7 @@
             });
             document.getElementById('abort-mission-btn').onclick = () => { hideCrazyInviteButton(); document.getElementById('settings-view').style.display = 'none'; document.getElementById('hud').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('main-menu').classList.remove('paused-mode'); isPlaying = false; gamePaused = false; scene.add(camera); cleanupMultiplayer(); playMenuMusic(); };
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
-            document.getElementById('win-retry-btn').onclick = () => { resetGame('single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
+            document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('continue-btn').onclick = () => {
                 document.getElementById('level-complete-screen').style.display = 'none';
                 document.getElementById('pause-btn').style.display = 'flex';
