@@ -1466,7 +1466,14 @@
                 if (!myRef || !isPlaying) return;
                 const p = playerGroup.position, r = yaw, now = Date.now();
                 if (p.distanceTo(lastSentPosition) > 0.01 || Math.abs(r - lastSentRotation) > 0.01 || (now - lastSentTime > 2000)) {
-                    update(myRef, { x: parseFloat(p.x.toFixed(2)), y: parseFloat(p.y.toFixed(2)), z: parseFloat(p.z.toFixed(2)), rot: parseFloat(r.toFixed(2)), lastUpdate: serverTimestamp() });
+                    update(myRef, { 
+                        x: parseFloat(p.x.toFixed(2)), 
+                        y: parseFloat(p.y.toFixed(2)), 
+                        z: parseFloat(p.z.toFixed(2)), 
+                        rot: parseFloat(r.toFixed(2)), 
+                        pitch: parseFloat(pitch.toFixed(2)), // Enviar PITCH (Olhar cima/baixo)
+                        lastUpdate: serverTimestamp() 
+                    });
                     lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now;
                 }
             }, 50);
@@ -1562,9 +1569,12 @@
                 m.position.set(d.x, d.y, d.z);
                 m.userData = { id: id, isPlayer: true };
                 scene.add(m);
-                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot };
+                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0 };
             } else {
-                const r = remotePlayers[id]; r.targetPos.set(d.x, d.y, d.z); r.targetRot = d.rot;
+                const r = remotePlayers[id]; 
+                r.targetPos.set(d.x, d.y, d.z); 
+                r.targetRot = d.rot;
+                r.targetPitch = d.pitch || 0;
             }
         }
 
@@ -1987,13 +1997,13 @@
             const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, -0.1); lCanela.add(lBota);
 
             // 4. ARMS (Attached to peitoPivot)
-            const rArmPivot = new THREE.Object3D(); rArmPivot.position.set(0.32, 0.1, 0); peitoPivot.add(rArmPivot);
+            const rArmPivot = new THREE.Object3D(); rArmPivot.name = "rArmPivot"; rArmPivot.position.set(0.32, 0.1, 0); peitoPivot.add(rArmPivot);
             // Lengthened biceps (0.35 -> 0.5) to ensure they can reach from behind camera
             const mRBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5), matSkin); mRBiceps.position.y = -0.22; rArmPivot.add(mRBiceps);
             const rElbow = new THREE.Object3D(); rElbow.position.y = -0.25; mRBiceps.add(rElbow);
             rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); rightArm.position.y = -0.15; rElbow.add(rightArm);
 
-            const lArmPivot = new THREE.Object3D(); lArmPivot.position.set(-0.32, 0.1, 0); peitoPivot.add(lArmPivot);
+            const lArmPivot = new THREE.Object3D(); lArmPivot.name = "lArmPivot"; lArmPivot.position.set(-0.32, 0.1, 0); peitoPivot.add(lArmPivot);
             const mLBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5), matSkin); mLBiceps.position.y = -0.22; lArmPivot.add(mLBiceps);
             const lElbow = new THREE.Object3D(); lElbow.position.y = -0.25; mLBiceps.add(lElbow);
             leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); leftArm.position.y = -0.15; lElbow.add(leftArm);
@@ -2359,6 +2369,17 @@
             rArmPivot.rotation.x = Math.PI / 2;
             lArmPivot.rotation.x = Math.PI / 2;
             lArmPivot.rotation.y = 0.5;
+
+            // Retornar também as referências da cabeça
+            g.userData.pivots = {
+                lLeg: lLegPivot,
+                rLeg: rLegPivot,
+                lCanela: lCanelaPivot,
+                rCanela: rCanelaPivot,
+                rArm: rArmPivot,
+                lArm: lArmPivot,
+                head: headR // Add head reference
+            };
 
             return g;
         }
@@ -3069,13 +3090,29 @@
                     m.position.lerp(r.targetPos, 0.15);
                     m.rotation.y = THREE.MathUtils.lerp(m.rotation.y, r.targetRot, 0.15);
 
+                    // --- APPLY TARGET PITCH TO HEAD AND ARMS (REMOTE) ---
+                    if (r.pivots.head) r.pivots.head.rotation.x = r.targetPitch;
+                    const remotePitch = (Math.PI / 2) + r.targetPitch;
+                    if (r.pivots.rArm) r.pivots.rArm.rotation.x = remotePitch;
+                    if (r.pivots.lArm) r.pivots.lArm.rotation.x = remotePitch;
+                    if (r.pivots.rArm) r.pivots.rArm.rotation.z = 0;
+                    if (r.pivots.lArm) r.pivots.lArm.rotation.z = 0.5; // Slight inward aim
+
                     // Leg animation for remote players
                     const distMoved = m.position.distanceTo(prevPos);
-                    if (distMoved > 0.01) {
+                    const isRemoteGrounded = m.position.y <= 0.1; // Check if on ground
+
+                    if (!isRemoteGrounded) {
+                        // REMOTE JUMP ANIMATION (Same as local)
+                        if (r.pivots.lLeg) r.pivots.lLeg.rotation.x = 1.6;
+                        if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = -1.8;
+                        if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = 0.2;
+                        if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = -0.1;
+                    } else if (distMoved > 0.01) {
+                        // REMOTE WALK ANIMATION
                         m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
                         const wc = m.userData.walkCycle;
                         
-                        // NEW REALISTIC REMOTE ANIMATION - INVERTED LEG ROTATIONS
                         const baseCrouch = 0.3; // Thigh Fwd
                         const baseKnee = -0.6; // Shin Back
                         const legSwing = Math.sin(wc) * 0.5;
@@ -3085,12 +3122,9 @@
                             if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
                             if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = baseCrouch - legSwing;
                             if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
-
-                            // Remote player arms pointing forward
-                            if (r.pivots.rArm) r.pivots.rArm.rotation.x = Math.PI / 2;
-                            if (r.pivots.lArm) r.pivots.lArm.rotation.x = Math.PI / 2;
                         }
                     } else {
+                         // REMOTE IDLE
                         if (r.pivots) {
                             const baseCrouch = 0.3;
                             const baseKnee = -0.6;
@@ -3098,10 +3132,6 @@
                             if (r.pivots.lCanela) r.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(r.pivots.lCanela.rotation.x, baseKnee, 0.1);
                             if (r.pivots.rLeg) r.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(r.pivots.rLeg.rotation.x, baseCrouch, 0.1);
                             if (r.pivots.rCanela) r.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(r.pivots.rCanela.rotation.x, baseKnee, 0.1);
-
-                            // Remote player arms pointing forward
-                            if (r.pivots.rArm) r.pivots.rArm.rotation.x = Math.PI / 2;
-                            if (r.pivots.lArm) r.pivots.lArm.rotation.x = Math.PI / 2;
                         }
                     }
                 });
@@ -3145,41 +3175,25 @@
                     }
 
                     // 1. REALISTIC ANIMATION LOGIC (Local Player)
+                    // INVERTED LOGIC AS PER USER REQUEST (Prev: baseCrouch=-0.4, baseKnee=0.8)
+                    // New: baseCrouch=0.3, baseKnee=-0.6 to bend forward correctly
+                    const baseCrouch = 0.3;
+                    const baseKnee = -0.6;
+                    // Oscillation for walk
+                    const legSwing = Math.sin(walkCycle) * 0.5;
                     
-                    if (!isGrounded) {
-                        // JUMP ANIMATION: One knee up (Left), One straight (Right)
-                        
-                        // Left Leg (Up): 90 degrees forward relative to waist
-                        // Using positive rotation for forward swing based on walk logic (0.3 is forward)
-                        playerMeshParts.lLegPivot.rotation.x = 1.6; 
-                        
-                        // Knee bent (Shin goes back/down)
-                        // Negative rotation for shin bend based on walk logic (-0.6 is bent)
-                        playerMeshParts.lCanelaPivot.rotation.x = -1.8;
+                    playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
+                    playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
+                    
+                    playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
+                    playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
 
-                        // Right Leg (Down): Straight (Impulse leg)
-                        playerMeshParts.rLegPivot.rotation.x = 0.2;
-                        playerMeshParts.rCanelaPivot.rotation.x = -0.1;
-                    } else {
-                        // WALKING / IDLE
-                        const baseCrouch = 0.3;
-                        const baseKnee = -0.6;
-                        // Oscillation for walk
-                        const legSwing = Math.sin(walkCycle) * 0.5;
-                        
-                        playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
-                        playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
-                        
-                        playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
-                        playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
-
-                        // Body Bobbing (Weight transfer)
-                        playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
-                        
-                        // Subtle torso twist
-                        if (playerMeshParts.torso) {
-                            playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
-                        }
+                    // Body Bobbing (Weight transfer)
+                    playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
+                    
+                    // Subtle torso twist
+                    if (playerMeshParts.torso) {
+                        playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
                     }
 
                     const currentPitch = (Math.PI / 2) + pitch + recoilAngle;
