@@ -957,11 +957,11 @@
         }
     </style>
     <script type="importmap">
-        { 
-            "imports": { 
+        {
+            "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-            } 
+            }
         }
     </script>
 
@@ -1081,6 +1081,21 @@
                 <div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Searching signal...
                 </div>
             </div>
+            <div id="pvp-level-selection" style="margin-top: 15px; display: none;">
+                <label style="color: #fff; font-family: 'Rajdhani';">SELECT MAP:</label>
+                <select id="pvp-level-select" style="background: #000; color: #00f3ff; border: 1px solid #00f3ff; font-family: 'Rajdhani'; padding: 5px; width: 100%; margin-top: 5px;">
+                    <option value="1">LEVEL 1 - CONCRETE</option>
+                    <option value="2">LEVEL 2 - MARS</option>
+                    <option value="3">LEVEL 3 - NIGHT OPS</option>
+                    <option value="4">LEVEL 4 - RED ALERT</option>
+                    <option value="5">LEVEL 5 - ALIEN</option>
+                    <option value="6">LEVEL 6 - INDUSTRIAL</option>
+                    <option value="7">LEVEL 7 - LAB</option>
+                    <option value="8">LEVEL 8 - BUNKER</option>
+                    <option value="9">LEVEL 9 - VOID</option>
+                    <option value="10">LEVEL 10 - OPEN ARENA (NEW)</option>
+                </select>
+            </div>
             <!-- DEBUG LOG REMOVED -->
             <div id="connection-log" style="display: none;"></div>
             <button class="menu-btn" id="start-mp-btn" disabled
@@ -1156,7 +1171,7 @@
         let baseSoldier = null, baseFps = null; // Added baseFps
         let mixers = []; // [mixer, lastAction, actionsMap]
         const clock = new THREE.Clock(); // For animation update
-        const SOLDIER_SCALE = 1.0; 
+        const SOLDIER_SCALE = 1.0;
 
         let head, rightArm, leftArm, playerMeshParts, muzzleFlashLight;
         const config = { speed: 0.15, rotationSpeed: 0.005, aimFOV: 40, baseFOV: 75, shoulderOffset: 0.8 };
@@ -1370,14 +1385,16 @@
             document.getElementById("start-view").style.display = "none";
             document.getElementById("lobby-screen").style.display = "flex";
             const title = document.getElementById("lobby-title"), btn = document.getElementById("start-mp-btn");
-            
+            const levelSelectDiv = document.getElementById("pvp-level-selection");
+
             // Lógica de Sala Fixa para garantir que todos entrem na mesma partida
             const urlParams = new URLSearchParams(window.location.search);
             const roomID = urlParams.get('room') || 'global';
-            
+
             if (mode === 'coop') {
                 roomPath = `rooms/coop/${roomID}`; isCoopMode = true;
                 title.innerText = "CO-OP PVE"; title.style.color = "#FF00FF"; btn.style.borderColor = "#FF00FF"; btn.style.color = "#FF00FF";
+                levelSelectDiv.style.display = "none";
                 btn.onclick = () => {
                     update(ref(db, `${roomPath}/state`), { gameRunning: true });
                     resetGame('coop');
@@ -1385,8 +1402,10 @@
             } else {
                 roomPath = `rooms/pvp/${roomID}`; isCoopMode = false;
                 title.innerText = "PVP ONLINE"; title.style.color = "#00f3ff"; btn.style.borderColor = "#00f3ff"; btn.style.color = "#00f3ff";
+                levelSelectDiv.style.display = "block";
                 btn.onclick = () => {
-                    update(ref(db, `${roomPath}/state`), { gameRunning: true });
+                    const selectedLevel = parseInt(document.getElementById("pvp-level-select").value);
+                    update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel });
                     resetGame('multi');
                 };
             }
@@ -1418,10 +1437,14 @@
                     unsubLobbyPlayers = onValue(ref(db, roomPath + '/players'), (snapshot) => renderLobbyList(snapshot.val()), (error) => logSystem("Erro DB: " + error.message, "error"));
 
                     // Auto-Start Listener
-                    onValue(ref(db, `${roomPath}/state/gameRunning`), (snapshot) => {
-                        if (snapshot.val() === true && !isPlaying && document.getElementById("lobby-screen").style.display !== "none") {
-                            logSystem("Líder iniciou! Entrando...", "success");
-                            setTimeout(() => { if (isCoopMode) resetGame('coop'); else resetGame('multi'); }, 500);
+                    onValue(ref(db, `${roomPath}/state`), (snapshot) => {
+                        const state = snapshot.val();
+                        if (state && state.gameRunning === true && !isPlaying && document.getElementById("lobby-screen").style.display !== "none") {
+                            if (state.level) currentLevel = state.level;
+                            // Pequeno delay para garantir que o nível foi sincronizado
+                            setTimeout(() => {
+                                resetGame(isCoopMode ? 'coop' : 'multi');
+                            }, 500);
                         }
                     });
 
@@ -1436,14 +1459,16 @@
             const allIds = Object.keys(data).sort();
             isMasterClient = (allIds[0] === myUserId);
             const now = Date.now(); let count = 0;
-            allIds.forEach(key => {
-                const p = data[key];
-                if (p.lastUpdate && (now - p.lastUpdate < 10000)) {
-                    count++; const div = document.createElement("div"); div.className = "lobby-player-item"; if (key === myUserId) div.classList.add("me");
-                    let roleTag = (key === allIds[0] && isCoopMode) ? '<span style="color:gold; font-size:10px;"> [HOST]</span>' : '';
-                    div.innerHTML = `<span>${key === myUserId ? "VOCÊ" : `Op. ${key.substring(0, 4)}`}${roleTag}</span> <span>ONLINE</span>`; listEl.appendChild(div);
-                }
-            });
+allIds.forEach(key => {
+const p = data[key];
+if (p.lastUpdate && (now - p.lastUpdate < 10000)) {
+count++; const div = document.createElement("div"); div.className = "lobby-player-item"; if (key === myUserId) div.classList.add("me");
+let roleTag = (key === allIds[0]) ? '<span style="color:gold; font-size:10px;"> [HOST]</span>' : '';
+div.innerHTML = `<span>${key === myUserId ? "VOCÊ" : `Op. ${key.substring(0, 4)}`}${roleTag}</span> <span>ONLINE</span>`; listEl.appendChild(div);
+}
+});
+// Somente o HOST pode ver e clicar no botão START
+document.getElementById("start-mp-btn").style.display = isMasterClient ? "block" : "none";
             if (count === 0) listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador ativo.</div>';
         }
 
@@ -1498,14 +1523,14 @@
                 if (!myRef || !isPlaying) return;
                 const p = playerGroup.position, r = yaw, now = Date.now();
                 if (p.distanceTo(lastSentPosition) > 0.01 || Math.abs(r - lastSentRotation) > 0.01 || (now - lastSentTime > 2000)) {
-                    update(myRef, { 
-                        x: parseFloat(p.x.toFixed(2)), 
-                        y: parseFloat(p.y.toFixed(2)), 
-                        z: parseFloat(p.z.toFixed(2)), 
-                        rot: parseFloat(r.toFixed(2)), 
+                    update(myRef, {
+                        x: parseFloat(p.x.toFixed(2)),
+                        y: parseFloat(p.y.toFixed(2)),
+                        z: parseFloat(p.z.toFixed(2)),
+                        rot: parseFloat(r.toFixed(2)),
                         pitch: parseFloat(pitch.toFixed(2)),
                         isMoving: (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d),
-                        lastUpdate: serverTimestamp() 
+                        lastUpdate: serverTimestamp()
                     });
                     lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now;
                 }
@@ -1623,8 +1648,8 @@
                 scene.add(m);
                 remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0, isMoving: d.isMoving || false };
             } else {
-                const r = remotePlayers[id]; 
-                r.targetPos.set(d.x, d.y, d.z); 
+                const r = remotePlayers[id];
+                r.targetPos.set(d.x, d.y, d.z);
                 r.targetRot = d.rot;
                 r.targetPitch = d.pitch || 0;
                 r.isMoving = d.isMoving || false;
@@ -1632,10 +1657,10 @@
         }
 
         function respawnPvP() {
-            if (isMultiplayerMode) { 
-                playerLives--; 
+            if (isMultiplayerMode) {
+                playerLives--;
                 document.getElementById('lives-count').innerText = playerLives;
-                if (playerLives <= 0) { showGameOver(); return; } 
+                if (playerLives <= 0) { showGameOver(); return; }
             }
             let rx, rz; do { rx = Math.floor(Math.random() * mazeSize); rz = Math.floor(Math.random() * mazeSize); } while (mazeMap[rz][rx] === 1);
             playerHP = 100; document.getElementById('hp').innerText = 100;
@@ -2144,18 +2169,42 @@
                 metalness: 0.1
             });
 
+            const openLevels = [1, 2, 3, 4, 8, 9, 10];
+            // Mapas abertos ocorrem apenas no modo PVP (isMultiplayerMode && !isCoopMode)
+            const isPVP = isMultiplayerMode && !isCoopMode;
+            const isOpenLevel = isPVP && openLevels.includes(level);
+
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
-                    if (mazeMap[i][j] === 1) {
-                        const w = new THREE.Mesh(wallGeo, wallMat);
-                        w.position.set(j * cellSize, 3, i * cellSize); // Y=3 because height=6
-                        w.castShadow = true;
-                        w.receiveShadow = true;
-                        scene.add(w);
-                        walls.push(w);
+                    let shouldPlaceWall = false;
+                    
+                    if (isOpenLevel) {
+                        // Layout Aberto (PVP): Paredes apenas nas bordas externas
+                        const isBorder = (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1);
+                        if (isBorder) {
+                            shouldPlaceWall = true;
+                        }
+                        // Adicionar duas paredes de cover no centro (posições fixas)
+                        const isCover1 = (i === 7 && j === 7);
+                        const isCover2 = (i === 12 && j === 12);
+                        if (isCover1 || isCover2) {
+                            shouldPlaceWall = true;
+                        }
+                    } else {
+                        // Layout Labirinto (Co-op, Single Player ou Níveis não abertos)
+                        shouldPlaceWall = (mazeMap[i][j] === 1);
                     }
-                }
-            }
+
+if (shouldPlaceWall) {
+const w = new THREE.Mesh(wallGeo, wallMat);
+w.position.set(j * cellSize, 3, i * cellSize);
+w.castShadow = true;
+w.receiveShadow = true;
+scene.add(w);
+walls.push(w);
+}
+}
+}
         }
 
         function spawnHealthKits(count) {
@@ -2163,7 +2212,16 @@
             const rng = mulberry32(currentLevel + 999);
             const kitsData = {};
             for (let i = 0; i < count; i++) {
-                let rx, rz; do { rx = Math.floor(rng() * mazeSize); rz = Math.floor(rng() * mazeSize); } while (mazeMap[rz][rx] === 1);
+                let rx, rz;
+                const openLevels = [1, 2, 3, 4, 8, 9, 10];
+                const isPVP = isMultiplayerMode && !isCoopMode;
+                const isOpen = isPVP && openLevels.includes(currentLevel);
+                do { 
+                    rx = Math.floor(rng() * mazeSize); 
+                    rz = Math.floor(rng() * mazeSize); 
+                } while (isOpen ? 
+                    (rx === 0 || rx === mazeSize-1 || rz === 0 || rz === mazeSize-1 || (rx === 7 && rz === 7) || (rx === 12 && rz === 12)) : 
+                    mazeMap[rz][rx] === 1);
                 const k = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x00FF41, emissive: 0x004400 })); k.position.set(rx * 5, 0.5, rz * 5); k.userData = { index: i, taken: false }; scene.add(k); healthKits.push(k);
                 kitsData[i] = { x: rx * 5, z: rz * 5, taken: false };
             }
@@ -2469,7 +2527,16 @@
             const ehp = 100 + ((level - 1) * 25), ec = count, rng = mulberry32(level + 5000);
             const enemyData = {};
             for (let i = 0; i < ec; i++) {
-                let rx, rz; do { rx = Math.floor(rng() * mazeSize); rz = Math.floor(rng() * mazeSize); } while (mazeMap[rz][rx] === 1);
+                let rx, rz;
+                const openLevels = [1, 2, 3, 4, 8, 9, 10];
+                const isPVP = isMultiplayerMode && !isCoopMode;
+                const isOpen = isPVP && openLevels.includes(level);
+                do { 
+                    rx = Math.floor(rng() * mazeSize); 
+                    rz = Math.floor(rng() * mazeSize); 
+                } while (isOpen ? 
+                    (rx === 0 || rx === mazeSize-1 || rz === 0 || rz === mazeSize-1 || (rx === 7 && rz === 7) || (rx === 12 && rz === 12)) : 
+                    mazeMap[rz][rx] === 1);
                 const enemy = createEnemyMesh(rx * 5, rz * 5, level, i);
                 enemies.push(enemy);
                 scene.add(enemy);
@@ -2499,10 +2566,18 @@
                 document.getElementById('lives-display').style.display = 'inline';
                 document.getElementById('lives-count').innerText = playerLives;
 
-                if (mode === 'multi') roomPath = 'rooms/pvp';
+                if (mode === 'multi') {
+                    // Manter o roomPath da sala específica
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const roomID = urlParams.get('room') || 'global';
+                    roomPath = `rooms/pvp/${roomID}`;
+                }
                 if (mode === 'coop') {
-                    roomPath = 'rooms/coop';
-                    currentLevel = 1;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const roomID = urlParams.get('room') || 'global';
+                    roomPath = `rooms/coop/${roomID}`;
+                    // No coop, o nível é progressivo, mas começa em 1 se for reset total
+                    if (currentLevel === 0) currentLevel = 1;
                 }
 
                 playGameMusic();
@@ -2514,7 +2589,12 @@
                 else { ms.innerHTML = `ONLINE: <span id="mp-count">0</span> PL | ROOM: <span id="room-id">${myUserId ? myUserId.substring(0, 6) : '...'}</span>`; ms.style.color = "#00f3ff"; }
                 document.getElementById('master-status').style.display = 'none';
 
-                playerGroup.position.set(5, 0, 5); createWorld(currentLevel);
+                playerGroup.position.set(5, 0, 5);
+            if (isMultiplayerMode && !isCoopMode) {
+                // No PVP, o nível pode ter sido definido pelo host no Firebase
+                // createWorld será chamado com o currentLevel atualizado
+            }
+            createWorld(currentLevel);
 
                 enemies.forEach(e => scene.remove(e)); enemies = [];
                 healthKits.forEach(k => scene.remove(k)); healthKits = [];
@@ -2762,7 +2842,7 @@
                 } else {
                     // FPS Gun Alignment
                     // Lowered slightly to align better with center screen
-                    gunGroup.position.set(0, -0.65, -0.1); 
+                    gunGroup.position.set(0, -0.65, -0.1);
                     gunGroup.rotation.set(-Math.PI / 2, 0, 0);
                 }
             }
@@ -2780,7 +2860,7 @@
         function processShooting() {
             const now = performance.now(); if (!isManualFiring || now - lastShotTime < 140) return;
             lastShotTime = now; playSound('shoot'); recoilAngle = 0.05; pitch = Math.min(1.4, pitch + 0.01);
-            
+
             // --- ATUALIZAÇÃO SOLICITADA ---
             // Simular o tranco da arma (Movimento rápido para frente/trás) - AUMENTADO
             gunRecoil = 0.6; // Impulso instantâneo mais forte
@@ -2984,14 +3064,14 @@
                         // Leg animation
                         e.userData.walkCycle += 0.2;
                         const wc = e.userData.walkCycle;
-                        
+
                         // NEW REALISTIC WALK LOGIC (Cautious/Crouched)
                         // INVERTED LOGIC AS PER USER REQUEST (Prev: baseCrouch=-0.4, baseKnee=0.8)
                         // New: baseCrouch=0.3, baseKnee=-0.6 to bend forward correctly
                         const baseCrouch = 0.3;
                         const baseKnee = -0.6;
                         const legSwing = Math.sin(wc) * 0.5;
-                        
+
                         if (e.userData.pivots) {
                             e.userData.pivots.lLeg.rotation.x = baseCrouch + legSwing;
                             e.userData.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
@@ -3168,7 +3248,7 @@
                 Object.values(remotePlayers).forEach(r => {
                     const m = r.mesh;
                     if (!m) return;
-                    
+
                     // Lerp position and rotation
                     m.position.lerp(r.targetPos, 0.15);
                     let rd = r.targetRot - m.rotation.y;
@@ -3183,7 +3263,7 @@
                         const remotePitch = (Math.PI / 2) + r.targetPitch;
                         if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
                         if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
-                        
+
                         // Animation State
                         const isRemoteGrounded = m.position.y <= 0.2;
                         if (!isRemoteGrounded) {
@@ -3218,10 +3298,10 @@
                 const ch = document.getElementById('crosshair');
                 // LOGICA ALTERADA: Mira visivel sempre, exceto se quiser esconder no ADS
                 // O usuario pediu "em primeira pessoa esta sem mira", entao forçamos visibilidade
-                if (ch) { 
-                    ch.style.opacity = '0.9'; 
+                if (ch) {
+                    ch.style.opacity = '0.9';
                 }
-                
+
                 recoilAngle = THREE.MathUtils.lerp(recoilAngle, 0, 0.15); fovKick = THREE.MathUtils.lerp(fovKick, 0, 0.4);
 
                 // --- ATUALIZAÇÃO SOLICITADA ---
@@ -3254,11 +3334,11 @@
                     }
 
                     // 1. REALISTIC ANIMATION LOGIC (Local Player)
-                    
+
                     if (!isGrounded) {
                         // JUMP ANIMATION: One knee up (Left), One straight (Right)
                         // Left Leg (Up): 90 degrees forward relative to waist (Thigh Up)
-                        playerMeshParts.lLegPivot.rotation.x = 1.6; 
+                        playerMeshParts.lLegPivot.rotation.x = 1.6;
                         // Knee bent (Shin goes back/down towards butt)
                         playerMeshParts.lCanelaPivot.rotation.x = -1.8;
 
@@ -3271,16 +3351,16 @@
                         const baseKnee = -0.6;
                         // Oscillation for walk
                         const legSwing = Math.sin(walkCycle) * 0.5;
-                        
+
                         playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
                         playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
-                        
+
                         playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
                         playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
 
                         // Body Bobbing (Weight transfer)
                         playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
-                        
+
                         // Subtle torso twist
                         if (playerMeshParts.torso) {
                             playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
@@ -3312,7 +3392,7 @@
                         // Use currentPitch directly to keep arms raised towards aim
                         playerMeshParts.rArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.x, currentPitch, 0.2);
                         playerMeshParts.lArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.x, currentPitch, 0.2);
-                        
+
                         // Keep aiming inward slightly
                         playerMeshParts.lArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.z, 0.5, 0.2);
                         playerMeshParts.rArmPivot.rotation.z = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.z, 0, 0.1);
@@ -3363,7 +3443,7 @@
                 if (isMultiplayerMode) Object.values(remotePlayers).forEach(r => {
                     const m = r.mesh;
                     if (!m) return;
-                    
+
                     // Lerp position and rotation
                     m.position.lerp(r.targetPos, 0.15);
                     let rd = r.targetRot - m.rotation.y;
@@ -3378,7 +3458,7 @@
                         const remotePitch = (Math.PI / 2) + r.targetPitch;
                         if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
                         if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
-                        
+
                         // Animation State
                         const isRemoteGrounded = m.position.y <= 0.2;
                         if (!isRemoteGrounded) {
