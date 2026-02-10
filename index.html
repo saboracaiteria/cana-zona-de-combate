@@ -415,30 +415,28 @@
         .menu-content {
             position: absolute;
             background: rgba(10, 15, 20, 0.9);
-            padding: 8px;
-            /* Redução final de padding */
+            padding: 5px; /* Reduzido de 8px */
             border: 1px solid rgba(0, 243, 255, 0.2);
             border-top: 3px solid #00f3ff;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
             text-align: center;
-            width: 220px;
-            /* Reduzido de 240px para 220px */
+            width: 200px; /* Reduzido de 220px */
             max-width: 85%;
             z-index: 100;
             backdrop-filter: blur(15px);
             border-radius: 8px;
+            max-height: 95vh;
+            overflow-y: auto;
         }
 
         #start-view {
             position: absolute !important;
             right: 5% !important;
-            /* Mais para a direita */
             top: 50% !important;
             transform: translateY(-50%) !important;
             left: auto !important;
             margin: 0 !important;
             display: block !important;
-            /* Garante que inicie visível na posição certa */
         }
 
         #settings-view {
@@ -449,11 +447,10 @@
             right: auto !important;
         }
 
-        /* Removido centralização automática em telas menores para manter posição lateral */
         @media (max-width: 800px) {
             #start-view {
                 right: 2% !important;
-                width: 200px !important;
+                width: 190px !important; /* Reduzido */
             }
         }
 
@@ -463,17 +460,16 @@
             letter-spacing: 1px;
             color: #fff;
             text-shadow: 0px 0px 10px rgba(0, 243, 255, 0.8);
-            margin-bottom: 3px;
-            font-size: 1.2em;
-            /* Título bem menor */
+            margin-bottom: 2px; /* Reduzido */
+            font-size: 1.0em; /* Reduzido de 1.2em */
             font-weight: 900;
         }
 
         h2 {
             font-family: 'Orbitron', sans-serif;
             color: #00f3ff;
-            margin-bottom: 15px;
-            font-size: 1.2em;
+            margin-bottom: 10px; /* Reduzido */
+            font-size: 1.0em; /* Reduzido */
             border-bottom: 1px solid rgba(0, 243, 255, 0.3);
             padding-bottom: 5px;
             display: inline-block;
@@ -484,13 +480,11 @@
             color: #00f3ff;
             border: 1px solid rgba(0, 243, 255, 0.2);
             border-left: 2px solid #00f3ff;
-            padding: 6px 12px;
-            /* Compactação extrema */
-            margin: 3px 0;
+            padding: 5px 10px; /* Reduzido */
+            margin: 2px 0; /* Reduzido */
             font-family: 'Rajdhani', sans-serif;
             font-weight: 700;
-            font-size: 12px;
-            /* Fonte menor */
+            font-size: 11px; /* Reduzido de 12px */
             cursor: pointer;
             width: 100%;
             text-transform: uppercase;
@@ -506,7 +500,7 @@
             background: linear-gradient(90deg, rgba(0, 243, 255, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
             color: #fff;
             box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-            padding-left: 25px;
+            padding-left: 20px; /* Reduzido */
             text-shadow: 0 0 5px #00f3ff;
         }
 
@@ -565,17 +559,14 @@
         }
 
         .menu-footer {
-            margin-top: 10px;
-            /* Reduzido de 20px */
-            font-size: 9px;
-            /* Reduzido de 10px */
+            margin-top: 5px; /* Reduzido */
+            font-size: 8px; /* Reduzido */
             color: rgba(255, 255, 255, 0.3);
             font-family: 'Rajdhani';
             letter-spacing: 1px;
             text-transform: uppercase;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             padding-top: 5px;
-            /* Reduzido de 10px */
             width: 100%;
         }
 
@@ -600,17 +591,17 @@
         #lobby-player-list {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #333;
-            padding: 10px;
-            margin: 10px 0;
-            max-height: 150px;
+            padding: 5px; /* Reduzido */
+            margin: 5px 0; /* Reduzido */
+            max-height: 100px; /* Reduzido drásticamente para caber tudo */
             overflow-y: auto;
             text-align: left;
-            font-size: 12px;
+            font-size: 11px; /* Reduzido */
             color: #ccc;
         }
 
         .lobby-player-item {
-            padding: 5px;
+            padding: 3px 5px; /* Reduzido */
             border-bottom: 1px solid #222;
             display: flex;
             justify-content: space-between;
@@ -622,14 +613,14 @@
         }
 
         #connection-log {
-            font-size: 10px;
+            font-size: 9px; /* Reduzido */
             color: #aaa;
             text-align: left;
             background: #000;
             padding: 5px;
-            margin-top: 10px;
+            margin-top: 5px; /* Reduzido */
             border: 1px solid #333;
-            height: 60px;
+            height: 50px; /* Reduzido */
             overflow-y: auto;
             font-family: monospace;
         }
@@ -649,8 +640,8 @@
             transform: translateY(-50%);
             background: var(--canaa-green);
             color: #000;
-            font-size: 9px;
-            padding: 2px 5px;
+            font-size: 8px; /* Reduzido */
+            padding: 1px 4px; /* Reduzido */
             border-radius: 3px;
             font-weight: 900;
         }
@@ -682,13 +673,13 @@
         }
 
         .setting-row {
-            margin: 5px 0;
+            margin: 3px 0; /* Reduzido */
             text-align: left;
         }
 
         .setting-row label {
             display: block;
-            font-size: 11px;
+            font-size: 10px; /* Reduzido */
             margin-bottom: 1px;
             color: #ff00ff;
             font-family: 'Rajdhani', sans-serif;
@@ -1072,16 +1063,16 @@
     </div>
 
     <div id="lobby-screen" style="display: none;">
-        <div class="menu-content" style="border-color: #00f3ff; width: 400px; max-width: 90%;">
-            <h1 style="color: #00f3ff; margin-bottom: 10px;" id="lobby-title">LOBBY</h1>
-            <div style="font-family: 'Rajdhani'; color: #aaa; margin-bottom: 15px;">Status: <span id="connection-status"
+        <div class="menu-content" style="border-color: #00f3ff; width: 300px; max-width: 90%;">
+            <h1 style="color: #00f3ff; margin-bottom: 5px;" id="lobby-title">LOBBY</h1>
+            <div style="font-family: 'Rajdhani'; color: #aaa; margin-bottom: 10px;">Status: <span id="connection-status"
                     style="color: #ffff00">Aguardando oponente...</span></div>
             <div style="text-align: left; margin-bottom: 5px; color: #fff;">Operators:</div>
             <div id="lobby-player-list">
                 <div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Searching signal...
                 </div>
             </div>
-            <div id="pvp-level-selection" style="margin-top: 15px; display: none;">
+            <div id="pvp-level-selection" style="margin-top: 10px; display: none;">
                 <label style="color: #fff; font-family: 'Rajdhani';">SELECT MAP:</label>
                 <select id="pvp-level-select" style="background: #000; color: #00f3ff; border: 1px solid #00f3ff; font-family: 'Rajdhani'; padding: 5px; width: 100%; margin-top: 5px;">
                     <option value="1">LEVEL 1 - CONCRETE</option>
@@ -1099,7 +1090,7 @@
             <!-- DEBUG LOG REMOVED -->
             <div id="connection-log" style="display: none;"></div>
             <button class="menu-btn" id="start-mp-btn" disabled
-                style="margin-top: 20px; border-color: #00f3ff; color: #00f3ff;">START</button>
+                style="margin-top: 15px; border-color: #00f3ff; color: #00f3ff;">START</button>
             <button class="menu-btn secondary" id="lobby-back-btn">BACK</button>
         </div>
     </div>
@@ -1161,7 +1152,7 @@
         // --- RESTORED GLOBALS ---
         let scene, camera, renderer, skyMesh, skyUniforms;
         const bulletRaycaster = new THREE.Raycaster(), aimRaycaster = new THREE.Raycaster(), occlusionRaycaster = new THREE.Raycaster();
-        let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null;
+        let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null, ramps = [];
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'high' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
@@ -1178,6 +1169,7 @@
         let walkCycle = 0, recoilAngle = 0, fovKick = 0, gunRecoil = 0; // Adicionada variavel gunRecoil
         let roomPath = '';
         let isMasterClient = false;
+        let hasResetLobbyState = false;
 
         let unsubLobbyPlayers = null, unsubGamePlayers = null, unsubMyPresence = null;
         let unsubCoopLevel = null, unsubCoopKills = null, unsubCoopEnemies = null, unsubCoopKits = null;
@@ -1386,6 +1378,7 @@
             document.getElementById("lobby-screen").style.display = "flex";
             const title = document.getElementById("lobby-title"), btn = document.getElementById("start-mp-btn");
             const levelSelectDiv = document.getElementById("pvp-level-selection");
+            hasResetLobbyState = false; // Reset the flag so we can reset game state once connected
 
             // Lógica de Sala Fixa para garantir que todos entrem na mesma partida
             const urlParams = new URLSearchParams(window.location.search);
@@ -1405,6 +1398,7 @@
                 levelSelectDiv.style.display = "block";
                 btn.onclick = () => {
                     const selectedLevel = parseInt(document.getElementById("pvp-level-select").value);
+                    currentLevel = selectedLevel; // Set local immediately
                     update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel });
                     resetGame('multi');
                 };
@@ -1439,7 +1433,7 @@
                     // Auto-Start Listener
                     onValue(ref(db, `${roomPath}/state`), (snapshot) => {
                         const state = snapshot.val();
-                        if (state && state.gameRunning === true && !isPlaying && document.getElementById("lobby-screen").style.display !== "none") {
+                        if (state && state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
                             if (state.level) currentLevel = state.level;
                             // Pequeno delay para garantir que o nível foi sincronizado
                             setTimeout(() => {
@@ -1456,19 +1450,42 @@
         function renderLobbyList(data) {
             const listEl = document.getElementById("lobby-player-list"); listEl.innerHTML = "";
             if (!data) { listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador nesta sala.</div>'; return; }
-            const allIds = Object.keys(data).sort();
-            isMasterClient = (allIds[0] === myUserId);
-            const now = Date.now(); let count = 0;
-allIds.forEach(key => {
-const p = data[key];
-if (p.lastUpdate && (now - p.lastUpdate < 10000)) {
-count++; const div = document.createElement("div"); div.className = "lobby-player-item"; if (key === myUserId) div.classList.add("me");
-let roleTag = (key === allIds[0]) ? '<span style="color:gold; font-size:10px;"> [HOST]</span>' : '';
-div.innerHTML = `<span>${key === myUserId ? "VOCÊ" : `Op. ${key.substring(0, 4)}`}${roleTag}</span> <span>ONLINE</span>`; listEl.appendChild(div);
-}
-});
-// Somente o HOST pode ver e clicar no botão START
-document.getElementById("start-mp-btn").style.display = isMasterClient ? "block" : "none";
+            
+            // Filter active players first
+            const now = Date.now();
+            const activeIds = Object.keys(data).filter(key => {
+                const p = data[key];
+                return p.lastUpdate && (now - p.lastUpdate < 60000); // 60s timeout to prevent disappearance
+            }).sort();
+
+            // Determine master based on ACTIVE players
+            isMasterClient = (activeIds.length > 0 && activeIds[0] === myUserId);
+
+            // Fix: Reset gameRunning state if I am the host and just entered the lobby
+            if (isMasterClient && !hasResetLobbyState) {
+                update(ref(db, `${roomPath}/state`), { gameRunning: false });
+                hasResetLobbyState = true;
+                logSystem("Lobby Reset.", "success");
+            }
+
+            let count = 0;
+            activeIds.forEach(key => {
+                count++;
+                const div = document.createElement("div"); 
+                div.className = "lobby-player-item"; 
+                if (key === myUserId) div.classList.add("me");
+                
+                let roleTag = (key === activeIds[0]) ? '<span style="color:gold; font-size:10px;"> [HOST]</span>' : '';
+                div.innerHTML = `<span>${key === myUserId ? "VOCÊ" : `Op. ${key.substring(0, 4)}`}${roleTag}</span> <span>ONLINE</span>`; 
+                listEl.appendChild(div);
+            });
+
+            // Somente o HOST pode ver e clicar no botão START
+            document.getElementById("start-mp-btn").style.display = "block";
+            
+            // Level selection visibility
+            document.getElementById("pvp-level-selection").style.display = (!isCoopMode) ? "block" : "none";
+            
             if (count === 0) listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador ativo.</div>';
         }
 
@@ -1662,7 +1679,20 @@ document.getElementById("start-mp-btn").style.display = isMasterClient ? "block"
                 document.getElementById('lives-count').innerText = playerLives;
                 if (playerLives <= 0) { showGameOver(); return; }
             }
-            let rx, rz; do { rx = Math.floor(Math.random() * mazeSize); rz = Math.floor(Math.random() * mazeSize); } while (mazeMap[rz][rx] === 1);
+            let rx, rz; 
+            let min = 0, max = mazeSize;
+            // Spawn mais centralizado no PVP
+            const openLevels = [1, 2, 3, 4, 8, 9, 10];
+            const isPVP = isMultiplayerMode && !isCoopMode;
+            if (isPVP && openLevels.includes(currentLevel)) {
+                 min = 6; max = 14; 
+            }
+            
+            do { 
+                rx = Math.floor(Math.random() * (max - min) + min); 
+                rz = Math.floor(Math.random() * (max - min) + min); 
+            } while (mazeMap[rz][rx] === 1);
+            
             playerHP = 100; document.getElementById('hp').innerText = 100;
             playerGroup.position.set(rx * 5, 0, rz * 5); pitch = 0; yaw = 0;
             if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5 });
@@ -2121,6 +2151,7 @@ document.getElementById("start-mp-btn").style.display = isMasterClient ? "block"
 
         function createWorld(level) {
             walls.forEach(w => scene.remove(w)); walls = []; if (currentFloor) scene.remove(currentFloor);
+            ramps.forEach(r => scene.remove(r)); ramps = []; // Clear ramps
 
             let wb, wd, fb, fd, skyTop, skyBot;
 
@@ -2172,12 +2203,70 @@ document.getElementById("start-mp-btn").style.display = isMasterClient ? "block"
             const openLevels = [1, 2, 3, 4, 8, 9, 10];
             // Mapas abertos ocorrem apenas no modo PVP (isMultiplayerMode && !isCoopMode)
             const isPVP = isMultiplayerMode && !isCoopMode;
-            const isOpenLevel = isPVP && openLevels.includes(level);
+            const isOpenLevel = isPVP; // Forçar mapa aberto com rampas no PVP
+
+            // New: Long Walls Material
+            const longWallGeo = new THREE.BoxGeometry(cellSize, 6, cellSize * 3);
+            
+            // New: Ramp Geometry (Triangle Prism)
+            const rampShape = new THREE.Shape();
+            rampShape.moveTo(0, 0);
+            rampShape.lineTo(0, 6);
+            rampShape.lineTo(10, 0);
+            rampShape.lineTo(0, 0);
+            
+            const rampExtrudeSettings = {
+                steps: 1,
+                depth: 5,
+                bevelEnabled: false
+            };
+            const rampGeo = new THREE.ExtrudeGeometry(rampShape, rampExtrudeSettings);
+            const rampMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9, map: floorTexture });
+
+
+            if (isOpenLevel) {
+                 // Add Long Walls manually in open maps
+                 const lw1 = new THREE.Mesh(longWallGeo, wallMat);
+                 lw1.position.set(25, 3, 50); // Center left
+                 lw1.castShadow = true; scene.add(lw1); walls.push(lw1);
+                 
+                 const lw2 = new THREE.Mesh(longWallGeo, wallMat);
+                 lw2.position.set(75, 3, 50); // Center right
+                 lw2.castShadow = true; scene.add(lw2); walls.push(lw2);
+                 
+                 // Add Ramps
+                 // Ramp 1
+                 const r1 = new THREE.Mesh(rampGeo, rampMat);
+                 r1.position.set(20, 0, 30); // Position
+                 r1.rotation.y = Math.PI / 2; // Orient
+                 r1.castShadow = true; r1.receiveShadow = true;
+                 scene.add(r1); ramps.push(r1);
+                 
+                 // Ramp 2
+                 const r2 = new THREE.Mesh(rampGeo, rampMat);
+                 r2.position.set(80, 0, 70);
+                 r2.rotation.y = -Math.PI / 2;
+                 r2.castShadow = true; r2.receiveShadow = true;
+                 scene.add(r2); ramps.push(r2);
+                 
+                 // Ramp 3
+                 const r3 = new THREE.Mesh(rampGeo, rampMat);
+                 r3.position.set(45, 0, 20);
+                 r3.castShadow = true; r3.receiveShadow = true;
+                 scene.add(r3); ramps.push(r3);
+
+                 // Ramp 4
+                 const r4 = new THREE.Mesh(rampGeo, rampMat);
+                 r4.position.set(55, 0, 80);
+                 r4.rotation.y = Math.PI;
+                 r4.castShadow = true; r4.receiveShadow = true;
+                 scene.add(r4); ramps.push(r4);
+            }
 
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     let shouldPlaceWall = false;
-                    
+                     
                     if (isOpenLevel) {
                         // Layout Aberto (PVP): Paredes apenas nas bordas externas
                         const isBorder = (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1);
@@ -2195,16 +2284,16 @@ document.getElementById("start-mp-btn").style.display = isMasterClient ? "block"
                         shouldPlaceWall = (mazeMap[i][j] === 1);
                     }
 
-if (shouldPlaceWall) {
-const w = new THREE.Mesh(wallGeo, wallMat);
-w.position.set(j * cellSize, 3, i * cellSize);
-w.castShadow = true;
-w.receiveShadow = true;
-scene.add(w);
-walls.push(w);
-}
-}
-}
+                    if (shouldPlaceWall) {
+                        const w = new THREE.Mesh(wallGeo, wallMat);
+                        w.position.set(j * cellSize, 3, i * cellSize);
+                        w.castShadow = true;
+                        w.receiveShadow = true;
+                        scene.add(w);
+                        walls.push(w);
+                    }
+                }
+            }
         }
 
         function spawnHealthKits(count) {
@@ -2495,6 +2584,10 @@ walls.push(w);
                 lArm: lArmPivot,
                 head: headR // Add head reference
             };
+            
+            // Fix: Larger Hitbox for better hit registration
+            const hitbox = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.0, 2.0), new THREE.MeshBasicMaterial({visible:false}));
+            g.add(hitbox);
 
             return g;
         }
@@ -2561,7 +2654,10 @@ walls.push(w);
                 // IMPORTANTE: Não limpar tudo se já estivermos no lobby
                 if (mode === 'single') await cleanupMultiplayer();
 
-                currentLevel = 1; playerHP = 100; playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
+                // FIX: Only force level 1 in single player. For multi/coop, respect selected/synced level.
+                if (mode === 'single') currentLevel = 1;
+                
+                playerHP = 100; playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
                 isMultiplayerMode = (mode === 'multi' || mode === 'coop'); isCoopMode = (mode === 'coop');
                 document.getElementById('lives-display').style.display = 'inline';
                 document.getElementById('lives-count').innerText = playerLives;
@@ -2630,6 +2726,7 @@ walls.push(w);
                 const ind = document.getElementById('level-indicator'); ind.innerText = isCoopMode ? "COOP ZONE 1" : (isMultiplayerMode ? "PVP ZONE" : "LEVEL 1"); ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000);
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
                 if (isPC) setTimeout(() => { try { document.body.requestPointerLock(); } catch (e) { } }, 50);
+                if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
                 initAudio();
             } catch (e) {
                 console.error("Fatal error:", e);
@@ -2822,7 +2919,7 @@ walls.push(w);
                 const vis = isThirdPerson;
                 playerMeshParts.torso.material.visible = vis;
                 playerMeshParts.vest.material.visible = vis;
-                head.visible = vis;
+                // head.visible = vis; // Head is not a simple var anymore, it's inside playerMeshParts logic
 
                 // Ensure arms are visible and not clipped in FPS
                 playerMeshParts.rArmPivot.traverse(c => { if (c.material) c.material.depthTest = true; });
@@ -3435,8 +3532,31 @@ walls.push(w);
                 if ((moveInput.x !== 0 || moveInput.y !== 0) && isGrounded && performance.now() - lastStepTime > 350) { playSound('step'); lastStepTime = performance.now(); }
                 if (!checkWall(playerGroup.position.x + mx, playerGroup.position.z)) playerGroup.position.x += mx;
                 if (!checkWall(playerGroup.position.x, playerGroup.position.z + mz)) playerGroup.position.z += mz;
-                if (!isGrounded) velocityY -= GRAVITY; playerGroup.position.y += velocityY;
-                if (playerGroup.position.y <= 0) { playerGroup.position.y = 0; velocityY = 0; isGrounded = true; }
+                
+                // RAMP / ELEVATION PHYSICS (Simple Raycast Down)
+                let groundY = 0;
+                const rayOrigin = playerGroup.position.clone();
+                rayOrigin.y += 2; // Start ray above player
+                const downDir = new THREE.Vector3(0, -1, 0);
+                const rampRay = new THREE.Raycaster(rayOrigin, downDir, 0, 10);
+                const rampHits = rampRay.intersectObjects(ramps, false);
+                if (rampHits.length > 0) {
+                    groundY = rampHits[0].point.y;
+                }
+
+                // Fix: Check if falling
+                if (isGrounded && playerGroup.position.y > groundY + 0.1) {
+                    isGrounded = false;
+                }
+
+                if (!isGrounded) velocityY -= GRAVITY;
+                playerGroup.position.y += velocityY;
+                
+                if (playerGroup.position.y <= groundY) { 
+                    playerGroup.position.y = groundY; 
+                    velocityY = 0; 
+                    isGrounded = true; 
+                }
 
 
 
