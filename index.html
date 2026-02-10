@@ -3319,17 +3319,54 @@
                         // WALKING / IDLE
                         const baseCrouch = 0.3;
                         const baseKnee = -0.6;
-                        // Oscillation for walk
-                        const legSwing = Math.sin(walkCycle) * 0.5;
+                        
+                        // Detectar movimento lateral predominante (Strafing)
+                        const isStrafing = Math.abs(moveInput.x) > 0.1 && Math.abs(moveInput.x) > Math.abs(moveInput.y);
+                        
+                        // Oscillation vars (Adjusted for Realistic Steps)
+                        // Aumentei um pouco a amplitude do passo (0.5 -> 0.6)
+                        const legSwing = Math.sin(walkCycle) * 0.6;
+                        
+                        // Derivada do movimento (Velocidade da perna):
+                        // cos > 0: Perna Esquerda indo para frente
+                        // cos < 0: Perna Direita indo para frente
+                        const swingPhase = Math.cos(walkCycle);
 
-                        playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
-                        playerMeshParts.lCanelaPivot.rotation.x = baseKnee - Math.abs(Math.cos(walkCycle)) * 0.5;
+                        // Joelho dobra MUITO quando a perna avança (levantando o pé)
+                        // Joelho fica quase reto quando a perna recua (empurrando o chão)
+                        // Isso remove o efeito de "patinar"
+                        const liftL = Math.max(0, swingPhase);   // Só positivo (Esq avança)
+                        const liftR = Math.max(0, -swingPhase);  // Só negativo (Dir avança)
+                        
+                        const kneeL = liftL * 1.5; // Dobra forte para levantar o pé
+                        const kneeR = liftR * 1.5;
 
-                        playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
-                        playerMeshParts.rCanelaPivot.rotation.x = baseKnee - Math.abs(Math.sin(walkCycle)) * 0.5;
+                        if (isStrafing) {
+                             // CAMINHADA LATERAL: Pernas movem no eixo Z (abertura lateral)
+                             const strafeDir = Math.sign(moveInput.x);
+                             const sway = Math.sin(walkCycle) * 0.3;
+                             
+                             playerMeshParts.lLegPivot.rotation.z = -sway * strafeDir; 
+                             playerMeshParts.rLegPivot.rotation.z = -sway * strafeDir;
+                             
+                             playerMeshParts.lLegPivot.rotation.x = baseCrouch + (Math.cos(walkCycle * 2) * 0.1); 
+                             playerMeshParts.rLegPivot.rotation.x = baseCrouch + (Math.cos(walkCycle * 2 + Math.PI) * 0.1);
+                        } else {
+                             // CAMINHADA FRONTAL REALISTA
+                             playerMeshParts.lLegPivot.rotation.z = 0;
+                             playerMeshParts.rLegPivot.rotation.z = 0;
+                             
+                             playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
+                             playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
+                        }
+
+                        // Aplica a dobra do joelho calculada acima
+                        playerMeshParts.lCanelaPivot.rotation.x = baseKnee - kneeL;
+                        playerMeshParts.rCanelaPivot.rotation.x = baseKnee - kneeR;
 
                         // Body Bobbing (Weight transfer)
-                        playerMesh.position.y = 0.88 + Math.abs(Math.sin(walkCycle * 2)) * 0.03;
+                        // Ajustado para quicar quando o pé bate no chão
+                        playerMesh.position.y = 0.88 + Math.cos(walkCycle * 2) * 0.05;
 
                         // Subtle torso twist
                         if (playerMeshParts.torso) {
