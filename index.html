@@ -6,111 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canaan: Combat Zone</title>
     <link rel="icon" href="data:,">
-    <script>
-        // === LAUNCHER & ANTI-BLOCKING SYSTEM ===
-        window.CrazySDK = null;
-        window.testMode = false;
-
-        function initLauncher() {
-            // Cria o overlay do launcher
-            const launcher = document.createElement('div');
-            launcher.id = 'launcher-overlay';
-            launcher.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: linear-gradient(135deg, #050505 0%, #1a1a1a 100%);
-                z-index: 10000; display: flex; flex-direction: column;
-                justify-content: center; align-items: center; color: white;
-                font-family: 'Orbitron', sans-serif; text-align: center;
-            `;
-
-            launcher.innerHTML = `
-                <h1 style="color: #00f3ff; text-shadow: 0 0 20px #00f3ff; margin-bottom: 30px;">CANAAN LAUNCHER</h1>
-                <div style="display: flex; flex-direction: column; gap: 20px; width: 300px;">
-                    <button id="launch-crazy" class="launcher-btn" style="border-color: #00f3ff; color: #00f3ff;">START (CRAZYGAMES)</button>
-                    <button id="launch-test" class="launcher-btn" style="border-color: #ff8c00; color: #ff8c00;">TEST MODE (BYPASS SDK) 🧪</button>
-                </div>
-                <p style="margin-top: 40px; font-size: 12px; color: #666; font-family: 'Rajdhani';">
-                    Use Test Mode to play on local server or mobile without SDK blocking.
-                </p>
-                <style>
-                    .launcher-btn {
-                        background: rgba(255,255,255,0.05);
-                        border: 2px solid; padding: 20px; font-size: 16px;
-                        font-family: 'Orbitron'; cursor: pointer; transition: 0.3s;
-                        text-transform: uppercase; letter-spacing: 2px;
-                    }
-                    .launcher-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.05); }
-                </style>
-            `;
-
-            document.body.appendChild(launcher);
-
-            document.getElementById('launch-crazy').onclick = () => {
-                console.log("🚀 Loading CrazyGames SDK...");
-                launcher.innerHTML = "<h1>LOADING SDK...</h1>";
-                loadCrazySDK();
-            };
-
-            document.getElementById('launch-test').onclick = () => {
-                console.log("🧪 Entering Test Mode...");
-                window.testMode = true;
-                mockCrazySDK();
-                launcher.remove();
-                // O init() do jogo será chamado normalmente
-            };
-        }
-
-        function loadCrazySDK() {
-            const script = document.createElement('script');
-            script.src = "https://sdk.crazygames.com/crazygames-sdk-v2.js";
-            script.onload = () => {
-                console.log("🎮 CrazyGames SDK Loaded!");
-                if (window.CrazyGames && window.CrazyGames.SDK) {
-                    window.CrazySDK = window.CrazyGames.SDK;
-                    try {
-                        if (window.CrazySDK.game.sdkGameLoadingStart) window.CrazySDK.game.sdkGameLoadingStart();
-                    } catch (e) { }
-                }
-                document.getElementById('launcher-overlay').remove();
-            };
-            script.onerror = () => {
-                alert("Failed to load SDK. Entering Test Mode.");
-                window.testMode = true;
-                mockCrazySDK();
-                document.getElementById('launcher-overlay').remove();
-            };
-            document.head.appendChild(script);
-        }
-
-        function mockCrazySDK() {
-            window.CrazySDK = {
-                ad: {
-                    requestAd: (type, callbacks) => {
-                        console.log(`[TEST] Ad requested: ${type}`);
-                        if (callbacks && callbacks.adStarted) callbacks.adStarted();
-                        setTimeout(() => { if (callbacks && callbacks.adFinished) callbacks.adFinished(); }, 100);
-                    }
-                },
-                game: {
-                    gameplayStart: () => console.log("[TEST] gameplayStart()"),
-                    gameplayStop: () => console.log("[TEST] gameplayStop()"),
-                    sdkGameLoadingStart: () => console.log("[TEST] sdkGameLoadingStart()"),
-                    sdkGameLoadingStop: () => console.log("[TEST] sdkGameLoadingStop()"),
-                    loadingStop: () => console.log("[TEST] loadingStop()"),
-                    showInviteButton: async () => { console.log("[TEST] showInviteButton()"); return window.location.href; },
-                    hideInviteButton: () => console.log("[TEST] hideInviteButton()"),
-                    inviteLink: async () => { console.log("[TEST] inviteLink()"); return window.location.href; }
-                }
-            };
-            window.getCrazySDK = () => window.CrazySDK;
-            // Desativa overlay de rotação se necessário
-            const rotate = document.getElementById('rotate-overlay');
-            if (rotate) rotate.style.display = 'none';
-        }
-
-        window.addEventListener('DOMContentLoaded', initLauncher);
-    </script>
-
+    
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap"
         rel="stylesheet">
@@ -1184,142 +1080,6 @@
 
         function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
 
-        // --- CRAZYGAMES SDK V2 (usa inicialização do <head>) ---
-        // O SDK é inicializado sincronamente no <head> e fica disponível em window.CrazySDK
-        function getCrazySDK() {
-            const sdk = window.CrazyGames && window.CrazyGames.SDK;
-            if (sdk && sdk.environment === "disabled") {
-                if (!window.sdkDisabledLogged) {
-                    console.warn("CrazySDK is disabled on this domain. SDK features will be skipped.");
-                    window.sdkDisabledLogged = true;
-                }
-                return null;
-            }
-            return sdk || null;
-        }
-
-        // Notifica que o jogo terminou de carregar
-        function notifyLoadingComplete() {
-            const sdk = getCrazySDK();
-            if (sdk && sdk.game) {
-                if (sdk.game.loadingStop) {
-                    sdk.game.loadingStop();
-                    console.log("📍 loadingStop() called");
-                } else if (sdk.game.sdkGameLoadingStop) {
-                    sdk.game.sdkGameLoadingStop();
-                    console.log("📍 sdkGameLoadingStop() called (legacy)");
-                }
-            }
-        }
-
-        // Funções obrigatórias de gameplay para o SDK
-        function notifyGameplayStart() {
-            const sdk = getCrazySDK();
-            if (sdk && sdk.game) {
-                sdk.game.gameplayStart();
-                console.log("📍 gameplayStart() called");
-            }
-        }
-
-        function notifyGameplayStop() {
-            const sdk = getCrazySDK();
-            if (sdk && sdk.game) {
-                sdk.game.gameplayStop();
-                console.log("📍 gameplayStop() called");
-            }
-        }
-
-        // --- CRAZYGAMES INVITE BUTTON (ASYNC - retornam Promises) ---
-        async function showCrazyInviteButton(roomId) {
-            try {
-                const sdk = getCrazySDK();
-                if (sdk && sdk.game) {
-                    const link = await sdk.game.showInviteButton({
-                        roomId: roomId || 'default-room'
-                    });
-                    console.log("📍 showInviteButton() OK - Link:", link);
-                    return link;
-                }
-            } catch (e) {
-                console.warn("showInviteButton error:", e);
-            }
-            return null;
-        }
-
-        function hideCrazyInviteButton() {
-            try {
-                if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.game) {
-                    window.CrazyGames.SDK.game.hideInviteButton();
-                    console.log("📍 hideInviteButton() OK");
-                }
-            } catch (e) {
-                console.warn("hideInviteButton error:", e);
-            }
-        }
-
-        // Gera link de convite usando o SDK (ASYNC - retorna Promise)
-        async function getInviteLink(roomId) {
-            try {
-                const sdk = getCrazySDK();
-                // Gerar um ID de sala único se não houver um na URL
-                const urlParams = new URLSearchParams(window.location.search);
-                let currentRoom = urlParams.get('room');
-                if (!currentRoom) {
-                    currentRoom = Math.random().toString(36).substring(2, 8);
-                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + currentRoom;
-                    window.history.pushState({ path: newUrl }, '', newUrl);
-                }
-
-                if (sdk && sdk.game) {
-                    const link = await sdk.game.inviteLink({
-                        roomId: currentRoom
-                    });
-                    console.log("📍 inviteLink() generated:", link);
-                    return link;
-                }
-                return window.location.href;
-            } catch (e) {
-                console.warn("inviteLink error:", e);
-            }
-            return window.location.href; // fallback
-        }
-
-        // --- LÓGICA DE ANÚNCIOS CRAZYGAMES (CORRIGIDA E LIMPA) ---
-        function showMidrollAd(callback) {
-            // Verifica o SDK inicializado
-            const sdk = getCrazySDK();
-
-            if (sdk) {
-                // Pausar o jogo e o áudio
-                const wasPlaying = isPlaying;
-                isPlaying = false;
-                if (bgmPlayer) bgmPlayer.pause();
-
-                console.log("Requesting Midroll ad...");
-
-                sdk.ad.requestAd("midgame", {
-                    adStarted: () => {
-                        console.log("Ad started");
-                    },
-                    adFinished: () => {
-                        console.log("Ad finished");
-                        if (wasPlaying) isPlaying = true;
-                        if (bgmPlayer) bgmPlayer.play().catch(() => { });
-                        if (callback) callback();
-                    },
-                    adError: (error) => {
-                        console.error("Ad error:", error);
-                        if (wasPlaying) isPlaying = true;
-                        if (bgmPlayer) bgmPlayer.play().catch(() => { });
-                        if (callback) callback();
-                    }
-                });
-            } else {
-                console.log("SDK not found, skipping ad.");
-                if (callback) callback();
-            }
-        }
-
         function playMenuMusic() {
             if (bgmPlayer) { bgmPlayer.pause(); bgmPlayer.onended = null; bgmPlayer = null; }
 
@@ -1680,23 +1440,45 @@
                 if (playerLives <= 0) { showGameOver(); return; }
             }
             let rx, rz; 
-            let min = 0, max = mazeSize;
-            // Spawn mais centralizado no PVP
+            let min = 1, max = mazeSize - 1; // Usar mapa todo por segurança, mas evitando borda absoluta
+            
+            // Spawn mais centralizado no PVP, mas com margem maior para evitar "esquisitice" (spawn kill imediato)
             const openLevels = [1, 2, 3, 4, 8, 9, 10];
             const isPVP = isMultiplayerMode && !isCoopMode;
             if (isPVP && openLevels.includes(currentLevel)) {
-                 min = 6; max = 14; 
+                 min = 4; max = 16; // Expandido de 6-14 para 4-16
             }
             
+            let attempts = 0;
             do { 
                 rx = Math.floor(Math.random() * (max - min) + min); 
                 rz = Math.floor(Math.random() * (max - min) + min); 
-            } while (mazeMap[rz][rx] === 1);
+                attempts++;
+            } while (mazeMap[rz][rx] === 1 && attempts < 100);
             
+            // Fallback se falhar em achar chão (raro)
+            if (mazeMap[rz][rx] === 1) { rx = 5; rz = 5; }
+
             playerHP = 100; document.getElementById('hp').innerText = 100;
-            playerGroup.position.set(rx * 5, 0, rz * 5); pitch = 0; yaw = 0;
+            
+            // Resetar física para evitar glitches
+            velocityY = 0;
+            isGrounded = true;
+            
+            // Posição segura levemente elevada
+            playerGroup.position.set(rx * 5, 2, rz * 5); // Y=2 para cair no chão seguramente
+            
+            // Rotação aleatória para não ficar encarando parede
+            pitch = 0; 
+            yaw = Math.random() * Math.PI * 2;
+            
             if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5 });
-            isPlaying = true; // Garantir que o jogo continue
+            isPlaying = true; 
+            
+            // Efeito visual de respawn (opcional, mas ajuda)
+            const o = document.getElementById('damage-overlay');
+            o.style.backgroundColor = "rgba(0, 255, 65, 0.3)";
+            setTimeout(() => o.style.backgroundColor = "transparent", 300);
         }
 
         function endPVPMatch(isVictory) {
@@ -1967,8 +1749,7 @@
             const loadingManager = new THREE.LoadingManager();
             loadingManager.onLoad = () => {
                 console.log("✅ Models loaded!");
-                notifyLoadingComplete();
-                // If game already started (unlikely here but safe), good.
+                // No notifyLoadingComplete();
             };
 
             // LOAD SOLDIER
@@ -1979,7 +1760,7 @@
             console.log("⚠️ Using Hybrid Mode: Procedural TPS + GLB FPS.");
             baseSoldier = null;
             startGameLogic();
-            notifyLoadingComplete();
+            // No notifyLoadingComplete();
 
             function startGameLogic() {
                 // Prevent double init
@@ -1994,7 +1775,7 @@
                 setupUI();
                 setupHUDDrag();
 
-                notifyLoadingComplete();
+                // No notifyLoadingComplete();
             }
 
             // --- LIGHTING UPGRADE ---
@@ -2266,7 +2047,7 @@
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     let shouldPlaceWall = false;
-                     
+                      
                     if (isOpenLevel) {
                         // Layout Aberto (PVP): Paredes apenas nas bordas externas
                         const isBorder = (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1);
@@ -2643,8 +2424,7 @@
         async function resetGame(mode = 'single') {
             console.log("Starting gameplayStart with mode:", mode);
             try {
-                // AVISAR CRAZYGAMES QUE O JOGO COMEÇOU IMEDIATAMENTE
-                notifyGameplayStart();
+                
                 document.getElementById('main-menu').style.display = 'none';
                 document.getElementById('hud').style.display = 'block';
                 document.getElementById('crosshair').style.display = 'block';
@@ -2725,7 +2505,7 @@
                 setupSkyLogo(); isPlaying = true; gamePaused = false;
                 const ind = document.getElementById('level-indicator'); ind.innerText = isCoopMode ? "COOP ZONE 1" : (isMultiplayerMode ? "PVP ZONE" : "LEVEL 1"); ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000);
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
-                if (isPC) setTimeout(() => { try { document.body.requestPointerLock(); } catch (e) { } }, 50);
+                if (isPC) setTimeout(() => { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch (e) { } }, 50);
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
                 initAudio();
             } catch (e) {
@@ -2737,32 +2517,32 @@
 
         function showGameOver() {
             isPlaying = false;
-            notifyGameplayStop();
+            
             document.exitPointerLock();
             if (bgmPlayer) bgmPlayer.pause();
 
             // MOSTRAR ANÚNCIO NO GAME OVER
-            showMidrollAd(() => {
+            
                 document.getElementById('game-over-screen').style.display = 'flex';
                 document.getElementById('mobile-ui').style.display = 'none';
                 document.getElementById('pause-btn').style.display = 'none';
-            });
+            
         }
 
         function nextLevel() {
             if (currentLevel >= maxLevels) {
                 isPlaying = false;
-                notifyGameplayStop();
+                
                 document.exitPointerLock();
                 if (bgmPlayer) bgmPlayer.pause();
 
-                showMidrollAd(() => {
+                
                     const winScreen = document.getElementById('win-screen');
                     winScreen.querySelector('h1').innerText = 'MISSION ACCOMPLISHED';
                     winScreen.querySelector('p').innerText = 'You conquered all 10 levels! Mission accomplished successfully!';
                     winScreen.style.display = 'flex';
                     document.getElementById('mobile-ui').style.display = 'none';
-                });
+                
                 return;
             }
             currentLevel++;
@@ -2770,14 +2550,14 @@
             if (bgmPlayer) bgmPlayer.pause();
 
             // MOSTRAR ANÚNCIO AO PASSAR DE NÍVEL
-            showMidrollAd(() => {
+            
                 document.getElementById('level-complete-screen').style.display = 'flex';
                 document.getElementById('pause-btn').style.display = 'none';
                 document.exitPointerLock();
                 if (isCoopMode && isMasterClient) {
                     update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0 });
                 }
-            });
+            
         }
 
         function setupUI() {
@@ -2792,15 +2572,10 @@
                     try {
                         inviteBtn.innerText = "GERANDO...";
                         // Aguarda o link do SDK (retorna Promise)
-                        const link = await getInviteLink(roomPath);
-                        if (link && link !== window.location.href) {
-                            await navigator.clipboard.writeText(link);
-                            inviteBtn.innerText = "LINK COPIED! ✅";
-                            console.log("📍 Invite link copied:", link);
-                        } else {
-                            await navigator.clipboard.writeText(window.location.href);
-                            inviteBtn.innerText = "COPIED (LOCAL)!";
-                        }
+                        
+                        await navigator.clipboard.writeText(window.location.href);
+                        inviteBtn.innerText = "LINK COPIED! ✅";
+                        
                         setTimeout(() => inviteBtn.innerText = "INVITE FRIEND 🔗", 2000);
                     } catch (e) {
                         console.error("Invite error:", e);
@@ -2809,7 +2584,7 @@
                     }
                 };
             }
-            document.getElementById('lobby-back-btn').onclick = () => { hideCrazyInviteButton(); document.getElementById('lobby-screen').style.display = 'none'; document.getElementById('start-view').style.display = 'block'; };
+            document.getElementById('lobby-back-btn').onclick = () => {  document.getElementById('lobby-screen').style.display = 'none'; document.getElementById('start-view').style.display = 'block'; };
             document.getElementById('pause-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (!isPlaying) return;
@@ -2821,7 +2596,7 @@
                 document.getElementById('main-menu').style.display = 'block';
                 document.getElementById('main-menu').classList.add('paused-mode');
             });
-            document.getElementById('abort-mission-btn').onclick = () => { hideCrazyInviteButton(); document.getElementById('settings-view').style.display = 'none'; document.getElementById('hud').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('main-menu').classList.remove('paused-mode'); isPlaying = false; gamePaused = false; scene.add(camera); cleanupMultiplayer(); playMenuMusic(); };
+            document.getElementById('abort-mission-btn').onclick = () => {  document.getElementById('settings-view').style.display = 'none'; document.getElementById('hud').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('main-menu').classList.remove('paused-mode'); isPlaying = false; gamePaused = false; scene.add(camera); cleanupMultiplayer(); playMenuMusic(); };
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('continue-btn').onclick = () => {
@@ -2885,7 +2660,7 @@
                 if (!isPlaying) return; const k = e.code; if (k === 'KeyW') keyState.w = true; if (k === 'KeyA') keyState.a = true; if (k === 'KeyS') keyState.s = true; if (k === 'KeyD') keyState.d = true; if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } if (k === 'KeyV') toggleCameraMode();
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
-            document.addEventListener('mousedown', (e) => { if (isPlaying && e.button === 0) isManualFiring = true; if (isPlaying && e.button === 2) isAiming = true; });
+            document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) isManualFiring = true; if (e.button === 2) isAiming = true; } });
             document.addEventListener('mouseup', () => { isManualFiring = false; isAiming = false; });
             setupMobileControls();
         }
@@ -3029,10 +2804,24 @@
                         if (o.userData && o.userData.id) {
                             hit = true; triggerHitMarker();
                             const targetId = o.userData.id;
+                            // FIXED TRANSACTION LOGIC
                             runTransaction(ref(db, `${roomPath}/players/${targetId}`), (t) => {
-                                if (t && t.hp > 0) { t.hp -= 10; if (t.hp <= 0) { t.hp = 0; registerKill(); } }
-                                return t;
-                            });
+                                if (t && t.hp > 0) { 
+                                    t.hp -= 10; 
+                                    if (t.hp <= 0) t.hp = 0; 
+                                    return t; 
+                                }
+                                return; // Abort if hp already 0 or null
+                            }).then((result) => {
+                                if (result.committed) {
+                                    const p = result.snapshot.val();
+                                    // Only register kill if we were the one who reduced it to 0
+                                    // Note: In a high concurrency environment, we rely on the fact that the transaction
+                                    // only executes the block if t.hp > 0. So if it committed, we did damage.
+                                    // If result.snapshot.val().hp === 0, we struck the killing blow (or part of it).
+                                    if (p && p.hp === 0) registerKill();
+                                }
+                            }).catch(err => console.log("Transaction failed", err));
                         }
                     }
                 }
@@ -3310,6 +3099,90 @@
 
         function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
+        function updateAimAssist() {
+            // Assistência apenas se estiver jogando
+            if (!isPlaying) return;
+            
+            let targets = [];
+            // Seleciona alvos baseado no modo
+            if (isMultiplayerMode && !isCoopMode) {
+                // PVP: Alvos são remotePlayers
+                targets = Object.values(remotePlayers).map(rp => rp.mesh);
+            } else {
+                // Single/Coop: Alvos são enemies
+                targets = enemies;
+            }
+            
+            if (targets.length === 0) return;
+
+            const camPos = camera.position;
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+
+            let bestTarget = null;
+            let maxDot = 0;
+            // Angulo de detecção (FOV do assist)
+            // 0.95 equivale a cerca de 18 graus de cone
+            const threshold = isAiming ? 0.98 : 0.96; 
+
+            targets.forEach(t => {
+                if (!t || t.userData.dead) return;
+                
+                // Usar posição ajustada (centro do corpo/cabeça)
+                const tPos = t.position.clone();
+                tPos.y += 1.8; // Raised from 1.6 (User request: "suba mais")
+
+                // Shift target slightly to the right relative to camera (User request: "puxe mais para a direita")
+                const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                tPos.add(camRight.multiplyScalar(0.15)); // 15cm to the right
+
+                const dist = camPos.distanceTo(tPos);
+                if (dist > 60) return; // Muito longe
+
+                const dirToT = tPos.clone().sub(camPos).normalize();
+                const dot = camDir.dot(dirToT);
+
+                if (dot > threshold && dot > maxDot) {
+                    // Verificar paredes (Raycast simples)
+                    aimRaycaster.set(camPos, dirToT);
+                    aimRaycaster.far = dist;
+                    const intersects = aimRaycaster.intersectObjects(walls);
+                    if (intersects.length === 0) {
+                        maxDot = dot;
+                        bestTarget = tPos;
+                    }
+                }
+            });
+
+            if (bestTarget) {
+                // Calcular Yaw/Pitch desejados
+                const diff = bestTarget.clone().sub(camPos).normalize();
+                
+                // Yaw alvo (atan2 de x, -z para coordenada do jogo onde fwd é -Z)
+                const targetYaw = Math.atan2(diff.x, diff.z) + Math.PI; // Inverter Z
+                // Pitch alvo (asin de y)
+                const targetPitch = Math.asin(diff.y);
+
+                // Força da assistência (suave)
+                const strength = isAiming ? 0.08 : 0.03;
+
+                // Suavizar Yaw (lidar com a volta de 360 graus)
+                let dYaw = targetYaw - yaw;
+                while (dYaw > Math.PI) dYaw -= Math.PI * 2;
+                while (dYaw < -Math.PI) dYaw += Math.PI * 2;
+                
+                // Suavizar Pitch
+                const dPitch = targetPitch - pitch;
+
+                // Aplicar
+                yaw += dYaw * strength;
+                pitch += dPitch * strength;
+                
+                // Clamp pitch para evitar cambalhota
+                pitch = Math.max(-1.5, Math.min(1.5, pitch));
+            }
+        }
+
         function animate() {
             if (isPlaying && !gamePaused) {
                 const dt = clock.getDelta();
@@ -3524,6 +3397,7 @@
                     camera.position.copy(playerGroup.position).add(headOffset);
                     camera.rotation.set(pitch + recoilAngle * 0.5, yaw, 0);
                 }
+                updateAimAssist();
             }
             requestAnimationFrame(animate);
             if (isPlaying) {
