@@ -2723,7 +2723,7 @@
                 if (!isPlaying) return; const k = e.code; if (k === 'KeyW') keyState.w = true; if (k === 'KeyA') keyState.a = true; if (k === 'KeyS') keyState.s = true; if (k === 'KeyD') keyState.d = true; if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } if (k === 'KeyV') toggleCameraMode();
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
-            document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) isManualFiring = true; if (e.button === 2) isAiming = true; } });
+            document.addEventListener('mousedown', (e) => { if (isPlaying && e.button === 0) isManualFiring = true; if (isPlaying && e.button === 2) isAiming = true; });
             document.addEventListener('mouseup', () => { isManualFiring = false; isAiming = false; });
             setupMobileControls();
         }
@@ -2806,7 +2806,21 @@
             const f = gunGroup.getObjectByName("flash"); if (f) { f.visible = true; setTimeout(() => f.visible = false, 40); }
             muzzleFlashLight.intensity = 3; setTimeout(() => muzzleFlashLight.intensity = 0, 50); spawnBullet();
         }
-        function checkWall(x, z) { for (let w of walls) if (Math.abs(x - w.position.x) < 2.8 && Math.abs(z - w.position.z) < 2.8) return true; return false; }
+        function checkWall(x, z) { 
+            for (let w of walls) {
+                let dx = 2.8; // Default radius (approx 2.5 + 0.3)
+                let dz = 2.8;
+                
+                // Adaptive collision for non-standard walls (Long Walls)
+                if (w.geometry.parameters) {
+                     dx = (w.geometry.parameters.width / 2) + 0.5;
+                     dz = (w.geometry.parameters.depth / 2) + 0.5;
+                }
+                
+                if (Math.abs(x - w.position.x) < dx && Math.abs(z - w.position.z) < dz) return true; 
+            }
+            return false; 
+        }
         function handleRemoteShoot(data) {
             const pos = new THREE.Vector3(data.x, data.y, data.z);
             const dir = new THREE.Vector3(data.dir.x, data.dir.y, data.dir.z);
@@ -2870,7 +2884,7 @@
                             // FIXED TRANSACTION LOGIC
                             runTransaction(ref(db, `${roomPath}/players/${targetId}`), (t) => {
                                 if (t && t.hp > 0) { 
-                                    t.hp -= 25; // AUMENTADO DE 10 PARA 25
+                                    t.hp -= 20; // AUMENTADO DE 10 PARA 25, AGORA 20
                                     if (t.hp <= 0) t.hp = 0; 
                                     return t; 
                                 }
@@ -3615,25 +3629,55 @@
                             if (pivots.lCanela) pivots.lCanela.rotation.x = -1.8;
                             if (pivots.rLeg) pivots.rLeg.rotation.x = 0.2;
                             if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
-                        } else if (r.isMoving) {
-                            // WALK
-                            m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
-                            const wc = m.userData.walkCycle;
-                            const baseCrouch = 0.3;
-                            const baseKnee = -0.6;
-                            const legSwing = Math.sin(wc) * 0.5;
-                            if (pivots.lLeg) pivots.lLeg.rotation.x = baseCrouch + legSwing;
-                            if (pivots.lCanela) pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
-                            if (pivots.rLeg) pivots.rLeg.rotation.x = baseCrouch - legSwing;
-                            if (pivots.rCanela) pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
                         } else {
-                            // IDLE
-                            const baseCrouch = 0.3;
-                            const baseKnee = -0.6;
-                            if (pivots.lLeg) pivots.lLeg.rotation.x = THREE.MathUtils.lerp(pivots.lLeg.rotation.x, baseCrouch, 0.1);
-                            if (pivots.lCanela) pivots.lCanela.rotation.x = THREE.MathUtils.lerp(pivots.lCanela.rotation.x, baseKnee, 0.1);
-                            if (pivots.rLeg) pivots.rLeg.rotation.x = THREE.MathUtils.lerp(pivots.rLeg.rotation.x, baseCrouch, 0.1);
-                            if (pivots.rCanela) pivots.rCanela.rotation.x = THREE.MathUtils.lerp(pivots.rCanela.rotation.x, baseKnee, 0.1);
+                            // WALK / IDLE
+                            // Ajuste base para ficar menos "agachado/levantado"
+                            const baseCrouch = 0.15; 
+                            const baseKnee = -0.3; 
+                            
+                            // Detectar se está movendo
+                            const isMoving = r.isMoving;
+
+                            if (!isMoving) {
+                                // IDLE: Postura relaxada, pés no chão
+                                pivots.lLeg.rotation.set(0.1, 0, 0);
+                                pivots.rLeg.rotation.set(0.1, 0, 0);
+                                pivots.lCanela.rotation.x = -0.1;
+                                pivots.rCanela.rotation.x = -0.1;
+                                m.position.y = Math.max(m.position.y, 0.85); // Prevent sinking if idle
+                            } else {
+                                // Detectar movimento lateral predominante (Strafing)
+                                // Remote doesn't send detailed input, so infer from rotation relative to movement?
+                                // Simplified for remote: just use frontal walk animation for now to avoid complexity/bugs
+                                const isStrafing = false; 
+                                
+                                // Update walk cycle if moving
+                                m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
+                                const wc = m.userData.walkCycle;
+                                
+                                // Oscillation vars (Passos)
+                                const swingPhase = Math.cos(wc);
+
+                                // Joelho dobra quando avança (levantando o pé)
+                                const liftL = Math.max(0, swingPhase);   
+                                const liftR = Math.max(0, -swingPhase);  
+                                const kneeL = liftL * 0.9; 
+                                const kneeR = liftR * 0.9;
+                                const legSwing = Math.sin(wc) * 0.5;
+                                
+                                pivots.lLeg.rotation.z = 0;
+                                pivots.rLeg.rotation.z = 0;
+                                
+                                pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                                pivots.rLeg.rotation.x = baseCrouch - legSwing;
+
+                                pivots.lCanela.rotation.x = baseKnee - kneeL;
+                                pivots.rCanela.rotation.x = baseKnee - kneeR;
+
+                                // Body Bobbing (Weight transfer)
+                                // Quica levemente quando pisa
+                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
+                            }
                         }
                     }
                 });
