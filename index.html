@@ -2870,7 +2870,7 @@
                             // FIXED TRANSACTION LOGIC
                             runTransaction(ref(db, `${roomPath}/players/${targetId}`), (t) => {
                                 if (t && t.hp > 0) { 
-                                    t.hp -= 10; 
+                                    t.hp -= 25; // AUMENTADO DE 10 PARA 25
                                     if (t.hp <= 0) t.hp = 0; 
                                     return t; 
                                 }
