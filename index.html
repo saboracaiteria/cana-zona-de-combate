@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Canaan: Combat Zone</title>
     <link rel="icon" href="data:,">
     
@@ -758,6 +758,7 @@
             border: 2px dashed rgba(0, 255, 65, 0.3);
             border-radius: 50%;
             pointer-events: auto;
+            touch-action: none;
         }
 
         #joystick-knob {
@@ -780,6 +781,7 @@
             height: 100%;
             pointer-events: auto;
             z-index: 5;
+            touch-action: none;
         }
 
         .action-btn {
@@ -796,6 +798,7 @@
             z-index: 20;
             font-family: 'Orbitron', sans-serif;
             text-shadow: 0 0 5px var(--canaa-gold);
+            touch-action: none;
         }
 
         #fire-btn {
@@ -836,6 +839,7 @@
             justify-content: center;
             align-items: center;
             z-index: 20;
+            touch-action: none;
         }
 
         .minimap-container {
@@ -950,7 +954,7 @@
             <div class="setting-row"><label>GRAPHICS</label>
                 <select id="graphics-select" style="background: #000; color: var(--canaa-green); border: 1px solid var(--canaa-green); font-family: 'Rajdhani'; padding: 5px;">
                     <option value="high">HIGH</option>
-                    <option value="low">LOW</option>
+                    <option value="low" selected>LOW</option>
                 </select>
             </div>
             <button class="menu-btn secondary" id="edit-hud-btn">EDIT HUD</button>
@@ -1056,7 +1060,7 @@
         const bulletRaycaster = new THREE.Raycaster(), aimRaycaster = new THREE.Raycaster(), occlusionRaycaster = new THREE.Raycaster();
         let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null, ramps = [];
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
-        let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'high' };
+        let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
         const mazeMap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
 
@@ -1814,6 +1818,9 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
             renderer.outputColorSpace = THREE.SRGBColorSpace; // Correct colors
             document.body.appendChild(renderer.domElement);
+            
+            // Force Low Graphics on start
+            applyGraphicsSettings('low'); 
 
             initSky();
             // Moved createWorld etc to loader callback
@@ -2571,6 +2578,36 @@
             document.getElementById('multiplayer-btn').onclick = () => showLobby('pvp');
             document.getElementById('coop-btn').onclick = () => showLobby('coop');
 
+            // --- FUNÇÃO CENTRALIZADA PARA DESPAUSAR (RESUME) ---
+            // Corrige o problema do Pointer Lock ao ser chamada diretamente pelo ESC ou Botão
+            const resumeGame = () => {
+                document.getElementById('settings-view').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                document.getElementById('crosshair').style.display = 'block';
+                
+                if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
+                
+                document.getElementById('main-menu').classList.remove('paused-mode');
+                
+                isPlaying = true;
+                gamePaused = false;
+                
+                if (isPC) {
+                    // Adiciona catch para evitar o erro "Unhandled Rejection"
+                    try {
+                        const promise = document.body.requestPointerLock();
+                        if (promise) {
+                            promise.catch(err => {
+                                console.warn("Pointer lock failed (will retry on click):", err);
+                            });
+                        }
+                    } catch (e) {
+                        console.warn("Pointer lock error:", e);
+                    }
+                }
+            };
+
             // --- LÓGICA DO CONVITE (ASYNC - SDK retorna Promises) ---
             const inviteBtn = document.getElementById('invite-btn');
             if (inviteBtn) {
@@ -2659,6 +2696,14 @@
                 document.getElementById('main-menu').style.display = 'block';
                 document.getElementById('main-menu').classList.add('paused-mode');
             });
+            
+            // FIX: Permitir clicar no fundo do menu para despausar (resume)
+            document.getElementById('main-menu').addEventListener('click', (e) => {
+                if (gamePaused && e.target.id === 'main-menu') {
+                    resumeGame();
+                }
+            });
+
             document.getElementById('abort-mission-btn').onclick = () => {  document.getElementById('settings-view').style.display = 'none'; document.getElementById('hud').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('main-menu').classList.remove('paused-mode'); isPlaying = false; gamePaused = false; scene.add(camera); cleanupMultiplayer(); playMenuMusic(); };
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
@@ -2695,21 +2740,17 @@
             };
             document.getElementById('mobile-fs-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
             document.getElementById('mobile-exit-btn').onclick = () => { if (confirm("Do you want to quit?")) window.close(); else window.location.href = "about:blank"; };
+            
+            // ATUALIZADO: Usar resumeGame() para garantir a lógica correta
             document.getElementById('back-btn').onclick = () => {
-                document.getElementById('settings-view').style.display = 'none';
                 if (gamePaused) {
-                    document.getElementById('main-menu').style.display = 'none';
-                    document.getElementById('hud').style.display = 'block';
-                    document.getElementById('crosshair').style.display = 'block';
-                    if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
-                    document.getElementById('main-menu').classList.remove('paused-mode');
-                    isPlaying = true;
-                    gamePaused = false;
-                    if (isPC) document.body.requestPointerLock();
+                    resumeGame();
                 } else {
+                    document.getElementById('settings-view').style.display = 'none';
                     document.getElementById('start-view').style.setProperty('display', 'block', 'important');
                 }
             };
+            
             document.getElementById('vol-slider').oninput = (e) => { settings.volume = parseInt(e.target.value) / 100; if (bgmPlayer) bgmPlayer.volume = settings.volume; };
             document.getElementById('fov-slider').oninput = (e) => { settings.fov = parseInt(e.target.value); camera.fov = settings.fov; camera.updateProjectionMatrix(); };
             document.getElementById('sens-slider').oninput = (e) => { settings.sens = (parseInt(e.target.value) / 50) * 0.01; };
@@ -2719,11 +2760,40 @@
             document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
             document.getElementById('mode-switch-btn').onclick = () => { isPC = !isPC; document.getElementById('mode-switch-btn').innerText = isPC ? "💻" : "📱"; };
             document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === document.body && isPlaying) { yaw -= e.movementX * settings.sens; pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * settings.sens)); } });
+            
             document.addEventListener('keydown', (e) => {
-                if (!isPlaying) return; const k = e.code; if (k === 'KeyW') keyState.w = true; if (k === 'KeyA') keyState.a = true; if (k === 'KeyS') keyState.s = true; if (k === 'KeyD') keyState.d = true; if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } if (k === 'KeyV') toggleCameraMode();
+                const k = e.code;
+                if (k === 'Escape') {
+                     if (isPlaying) {
+                        // PAUSE
+                        isPlaying = false;
+                        gamePaused = true;
+                        document.exitPointerLock();
+                        document.getElementById('settings-view').style.display = 'block';
+                        document.getElementById('start-view').style.setProperty('display', 'none', 'important');
+                        document.getElementById('main-menu').style.display = 'block';
+                        document.getElementById('main-menu').classList.add('paused-mode');
+                     } else if (gamePaused) {
+                        // UNPAUSE (Resume)
+                        // Chamada direta da lógica de resume para garantir o "user gesture"
+                        resumeGame();
+                     } else if (document.getElementById('settings-view').style.display !== 'none') {
+                        // Se estiver nas configurações do menu inicial (sem jogo rodando), volta para o start-view
+                        document.getElementById('back-btn').click();
+                     }
+                     return;
+                }
+                
+                if (!isPlaying) return; 
+                if (k === 'KeyW') keyState.w = true; 
+                if (k === 'KeyA') keyState.a = true; 
+                if (k === 'KeyS') keyState.s = true; 
+                if (k === 'KeyD') keyState.d = true; 
+                if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } 
+                if (k === 'KeyV') toggleCameraMode();
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
-            document.addEventListener('mousedown', (e) => { if (isPlaying && e.button === 0) isManualFiring = true; if (isPlaying && e.button === 2) isAiming = true; });
+            document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) isManualFiring = true; if (e.button === 2) isAiming = true; } });
             document.addEventListener('mouseup', () => { isManualFiring = false; isAiming = false; });
             setupMobileControls();
         }
