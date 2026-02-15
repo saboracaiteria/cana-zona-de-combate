@@ -1059,7 +1059,7 @@
         const bulletRaycaster = new THREE.Raycaster(), aimRaycaster = new THREE.Raycaster(), occlusionRaycaster = new THREE.Raycaster();
         let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null, ramps = [];
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
-        let pvpTimer = 0, pvpTimerInterval = null;
+        let pvpTimer = 0, pvpTimerInterval = null, isInvincible = false;
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
         const mazeMap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
@@ -1316,7 +1316,7 @@
                         z: parseFloat(p.z.toFixed(2)),
                         rot: parseFloat(r.toFixed(2)),
                         pitch: parseFloat(pitch.toFixed(2)),
-                        isMoving: (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d),
+                        isMoving: (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d), invincible: isInvincible,
                         lastUpdate: serverTimestamp()
                     });
                     lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now;
@@ -1433,13 +1433,13 @@
                 m.position.set(d.x, d.y, d.z);
                 m.userData = { id: id, isPlayer: true };
                 scene.add(m);
-                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0, isMoving: d.isMoving || false };
+                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0, isMoving: d.isMoving || false, invincible: d.invincible || false };
             } else {
                 const r = remotePlayers[id];
                 r.targetPos.set(d.x, d.y, d.z);
                 r.targetRot = d.rot;
                 r.targetPitch = d.pitch || 0;
-                r.isMoving = d.isMoving || false;
+                r.isMoving = d.isMoving || false; r.invincible = d.invincible || false;
             }
         }
 
@@ -1485,7 +1485,7 @@
             velocityY = 0; isGrounded = true;
             playerGroup.position.set(rx * 5, 2, rz * 5);
             pitch = 0; yaw = Math.random() * Math.PI * 2;
-            if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5 });
+            isInvincible = true; if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5, invincible: true }); setTimeout(() => { isInvincible = false; if (myRef) update(myRef, { invincible: false }); }, 6000);
             isPlaying = true; 
             const o = document.getElementById('damage-overlay');
             o.style.backgroundColor = "rgba(0, 255, 65, 0.3)";
@@ -2011,7 +2011,7 @@
 
             // Update Fog & Sky
             scene.fog = new THREE.FogExp2(skyBot, 0.02); // Exponential fog is more realistic
-            if (skyUniforms) {
+            if (skyUniforms && skyUniforms["topColor"] && skyUniforms["bottomColor"]) {
                 skyUniforms["topColor"].value.setHex(skyTop);
                 skyUniforms["bottomColor"].value.setHex(skyBot);
             }
@@ -2874,7 +2874,7 @@
             if (ch) ch.style.opacity = '0.9';
 
             // VISIBILITY: Hide torso/head in FPS, show everything in TPS
-            if (playerMeshParts) {
+            if (playerMeshParts) { if (playerMesh) playerMesh.traverse(m => { if (m.isMesh && m.material) { m.material.transparent = true; m.material.opacity = isInvincible ? 0.5 : 1.0; if (m.material.emissive) { if (isInvincible) m.material.emissive.setHex(0x00ffff); else m.material.emissive.setHex(0x000000); } } });
                 const vis = isThirdPerson;
                 playerMeshParts.torso.material.visible = vis;
                 playerMeshParts.vest.material.visible = vis;
@@ -2927,7 +2927,16 @@
             const f = gunGroup.getObjectByName("flash"); if (f) { f.visible = true; setTimeout(() => f.visible = false, 40); }
             muzzleFlashLight.intensity = 3; setTimeout(() => muzzleFlashLight.intensity = 0, 50); spawnBullet();
         }
-        function checkWall(x, z) { 
+        function checkWall(x, z) {
+            for (let r of ramps) {
+                const dx = Math.abs(x - r.position.x);
+                const dz = Math.abs(z - r.position.z);
+                if (dx < 3.0 && dz < 3.0) { // Aumentado raio de colisão da rampa
+                    // Se o jogador estiver no nível do chão (y < 0.5) e houver uma rampa,
+                    // bloqueamos a passagem por baixo dela.
+                    if (playerGroup.position.y < 0.5) return true;
+                }
+            } 
             for (let w of walls) {
                 let dx = 2.8; // Default radius (approx 2.5 + 0.3)
                 let dz = 2.8;
@@ -3000,7 +3009,7 @@
                     if (hits.length > 0) {
                         let o = hits[0].object;
                         while (o.parent && !o.userData.id) o = o.parent;
-                        if (o.userData && o.userData.id) {
+                        if (o.userData && o.userData.id) { if (remotePlayers[o.userData.id] && remotePlayers[o.userData.id].invincible) { hit = true; return; }
                             hit = true; triggerHitMarker();
                             const targetId = o.userData.id;
                             runTransaction(ref(db, `${roomPath}/players/${targetId}/hp`), (hp) => {
@@ -3061,7 +3070,7 @@
 
                 // Colisão com Paredes (Bloqueio de tiro)
                 if (!hit) {
-                    const wh = bulletRaycaster.intersectObjects(walls);
+                    const wh = bulletRaycaster.intersectObjects([...walls, ...ramps], true); // Adicionado recursive true
                     if (wh.length > 0) {
                         // Lógica original: se bater na parede, o tiro some
                         hit = true;
@@ -3223,7 +3232,7 @@
 
                             // Dano instantâneo (lógica original)
                             if (target === playerGroup) {
-                                playerHP -= 5;
+                                if (isInvincible) return; playerHP -= 5;
                                 document.getElementById('hp').innerText = playerHP;
                                 if (myRef) update(myRef, { hp: playerHP });
                                 if (playerHP <= 0) { if (isCoopMode) respawnPvP(); else showGameOver(); }
@@ -3414,7 +3423,7 @@
                     let rd = r.targetRot - m.rotation.y;
                     while (rd > Math.PI) rd -= Math.PI * 2;
                     while (rd < -Math.PI) rd += Math.PI * 2;
-                    m.rotation.y += rd * 0.15;
+                    m.rotation.y += rd * 0.15; m.traverse(child => { if (child.isMesh && child.material) { child.material.transparent = true; child.material.opacity = r.invincible ? 0.5 : 1.0; if (child.material.emissive) { if (r.invincible) child.material.emissive.setHex(0x00ffff); else child.material.emissive.setHex(0x000000); } } });
 
                     const pivots = m.userData.pivots;
                     if (pivots) {
@@ -3517,7 +3526,7 @@
                     }
                 }
 
-                if (playerMeshParts) {
+                if (playerMeshParts) { if (playerMesh) playerMesh.traverse(m => { if (m.isMesh && m.material) { m.material.transparent = true; m.material.opacity = isInvincible ? 0.5 : 1.0; if (m.material.emissive) { if (isInvincible) m.material.emissive.setHex(0x00ffff); else m.material.emissive.setHex(0x000000); } } });
                     // Hide body meshes in FPS to prevent clipping
                     if (window.playerBodyMeshes) {
                         window.playerBodyMeshes.forEach(m => m.visible = isThirdPerson);
@@ -3724,7 +3733,7 @@
                     let rd = r.targetRot - m.rotation.y;
                     while (rd > Math.PI) rd -= Math.PI * 2;
                     while (rd < -Math.PI) rd += Math.PI * 2;
-                    m.rotation.y += rd * 0.15;
+                    m.rotation.y += rd * 0.15; m.traverse(child => { if (child.isMesh && child.material) { child.material.transparent = true; child.material.opacity = r.invincible ? 0.5 : 1.0; if (child.material.emissive) { if (r.invincible) child.material.emissive.setHex(0x00ffff); else child.material.emissive.setHex(0x000000); } } });
 
                     const pivots = m.userData.pivots;
                     if (pivots) {
@@ -3796,7 +3805,7 @@
                 });
                 processShooting(); updateEnemies(); updateHealthKits(); drawMinimap(); updateBullets(); updateHtmlObjects();
             } else if (!gamePaused) { const t = Date.now() * 0.0006; camera.position.set(Math.cos(t) * 40 + 45, 30, Math.sin(t) * 40 + 45); camera.lookAt(45, 0, 45); }
-            renderer.render(scene, camera);
+            if (scene && camera && renderer) renderer.render(scene, camera);
         }
         init();
 
