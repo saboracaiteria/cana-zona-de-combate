@@ -1450,42 +1450,43 @@
                 if (playerLives <= 0) { showGameOver(); return; }
             }
             let rx, rz; 
-            let min = 1, max = mazeSize - 1; // Usar mapa todo por segurança, mas evitando borda absoluta
-            
-            // Spawn mais centralizado no PVP, mas com margem maior para evitar "esquisitice" (spawn kill imediato)
-            const openLevels = [1, 2, 3, 4, 8, 9, 10];
+            let min = 1, max = mazeSize - 1;
             const isPVP = isMultiplayerMode && !isCoopMode;
-            if (isPVP && openLevels.includes(currentLevel)) {
-                 min = 4; max = 16; // Expandido de 6-14 para 4-16
-            }
             
             let attempts = 0;
-            do { 
-                rx = Math.floor(Math.random() * (max - min) + min); 
-                rz = Math.floor(Math.random() * (max - min) + min); 
+            let safe = false;
+            while(!safe && attempts < 200) {
                 attempts++;
-            } while (mazeMap[rz][rx] === 1 && attempts < 100);
-            
-            // Fallback se falhar em achar chão (raro)
-            if (mazeMap[rz][rx] === 1) { rx = 5; rz = 5; }
+                rx = Math.floor(Math.random() * (max - min) + min); 
+                rz = Math.floor(Math.random() * (max - min) + min);
+                
+                if (mazeMap[rz][rx] === 1) continue;
+                
+                if (isPVP) {
+                    const px = rx * 5, pz = rz * 5;
+                    if (Math.abs(px - 25) < 3.5 && Math.abs(pz - 50) < 8.5) continue;
+                    if (Math.abs(px - 75) < 3.5 && Math.abs(pz - 50) < 8.5) continue;
+                    if (Math.abs(px - 20) < 6 && Math.abs(pz - 30) < 6) continue;
+                    if (Math.abs(px - 80) < 6 && Math.abs(pz - 70) < 6) continue;
+                    if (Math.abs(px - 45) < 6 && Math.abs(pz - 20) < 6) continue;
+                    if (Math.abs(px - 55) < 6 && Math.abs(pz - 80) < 6) continue;
+                }
+                
+                let tooClose = false;
+                Object.values(remotePlayers).forEach(rp => {
+                    if (rp.mesh.position.distanceTo(new THREE.Vector3(rx * 5, 0, rz * 5)) < 15) tooClose = true;
+                });
+                if (tooClose && attempts < 150) continue;
+                
+                safe = true;
+            }
 
             playerHP = 100; document.getElementById('hp').innerText = 100;
-            
-            // Resetar física para evitar glitches
-            velocityY = 0;
-            isGrounded = true;
-            
-            // Posição segura levemente elevada
-            playerGroup.position.set(rx * 5, 2, rz * 5); // Y=2 para cair no chão seguramente
-            
-            // Rotação aleatória para não ficar encarando parede
-            pitch = 0; 
-            yaw = Math.random() * Math.PI * 2;
-            
+            velocityY = 0; isGrounded = true;
+            playerGroup.position.set(rx * 5, 2, rz * 5);
+            pitch = 0; yaw = Math.random() * Math.PI * 2;
             if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5 });
             isPlaying = true; 
-            
-            // Efeito visual de respawn (opcional, mas ajuda)
             const o = document.getElementById('damage-overlay');
             o.style.backgroundColor = "rgba(0, 255, 65, 0.3)";
             setTimeout(() => o.style.backgroundColor = "transparent", 300);
@@ -2380,7 +2381,7 @@
             };
             
             // Fix: Larger Hitbox for better hit registration
-            const hitbox = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.0, 2.0), new THREE.MeshBasicMaterial({visible:false}));
+            const hitbox = new THREE.Mesh(new THREE.BoxGeometry(3.5, 4.5, 3.5), new THREE.MeshBasicMaterial({visible:false}));
             g.add(hitbox);
 
             return g;
@@ -2944,35 +2945,27 @@
                 bulletRaycaster.far = d;
                 // Colisão com Jogadores (PVP)
                 if (isMultiplayerMode && !isCoopMode) {
-                    const hits = bulletRaycaster.intersectObjects(Object.values(remotePlayers).map(r => r.mesh), true);
+                    const targets = Object.values(remotePlayers).map(r => r.mesh);
+                    const hits = bulletRaycaster.intersectObjects(targets, true);
                     if (hits.length > 0) {
                         let o = hits[0].object;
                         while (o.parent && !o.userData.id) o = o.parent;
                         if (o.userData && o.userData.id) {
                             hit = true; triggerHitMarker();
                             const targetId = o.userData.id;
-                            // FIXED TRANSACTION LOGIC
-                            runTransaction(ref(db, `${roomPath}/players/${targetId}`), (t) => {
-                                if (t && t.hp > 0) { 
-                                    t.hp -= 20; // AUMENTADO DE 10 PARA 25, AGORA 20
-                                    if (t.hp <= 0) t.hp = 0; 
-                                    return t; 
+                            runTransaction(ref(db, `${roomPath}/players/${targetId}/hp`), (hp) => {
+                                if (hp === null) return 100;
+                                if (hp > 0) {
+                                    let newHp = hp - 20;
+                                    return newHp < 0 ? 0 : newHp;
                                 }
-                                return; // Abort if hp already 0 or null
+                                return 0;
                             }).then((result) => {
-                                if (result.committed) {
-                                    const p = result.snapshot.val();
-                                    // Only register kill if we were the one who reduced it to 0
-                                    // Note: In a high concurrency environment, we rely on the fact that the transaction
-                                    // only executes the block if t.hp > 0. So if it committed, we did damage.
-                                    // If result.snapshot.val().hp === 0, we struck the killing blow (or part of it).
-                                    if (p && p.hp === 0) registerKill();
-                                }
-                            }).catch(err => console.log("Transaction failed", err));
+                                if (result.committed && result.snapshot.val() === 0) registerKill();
+                            });
                         }
                     }
                 }
-
                 // Colisão com Inimigos (Single/Coop)
                 if ((!isMultiplayerMode || isCoopMode) && !hit) {
                     // 1. Raycast Check (Trajeto da bala)
