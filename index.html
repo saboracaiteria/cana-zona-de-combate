@@ -888,8 +888,7 @@
     <div id="damage-overlay"></div>
     <div id="crosshair"></div>
     <div id="hud">
-        <div class="info-panel">HP: <span id="hp">100</span>% | <span id="lives-display" style="display:inline;">LIVES:
-                <span id="lives-count">5</span> | </span>LVL: <span id="level-display">1</span>/10 | KILLS: <span
+        <div class="info-panel">HP: <span id="hp">100</span>% | <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span><span id="pvp-timer-display" style="display:none;">TIME: <span id="pvp-timer-count">04:00</span> | </span>LVL: <span id="level-display">1</span>/10 | KILLS: <span
                 id="score">0</span></div>
         <div id="multiplayer-status">ONLINE: <span id="mp-count">0</span> PLAYERS | ROOM: <span id="room-id">...</span>
         </div>
@@ -1060,6 +1059,7 @@
         const bulletRaycaster = new THREE.Raycaster(), aimRaycaster = new THREE.Raycaster(), occlusionRaycaster = new THREE.Raycaster();
         let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null, ramps = [];
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
+        let pvpTimer = 0, pvpTimerInterval = null;
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
         const mazeMap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
@@ -1302,7 +1302,7 @@
                 if (d.kills !== undefined && !isCoopMode) {
                     score = d.kills;
                     document.getElementById('score').innerText = score;
-                    if (score >= 5) endPVPMatch(true);
+                    // Removido limite de 5 kills
                 }
             });
 
@@ -1336,10 +1336,10 @@
                 }
                 Object.keys(d).forEach(k => {
                     if (k !== myUserId && now - (d[k].lastUpdate || 0) < 10000) {
-                        if (!isCoopMode && d[k].kills >= 5) endPVPMatch(false);
+                        // Removido limite de 5 kills
                         // Only render if they have valid coordinates (in-game)
                         if (d[k].x !== undefined) {
-                            active.add(k); c++; updateRemotePlayer(k, d[k]);
+                            active.add(k); c++; updateRemotePlayer(k, d[k]); if (remotePlayers[k]) remotePlayers[k].kills = d[k].kills || 0;
                         }
                     }
                 });
@@ -1390,7 +1390,7 @@
                 // Se sou CLIENTE e não tenho inimigos (ou contagem difere muito), sincronizar
                 if (!isMasterClient) {
                     const dataKeys = Object.keys(data);
-                    if (enemies.length === 0 || Math.abs(enemies.length - dataKeys.length) > 2) {
+                    if (enemies.length === 0 || dataKeys.length !== enemies.length) {
                         syncEnemiesFromData(data, currentLevel);
                     } else {
                         // Atualizar posições dos inimigos existentes
@@ -1444,7 +1444,7 @@
         }
 
         function respawnPvP() {
-            if (isMultiplayerMode) {
+            if (isMultiplayerMode && isCoopMode) {
                 playerLives--;
                 document.getElementById('lives-count').innerText = playerLives;
                 if (playerLives <= 0) { showGameOver(); return; }
@@ -1492,9 +1492,58 @@
             setTimeout(() => o.style.backgroundColor = "transparent", 300);
         }
 
-        function endPVPMatch(isVictory) {
+        
+        function startPVPTimer() {
+            if (pvpTimerInterval) clearInterval(pvpTimerInterval);
+            pvpTimer = 240; // 4 minutos
+            updateTimerUI();
+            pvpTimerInterval = setInterval(() => {
+                if (!isPlaying || gamePaused) return;
+                pvpTimer--;
+                updateTimerUI();
+                if (pvpTimer <= 0) {
+                    clearInterval(pvpTimerInterval);
+                    checkPVPWinner();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const mins = Math.floor(pvpTimer / 60);
+            const secs = pvpTimer % 60;
+            const display = document.getElementById('pvp-timer-count');
+            if (display) display.innerText = mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
+        }
+
+        function checkPVPWinner() {
+            isPlaying = false;
+            let maxKills = score;
+            let winnerId = myUserId;
+            let isDraw = false;
+
+            Object.keys(remotePlayers).forEach(id => {
+                const pKills = remotePlayers[id].kills || 0;
+                if (pKills > maxKills) {
+                    maxKills = pKills;
+                    winnerId = id;
+                    isDraw = false;
+                } else if (pKills === maxKills && maxKills > 0) {
+                    isDraw = true;
+                }
+            });
+
+            if (isDraw) {
+                endPVPMatch(false, "EMPATE!");
+            } else if (winnerId === myUserId) {
+                endPVPMatch(true, "VITÓRIA PVP!");
+            } else {
+                endPVPMatch(false, "DERROTA PVP!");
+            }
+        }
+
+        function endPVPMatch(isVictory, customTitle) {
             isPlaying = false; document.exitPointerLock();
-            const title = isVictory ? "VITÓRIA PVP!" : "DERROTA PVP!";
+            const title = customTitle || (isVictory ? "VITÓRIA PVP!" : "DERROTA PVP!");
             const color = isVictory ? "#00FF41" : "#ff3333";
             const screen = isVictory ? document.getElementById('win-screen') : document.getElementById('game-over-screen');
             screen.querySelector('h1').innerText = title;
@@ -1502,7 +1551,7 @@
             screen.style.display = 'flex';
             document.getElementById('mobile-ui').style.display = 'none';
             document.getElementById('pause-btn').style.display = 'none';
-            cleanupMultiplayer(); if (bgmPlayer) bgmPlayer.pause();
+            cleanupMultiplayer(); if (bgmPlayer) bgmPlayer.pause(); if (pvpTimerInterval) clearInterval(pvpTimerInterval);
         }
 
         function registerTeamKill() {
@@ -2453,10 +2502,11 @@
                 
                 playerHP = 100; playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
                 isMultiplayerMode = (mode === 'multi' || mode === 'coop'); isCoopMode = (mode === 'coop');
-                document.getElementById('lives-display').style.display = 'inline';
+                document.getElementById('lives-display').style.display = (isCoopMode || !isMultiplayerMode) ? 'inline' : 'none';
+                document.getElementById('pvp-timer-display').style.display = (isMultiplayerMode && !isCoopMode) ? 'inline' : 'none';
                 document.getElementById('lives-count').innerText = playerLives;
 
-                if (mode === 'multi') {
+                if (mode === 'multi') { startPVPTimer();
                     // Manter o roomPath da sala específica
                     const urlParams = new URLSearchParams(window.location.search);
                     const roomID = urlParams.get('room') || 'global';
@@ -2961,7 +3011,7 @@
                                 }
                                 return 0;
                             }).then((result) => {
-                                if (result.committed && result.snapshot.val() === 0) registerKill();
+                                if (result.committed && result.snapshot.val() === 0) { if (!isCoopMode) registerKill(); }
                             });
                         }
                     }
