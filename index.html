@@ -2163,7 +2163,7 @@
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     let shouldPlaceWall = false;
-                      
+                       
                     if (isOpenLevel) {
                         // Layout Aberto (PVP): Paredes apenas nas bordas externas
                         const isBorder = (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1);
@@ -2880,15 +2880,15 @@
                         document.getElementById('start-view').style.setProperty('display', 'none', 'important');
                         document.getElementById('main-menu').style.display = 'block';
                         document.getElementById('main-menu').classList.add('paused-mode');
-                     } else if (gamePaused) {
+                      } else if (gamePaused) {
                         // UNPAUSE (Resume)
                         // Chamada direta da lógica de resume para garantir o "user gesture"
                         resumeGame();
-                     } else if (document.getElementById('settings-view').style.display !== 'none') {
+                      } else if (document.getElementById('settings-view').style.display !== 'none') {
                         // Se estiver nas configurações do menu inicial (sem jogo rodando), volta para o start-view
                         document.getElementById('back-btn').click();
-                     }
-                     return;
+                      }
+                      return;
                 }
                 
                 if (!isPlaying) return; 
@@ -3007,10 +3007,9 @@
                 const dz = Math.abs(z - r.position.z);
 
                 if (dx < lx && dz < lz) { 
-                    // Se o jogador estiver no nível do chão (y < 0.5) e houver uma rampa,
-                    // bloqueamos a passagem por baixo dela.
-                    // Mas permitimos se estiver acima (andando nela)
-                    if (playerGroup.position.y < 0.5) return true;
+                    // FIX: Degrau invisível removido. 
+                    // Permitir que o jogador entre na área da rampa para que a física de elevação (raycast) funcione.
+                    // if (playerGroup.position.y < 0.5) return true; 
                 }
             } 
             
@@ -3568,7 +3567,7 @@
 
                                 // Joelho dobra quando avança (levantando o pé)
                                 const liftL = Math.max(0, swingPhase);    
-                                const liftR = Math.max(0, -swingPhase);   
+                                const liftR = Math.max(0, -swingPhase);    
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(wc) * 0.5;
@@ -3698,7 +3697,7 @@
                                 // CAMINHADA FRONTAL
                                 // Joelho dobra quando avança (levantando o pé)
                                 const liftL = Math.max(0, swingPhase);    
-                                const liftR = Math.max(0, -swingPhase);   
+                                const liftR = Math.max(0, -swingPhase);    
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(walkCycle) * 0.5;
@@ -3878,7 +3877,7 @@
 
                                 // Joelho dobra quando avança (levantando o pé)
                                 const liftL = Math.max(0, swingPhase);    
-                                const liftR = Math.max(0, -swingPhase);   
+                                const liftR = Math.max(0, -swingPhase);    
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(wc) * 0.5;
