@@ -1060,6 +1060,7 @@
         let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null, ramps = [];
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
         let pvpTimer = 0, pvpTimerInterval = null, isInvincible = false;
+        let invincibilityTimeout = null; // Variable to manage invincibility timer
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
         const mazeMap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
@@ -1299,10 +1300,10 @@
                     setTimeout(() => document.getElementById('damage-overlay').style.boxShadow = "none", 200);
                     if (playerHP <= 0) respawnPvP();
                 }
+                // SYNC KILLS FOR PVP
                 if (d.kills !== undefined && !isCoopMode) {
                     score = d.kills;
                     document.getElementById('score').innerText = score;
-                    // Removido limite de 5 kills
                 }
             });
 
@@ -1336,7 +1337,6 @@
                 }
                 Object.keys(d).forEach(k => {
                     if (k !== myUserId && now - (d[k].lastUpdate || 0) < 10000) {
-                        // Removido limite de 5 kills
                         // Only render if they have valid coordinates (in-game)
                         if (d[k].x !== undefined) {
                             active.add(k); c++; updateRemotePlayer(k, d[k]); if (remotePlayers[k]) remotePlayers[k].kills = d[k].kills || 0;
@@ -1464,12 +1464,11 @@
                 
                 if (isPVP) {
                     const px = rx * 5, pz = rz * 5;
-                    if (Math.abs(px - 25) < 3.5 && Math.abs(pz - 50) < 8.5) continue;
-                    if (Math.abs(px - 75) < 3.5 && Math.abs(pz - 50) < 8.5) continue;
+                    // Avoid spawning inside the new central fortress
+                    if (Math.abs(px - 50) < 15 && Math.abs(pz - 50) < 15) continue;
+                    // Avoid spawning near main ramps
                     if (Math.abs(px - 20) < 6 && Math.abs(pz - 30) < 6) continue;
                     if (Math.abs(px - 80) < 6 && Math.abs(pz - 70) < 6) continue;
-                    if (Math.abs(px - 45) < 6 && Math.abs(pz - 20) < 6) continue;
-                    if (Math.abs(px - 55) < 6 && Math.abs(pz - 80) < 6) continue;
                 }
                 
                 let tooClose = false;
@@ -1485,10 +1484,20 @@
             velocityY = 0; isGrounded = true;
             playerGroup.position.set(rx * 5, 2, rz * 5);
             pitch = 0; yaw = Math.random() * Math.PI * 2;
-            isInvincible = true; if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5, invincible: true }); setTimeout(() => { isInvincible = false; if (myRef) update(myRef, { invincible: false }); }, 6000);
+            
+            // INVINCIBILITY LOGIC REVISED
+            if (invincibilityTimeout) clearTimeout(invincibilityTimeout);
+            isInvincible = true; 
+            if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5, invincible: true }); 
+            
+            invincibilityTimeout = setTimeout(() => { 
+                isInvincible = false; 
+                if (myRef) update(myRef, { invincible: false }); 
+            }, 6000);
+            
             isPlaying = true; 
             const o = document.getElementById('damage-overlay');
-            o.style.backgroundColor = "rgba(0, 255, 65, 0.3)";
+            o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; // Blue tint for spawn shield
             setTimeout(() => o.style.backgroundColor = "transparent", 300);
         }
 
@@ -1567,7 +1576,10 @@
 
         function registerKill() {
             score++; document.getElementById('score').innerText = score;
-            if (isMultiplayerMode && myRef) runTransaction(ref(db, `${roomPath}/players/${myUserId}/kills`), (k) => (k || 0) + 1);
+            if (isMultiplayerMode && myRef) {
+                // Ensure atomic increment
+                runTransaction(ref(db, `${roomPath}/players/${myUserId}/kills`), (k) => (k || 0) + 1);
+            }
         }
         // --- END FIREBASE FUNCTIONS ---
 
@@ -2065,46 +2077,87 @@
                 bevelEnabled: false
             };
             const rampGeo = new THREE.ExtrudeGeometry(rampShape, rampExtrudeSettings);
-            const rampMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9, map: floorTexture });
+            // FIX: Center geometry to align collision and visual
+            rampGeo.center(); 
+            rampGeo.translate(0, 3, 0); // Re-align base to 0 (since height is 6, center Y is 0 -> bottom -3)
+
+            const rampMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9, map: floorTexture, side: THREE.DoubleSide });
 
 
             if (isOpenLevel) {
-                 // Add Long Walls manually in open maps
+                 // CENTRAL FORTRESS DESIGN (More walls in center, not overlapping)
+                 
+                 // Main Central Block (Raised Platform) - simulated with box for now
+                 const centralPlat = new THREE.Mesh(new THREE.BoxGeometry(15, 4, 15), wallMat);
+                 centralPlat.position.set(50, 2, 50);
+                 centralPlat.receiveShadow = true; centralPlat.castShadow = true;
+                 scene.add(centralPlat); walls.push(centralPlat);
+
+                 // Ramps leading to center (North, South, East, West)
+                 // Ramp N
+                 const rN = new THREE.Mesh(rampGeo, rampMat);
+                 rN.position.set(47.5, 0, 40); // slightly offset x to center
+                 rN.rotation.y = 0; // Pointing Z-
+                 rN.castShadow = true; rN.receiveShadow = true;
+                 scene.add(rN); ramps.push(rN);
+
+                 // Ramp S
+                 const rS = new THREE.Mesh(rampGeo, rampMat);
+                 rS.position.set(52.5, 0, 60);
+                 rS.rotation.y = Math.PI; // Pointing Z+
+                 rS.castShadow = true; rS.receiveShadow = true;
+                 scene.add(rS); ramps.push(rS);
+
+                 // Outer Walls (Long)
                  const lw1 = new THREE.Mesh(longWallGeo, wallMat);
-                 lw1.position.set(25, 3, 50); // Center left
+                 lw1.position.set(20, 3, 50); 
                  lw1.castShadow = true; scene.add(lw1); walls.push(lw1);
                  
                  const lw2 = new THREE.Mesh(longWallGeo, wallMat);
-                 lw2.position.set(75, 3, 50); // Center right
+                 lw2.position.set(80, 3, 50); 
                  lw2.castShadow = true; scene.add(lw2); walls.push(lw2);
                  
-                 // Add Ramps
+                 // Corner Ramps (Elevation points)
                  // Ramp 1
                  const r1 = new THREE.Mesh(rampGeo, rampMat);
-                 r1.position.set(20, 0, 30); // Position
-                 r1.rotation.y = Math.PI / 2; // Orient
+                 r1.position.set(15, 0, 25); 
+                 r1.rotation.y = Math.PI / 2; 
                  r1.castShadow = true; r1.receiveShadow = true;
                  scene.add(r1); ramps.push(r1);
                  
                  // Ramp 2
                  const r2 = new THREE.Mesh(rampGeo, rampMat);
-                 r2.position.set(80, 0, 70);
+                 r2.position.set(85, 0, 75);
                  r2.rotation.y = -Math.PI / 2;
                  r2.castShadow = true; r2.receiveShadow = true;
                  scene.add(r2); ramps.push(r2);
                  
                  // Ramp 3
                  const r3 = new THREE.Mesh(rampGeo, rampMat);
-                 r3.position.set(45, 0, 20);
+                 r3.position.set(45, 0, 15);
                  r3.castShadow = true; r3.receiveShadow = true;
                  scene.add(r3); ramps.push(r3);
 
                  // Ramp 4
                  const r4 = new THREE.Mesh(rampGeo, rampMat);
-                 r4.position.set(55, 0, 80);
+                 r4.position.set(55, 0, 85);
                  r4.rotation.y = Math.PI;
                  r4.castShadow = true; r4.receiveShadow = true;
                  scene.add(r4); ramps.push(r4);
+
+                 // Ramp 5 (Extra)
+                 const r5 = new THREE.Mesh(rampGeo, rampMat);
+                 r5.position.set(85, 0, 25);
+                 r5.rotation.y = Math.PI;
+                 r5.castShadow = true; r5.receiveShadow = true;
+                 scene.add(r5); ramps.push(r5);
+
+                 // Ramp 6 (Extra)
+                 const r6 = new THREE.Mesh(rampGeo, rampMat);
+                 r6.position.set(15, 0, 75);
+                 r6.rotation.y = 0;
+                 r6.castShadow = true; r6.receiveShadow = true;
+                 scene.add(r6); ramps.push(r6);
             }
 
             for (let i = 0; i < mazeSize; i++) {
@@ -2117,11 +2170,14 @@
                         if (isBorder) {
                             shouldPlaceWall = true;
                         }
-                        // Adicionar duas paredes de cover no centro (posições fixas)
-                        const isCover1 = (i === 7 && j === 7);
-                        const isCover2 = (i === 12 && j === 12);
-                        if (isCover1 || isCover2) {
-                            shouldPlaceWall = true;
+                        // Random scattered cover blocks (distinct, not inside ramps)
+                        // Coords to avoid (Center and Ramp locations)
+                        const cx = j * 5; const cz = i * 5;
+                        const distCenter = Math.sqrt((cx-50)**2 + (cz-50)**2);
+                        
+                        // Avoid center fortress area
+                        if (distCenter > 15 && distCenter < 40 && Math.random() < 0.1) {
+                             shouldPlaceWall = true;
                         }
                     } else {
                         // Layout Labirinto (Co-op, Single Player ou Níveis não abertos)
@@ -2929,25 +2985,65 @@
         }
         function checkWall(x, z) {
             for (let r of ramps) {
+                // Precise OBB collision for ramps
+                // Geometry is centered: Length 10 (X-local), Width 5 (Z-local)
+                const rot = Math.abs(r.rotation.y % Math.PI);
+                const isRotated90 = Math.abs(rot - Math.PI/2) < 0.1;
+                
+                // Limits (Half-extents)
+                let lx = 5.0; // Half of 10
+                let lz = 2.5; // Half of 5
+                
+                if (isRotated90) {
+                    // Swap dimensions if rotated 90
+                    const t = lx; lx = lz; lz = t;
+                }
+                
+                // Add player padding (radius approx 0.4)
+                lx += 0.4;
+                lz += 0.4;
+
                 const dx = Math.abs(x - r.position.x);
                 const dz = Math.abs(z - r.position.z);
-                if (dx < 3.0 && dz < 3.0) { // Aumentado raio de colisão da rampa
+
+                if (dx < lx && dz < lz) { 
                     // Se o jogador estiver no nível do chão (y < 0.5) e houver uma rampa,
                     // bloqueamos a passagem por baixo dela.
+                    // Mas permitimos se estiver acima (andando nela)
                     if (playerGroup.position.y < 0.5) return true;
                 }
             } 
+            
+            const playerY = playerGroup.position.y; // Get current height
+
             for (let w of walls) {
-                let dx = 2.8; // Default radius (approx 2.5 + 0.3)
+                let dx = 2.8; 
                 let dz = 2.8;
+                let h = 6; // Default height
                 
-                // Adaptive collision for non-standard walls (Long Walls)
                 if (w.geometry.parameters) {
                      dx = (w.geometry.parameters.width / 2) + 0.5;
                      dz = (w.geometry.parameters.depth / 2) + 0.5;
+                     h = w.geometry.parameters.height;
                 }
                 
-                if (Math.abs(x - w.position.x) < dx && Math.abs(z - w.position.z) < dz) return true; 
+                // Check Collision X/Z
+                if (Math.abs(x - w.position.x) < dx && Math.abs(z - w.position.z) < dz) {
+                    // Wall Collision detected. 
+                    // Check if we are ON TOP or climbing onto it.
+                    // Wall top Y
+                    const wallTop = w.position.y + (h / 2);
+                    
+                    // If the player's feet (playerY) are significantly below the wall top, it's a blockage.
+                    // We use a margin. If we are within 1.0 unit of the top, we assume we can step/slide onto it 
+                    // (or are already on it).
+                    // Actually, if we are on it, playerY >= wallTop.
+                    // If we are below, playerY < wallTop.
+                    
+                    if (playerY < wallTop - 1.0) {
+                        return true; // Block movement
+                    }
+                }
             }
             return false; 
         }
@@ -3471,8 +3567,8 @@
                                 const swingPhase = Math.cos(wc);
 
                                 // Joelho dobra quando avança (levantando o pé)
-                                const liftL = Math.max(0, swingPhase);   
-                                const liftR = Math.max(0, -swingPhase);  
+                                const liftL = Math.max(0, swingPhase);    
+                                const liftR = Math.max(0, -swingPhase);   
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(wc) * 0.5;
@@ -3601,8 +3697,8 @@
                             } else {
                                 // CAMINHADA FRONTAL
                                 // Joelho dobra quando avança (levantando o pé)
-                                const liftL = Math.max(0, swingPhase);   
-                                const liftR = Math.max(0, -swingPhase);  
+                                const liftL = Math.max(0, swingPhase);    
+                                const liftR = Math.max(0, -swingPhase);   
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(walkCycle) * 0.5;
@@ -3703,7 +3799,7 @@
                 rayOrigin.y += 2; // Start ray above player
                 const downDir = new THREE.Vector3(0, -1, 0);
                 const rampRay = new THREE.Raycaster(rayOrigin, downDir, 0, 10);
-                const rampHits = rampRay.intersectObjects(ramps, false);
+                const rampHits = rampRay.intersectObjects([...ramps, ...walls], false); // Include walls
                 if (rampHits.length > 0) {
                     groundY = rampHits[0].point.y;
                 }
@@ -3781,8 +3877,8 @@
                                 const swingPhase = Math.cos(wc);
 
                                 // Joelho dobra quando avança (levantando o pé)
-                                const liftL = Math.max(0, swingPhase);   
-                                const liftR = Math.max(0, -swingPhase);  
+                                const liftL = Math.max(0, swingPhase);    
+                                const liftR = Math.max(0, -swingPhase);   
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(wc) * 0.5;
