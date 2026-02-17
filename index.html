@@ -1023,7 +1023,10 @@
     <div id="win-screen" style="display: none;">
         <div class="menu-content">
             <h1 style="color: var(--canaa-green); margin: 0;">MISSION ACCOMPLISHED</h1>
-            <p style="color: #ccc; font-family: 'Rajdhani';">Region Secured.</p>
+            <div id="victory-stats" style="margin: 15px 0; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; border-radius: 5px; min-width: 200px;">
+                <h3 style="color: var(--canaa-gold); margin-top: 0; font-size: 14px;">PLACAR FINAL</h3>
+                <div id="victory-player-list" style="text-align: left; font-size: 12px; max-height: 150px; overflow-y: auto;"></div>
+            </div>
             <button class="menu-btn" id="win-retry-btn">NEW OPERATION</button>
             <button class="menu-btn secondary" id="win-menu-btn">MENU</button>
         </div>
@@ -1482,7 +1485,8 @@
                 safe = true;
             }
 
-            playerHP = 100; document.getElementById('hp').innerText = 100;
+            playerHP = 100; 
+            document.getElementById('hp').innerText = "100";
             velocityY = 0; isGrounded = true;
             playerGroup.position.set(rx * 5, 2, rz * 5);
             pitch = 0; yaw = Math.random() * Math.PI * 2;
@@ -1490,7 +1494,15 @@
             // INVINCIBILITY LOGIC REVISED
             if (invincibilityTimeout) clearTimeout(invincibilityTimeout);
             isInvincible = true; 
-            if (myRef) update(myRef, { hp: 100, x: rx * 5, z: rz * 5, invincible: true }); 
+            if (myRef) {
+                update(myRef, { 
+                    hp: 100, 
+                    x: rx * 5, 
+                    z: rz * 5, 
+                    invincible: true,
+                    lastRespawn: Date.now() // Tag para evitar kills duplicadas no momento do renascimento
+                }); 
+            }
             
             invincibilityTimeout = setTimeout(() => { 
                 isInvincible = false; 
@@ -1557,6 +1569,31 @@
             const title = customTitle || (isVictory ? "VITÓRIA PVP!" : "DERROTA PVP!");
             const color = isVictory ? "#00FF41" : "#ff3333";
             const screen = isVictory ? document.getElementById('win-screen') : document.getElementById('game-over-screen');
+            
+            if (isVictory) {
+                const statsList = document.getElementById('victory-player-list');
+                if (statsList) {
+                    statsList.innerHTML = '';
+                    // Coletar todos os jogadores (eu + remotos)
+                    let players = [{ name: "VOCÊ", kills: score, isMe: true }];
+                    Object.keys(remotePlayers).forEach(id => {
+                        players.push({ name: id.substring(0, 6), kills: remotePlayers[id].kills || 0, isMe: false });
+                    });
+                    // Ordenar por kills
+                    players.sort((a, b) => b.kills - a.kills);
+                    players.forEach((p, idx) => {
+                        const item = document.createElement('div');
+                        item.style.display = 'flex';
+                        item.style.justifyContent = 'space-between';
+                        item.style.padding = '4px 0';
+                        item.style.borderBottom = '1px solid #222';
+                        if (p.isMe) item.style.color = 'var(--canaa-green)';
+                        item.innerHTML = `<span>${idx + 1}. ${p.name}</span> <span>${p.kills} KILLS</span>`;
+                        statsList.appendChild(item);
+                    });
+                }
+            }
+
             screen.querySelector('h1').innerText = title;
             screen.querySelector('h1').style.color = color;
             screen.style.display = 'flex';
@@ -3114,11 +3151,16 @@
                                 if (hp === null) return 100;
                                 if (hp > 0) {
                                     let newHp = hp - 20;
-                                    return newHp < 0 ? 0 : newHp;
+                                    return newHp <= 0 ? 0 : newHp;
                                 }
                                 return 0;
                             }).then((result) => {
-                                if (result.committed && result.snapshot.val() === 0) { if (!isCoopMode) registerKill(); }
+                                // Apenas registra a kill se a transição para 0 foi feita NESTA chamada
+                                if (result.committed && result.snapshot.val() === 0) {
+                                    // Verifica se o HP anterior era maior que 0 para evitar contagem dupla
+                                    // O Firebase runTransaction retorna o estado final, mas podemos checar se houve mudança real
+                                    if (!isCoopMode) registerKill();
+                                }
                             });
                         }
                     }
