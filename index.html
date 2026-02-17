@@ -1024,6 +1024,7 @@
             <h1 style="color: var(--canaa-green); margin: 0;">MISSION ACCOMPLISHED</h1>
             <p style="color: #ccc; font-family: 'Rajdhani';">Region Secured.</p>
             <button class="menu-btn" id="win-retry-btn">NEW OPERATION</button>
+            <button class="menu-btn secondary" id="win-menu-btn">MENU</button>
         </div>
     </div>
 
@@ -1083,10 +1084,6 @@
 
         let lastSentPosition = new THREE.Vector3(0, 0, 0), lastSentRotation = 0, lastSentTime = 0;
         let audioCtx;
-
-        // --- TIME SYNC GLOBALS ---
-        let serverTimeOffset = 0;
-        let matchStartTime = 0;
 
         // --- SISTEMA DE MÚSICA ALEATÓRIA ---
         let bgmPlayer = null;
@@ -1174,11 +1171,7 @@
                 btn.onclick = () => {
                     const selectedLevel = parseInt(document.getElementById("pvp-level-select").value);
                     currentLevel = selectedLevel; // Set local immediately
-                    update(ref(db, `${roomPath}/state`), { 
-                        gameRunning: true, 
-                        level: selectedLevel,
-                        matchStartTime: serverTimestamp() // SYNC FIX: Start Time
-                    });
+                    update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel });
                     resetGame('multi');
                 };
             }
@@ -1188,13 +1181,6 @@
         async function connectLobby() {
             document.getElementById("connection-status").innerText = "Autenticando...";
             try { await signInAnonymously(auth); } catch (error) { logSystem("Erro Login: " + error.message, "error"); document.getElementById("connection-status").innerText = "Erro Auth"; }
-            
-            // Add server time offset listener
-            const offsetRef = ref(db, ".info/serverTimeOffset");
-            onValue(offsetRef, (snap) => {
-                serverTimeOffset = snap.val() || 0;
-            });
-
             const unsubAuth = onAuthStateChanged(auth, (user) => {
                 if (user) {
                     myUserId = user.uid;
@@ -1219,16 +1205,12 @@
                     // Auto-Start Listener
                     onValue(ref(db, `${roomPath}/state`), (snapshot) => {
                         const state = snapshot.val();
-                        if (state) {
-                            if (state.matchStartTime) matchStartTime = state.matchStartTime; // SYNC FIX: Update Global
-
-                            if (state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
-                                if (state.level) currentLevel = state.level;
-                                // Pequeno delay para garantir que o nível foi sincronizado
-                                setTimeout(() => {
-                                    resetGame(isCoopMode ? 'coop' : 'multi');
-                                }, 500);
-                            }
+                        if (state && state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
+                            if (state.level) currentLevel = state.level;
+                            // Pequeno delay para garantir que o nível foi sincronizado
+                            setTimeout(() => {
+                                resetGame(isCoopMode ? 'coop' : 'multi');
+                            }, 500);
                         }
                     });
 
@@ -1303,7 +1285,6 @@
             });
             remotePlayers = {};
             networkInterval = null; myRef = null;
-            matchStartTime = 0; // Reset Time Sync
         }
 
         function setupPresence() {
@@ -1524,23 +1505,11 @@
         
         function startPVPTimer() {
             if (pvpTimerInterval) clearInterval(pvpTimerInterval);
-            updateTimerUI(); // Inicial
+            pvpTimer = 240; // 4 minutos
+            updateTimerUI();
             pvpTimerInterval = setInterval(() => {
-                if (!isPlaying) return; // Se acabou, para.
-                // Se o jogo está pausado localmente, o tempo CONTINUA.
-                // SYNC FIX: Usar matchStartTime
-                
-                if (matchStartTime > 0) {
-                    const currentServerTime = Date.now() + serverTimeOffset;
-                    const elapsedSeconds = Math.floor((currentServerTime - matchStartTime) / 1000);
-                    pvpTimer = 240 - elapsedSeconds;
-                } else {
-                    // Fallback se não tiver tempo ainda
-                    pvpTimer--; 
-                }
-
-                if (pvpTimer < 0) pvpTimer = 0;
-
+                if (!isPlaying || gamePaused) return;
+                pvpTimer--;
                 updateTimerUI();
                 if (pvpTimer <= 0) {
                     clearInterval(pvpTimerInterval);
@@ -2195,7 +2164,7 @@
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     let shouldPlaceWall = false;
-                        
+                       
                     if (isOpenLevel) {
                         // Layout Aberto (PVP): Paredes apenas nas bordas externas
                         const isBorder = (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1);
@@ -2873,6 +2842,7 @@
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
             document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
+            document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('settings-btn').onclick = () => {
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important');
                 document.getElementById('settings-view').style.display = 'block';
