@@ -612,8 +612,8 @@
         }
 
         .hit-marker {
-            width: 16px !important;
-            height: 16px !important;
+            width: 10px !important;
+            height: 10px !important;
             background: transparent !important;
             background-image: none !important; /* Remove cross for hit marker */
             border: 2px solid #ff0000 !important;
@@ -635,20 +635,21 @@
 
         .info-panel {
             position: absolute;
-            bottom: 30px;
-            left: 30px;
-            background: linear-gradient(90deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
-            padding: 15px 30px;
-            border-left: 4px solid var(--canaa-gold);
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 15px;
+            border: 1px solid var(--canaa-gold);
+            border-top: 3px solid var(--canaa-gold);
             color: #fff;
             font-family: 'Rajdhani', monospace;
-            font-size: 24px;
+            font-size: 16px;
             font-weight: bold;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             text-transform: uppercase;
             text-shadow: 0 2px 5px rgba(0, 0, 0, 1);
-            top: auto;
-            /* Override top */
+            z-index: 100;
         }
 
         .info-panel span {
@@ -802,8 +803,8 @@
         }
 
         #fire-btn {
-            bottom: 80px;
-            right: 40px;
+            bottom: 120px;
+            right: 150px;
             width: 90px;
             height: 90px;
             background: rgba(184, 115, 51, 0.2);
@@ -812,15 +813,15 @@
         }
 
         #jump-btn {
-            bottom: 50px;
-            right: 150px;
+            bottom: 40px;
+            right: 40px;
             width: 70px;
             height: 70px;
         }
 
         #aim-btn {
-            bottom: 140px;
-            right: 150px;
+            bottom: 220px;
+            right: 40px;
             width: 60px;
             height: 60px;
         }
@@ -888,7 +889,7 @@
     <div id="damage-overlay"></div>
     <div id="crosshair"></div>
     <div id="hud">
-        <div class="info-panel">HP: <span id="hp">100</span>% | <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span><span id="pvp-timer-display" style="display:none;">TIME: <span id="pvp-timer-count">04:00</span> | </span>LVL: <span id="level-display">1</span>/10 | KILLS: <span
+        <div id="info-panel" class="info-panel">HP: <span id="hp">100</span>% | <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span><span id="pvp-timer-display" style="display:none;">TIME: <span id="pvp-timer-count">04:00</span> | </span>LVL: <span id="level-display">1</span>/10 | KILLS: <span
                 id="score">0</span></div>
         <div id="multiplayer-status">ONLINE: <span id="mp-count">0</span> PLAYERS | ROOM: <span id="room-id">...</span>
         </div>
@@ -2779,7 +2780,7 @@
                         const qrText = document.getElementById('qr-link-text');
                         
                         // Use a public QR code API
-                        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`;
+                        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(link)}`;
                         qrText.innerText = link; // Display the link text
                         
                         qrPopup.style.display = 'flex';
@@ -2922,7 +2923,7 @@
             document.getElementById('cam-toggle-btn').addEventListener('touchstart', (e) => { e.preventDefault(); toggleCameraMode(); });
         }
 
-        function setupHUDDrag() { ['fire-btn', 'jump-btn', 'aim-btn', 'joystick-zone', 'minimap-canvas'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('touchmove', (e) => { if (!settings.isEditing) return; const t = e.touches[0]; el.style.left = (t.clientX - el.offsetWidth / 2) + 'px'; el.style.top = (t.clientY - el.offsetHeight / 2) + 'px'; el.style.bottom = 'auto'; el.style.right = 'auto'; }); }); }
+        function setupHUDDrag() { ['fire-btn', 'jump-btn', 'aim-btn', 'joystick-zone', 'minimap-canvas', 'info-panel'].forEach(id => { const el = document.getElementById(id); if (el) { el.style.pointerEvents = 'auto'; el.addEventListener('touchmove', (e) => { if (!settings.isEditing) return; const t = e.touches[0]; el.style.left = (t.clientX - el.offsetWidth / 2) + 'px'; el.style.top = (t.clientY - el.offsetHeight / 2) + 'px'; el.style.bottom = 'auto'; el.style.right = 'auto'; }); } }); }
 
         function toggleCameraMode() {
             isThirdPerson = !isThirdPerson;
@@ -3359,7 +3360,7 @@
             });
         }
 
-        function setupMinimap() { minimapCanvas = document.createElement('canvas'); minimapCanvas.id = 'minimap-canvas'; minimapCanvas.width = 100; minimapCanvas.height = 100; minimapCanvas.className = 'minimap-container'; minimapCanvas.style.cssText = "position:absolute; top:75px; left:15px; background:rgba(0,0,0,0.8); pointer-events:none; z-index:50;"; document.body.appendChild(minimapCanvas); minimapCtx = minimapCanvas.getContext('2d', { willReadFrequently: true }); }
+        function setupMinimap() { minimapCanvas = document.createElement('canvas'); minimapCanvas.id = 'minimap-canvas'; minimapCanvas.width = 100; minimapCanvas.height = 100; minimapCanvas.className = 'minimap-container'; minimapCanvas.style.cssText = "position:absolute; top:20px; left:130px; background:rgba(0,0,0,0.8); pointer-events:auto; z-index:102; border:1px solid var(--canaa-green);"; document.body.appendChild(minimapCanvas); minimapCtx = minimapCanvas.getContext('2d', { willReadFrequently: true }); }
         function drawMinimap() {
             minimapCtx.clearRect(0, 0, 100, 100); const s = 100 / (mazeSize * cellSize); minimapCtx.fillStyle = '#111'; minimapCtx.fillRect(0, 0, 100, 100); minimapCtx.fillStyle = '#555';
             for (let i = 0; i < mazeSize; i++) for (let j = 0; j < mazeSize; j++) if (mazeMap[i][j] === 1) minimapCtx.fillRect(j * cellSize * s, i * cellSize * s, cellSize * s, cellSize * s);
@@ -3656,7 +3657,7 @@
                             playerMeshParts.rLegPivot.rotation.set(0.1, 0, 0);
                             playerMeshParts.lCanelaPivot.rotation.x = -0.1;
                             playerMeshParts.rCanelaPivot.rotation.x = -0.1;
-                            playerMesh.position.y = 0.85;
+                            playerMesh.position.y = 0.95;
                         } else {
                             // Detectar movimento lateral predominante (Strafing)
                             const isStrafing = Math.abs(moveInput.x) > 0.1 && Math.abs(moveInput.x) > Math.abs(moveInput.y);
@@ -3715,7 +3716,7 @@
                             }
 
                             // Body Bobbing (Weight transfer)
-                            playerMesh.position.y = 0.85 + Math.abs(Math.cos(walkCycle)) * 0.04;
+                            playerMesh.position.y = 0.95 + Math.abs(Math.cos(walkCycle)) * 0.04;
 
                             // Subtle torso twist
                             if (playerMeshParts.torso) {
@@ -3813,8 +3814,8 @@
                 if (!isGrounded) velocityY -= GRAVITY;
                 playerGroup.position.y += velocityY;
                 
-                if (playerGroup.position.y <= groundY) { 
-                    playerGroup.position.y = groundY; 
+                if (playerGroup.position.y <= groundY + 0.05) { 
+                    playerGroup.position.y = groundY + 0.05; 
                     velocityY = 0; 
                     isGrounded = true; 
                 }
