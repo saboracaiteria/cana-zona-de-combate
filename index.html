@@ -349,6 +349,7 @@
             overflow: hidden;
             border-radius: 3px;
             text-align: left;
+            pointer-events: auto; /* FIX: Re-enable clicks for small buttons */
         }
         .menu-btn:hover { background: linear-gradient(90deg, rgba(0, 243, 255, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%); color: #fff; padding-left: 20px; }
         .menu-btn.secondary { border-color: rgba(255, 255, 255, 0.2); border-left: 3px solid #aaa; color: #ccc; background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.3) 100%); }
@@ -389,9 +390,9 @@
         #multiplayer-status { position: absolute; top: 55px; left: 120px; color: #00f3ff; font-family: 'Rajdhani', monospace; font-size: 12px; font-weight: bold; display: none; text-shadow: 0 0 5px #00f3ff; z-index: 21; }
         #master-status { position: absolute; top: 75px; left: 120px; color: gold; font-family: 'Rajdhani', monospace; font-size: 10px; font-weight: bold; display: none; text-shadow: 0 0 5px gold; z-index: 21; }
         
-        #top-bar { position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 101; }
+        #top-bar { position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 205; /* FIX: Above main menu */ }
         #pause-btn { position: absolute; top: 20px; right: 20px; z-index: 150; pointer-events: auto; display: none; cursor: pointer; }
-        .icon-btn { width: 45px; height: 45px; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--canaa-green); color: var(--canaa-green); clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px); display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: 0 0 5px rgba(0, 255, 65, 0.3); }
+        .icon-btn { width: 45px; height: 45px; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--canaa-green); color: var(--canaa-green); clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px); display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: 0 0 5px rgba(0, 255, 65, 0.3); cursor: pointer; }
         
         #mobile-ui { display: none; z-index: 30; }
         #joystick-zone { position: absolute; bottom: 60px; left: 50px; width: 120px; height: 120px; background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0) 70%); border: 2px dashed rgba(0, 255, 65, 0.3); border-radius: 50%; pointer-events: auto; touch-action: none; }
@@ -406,67 +407,72 @@
         
         .minimap-container { border: 2px solid var(--canaa-green) !important; box-shadow: 0 0 10px var(--canaa-green); }
 
-        /* MOBILE MENU ADJUSTMENTS - SÓ ATIVA EM CELULARES ESTREITOS (VERTICAL) */
-        @media (max-width: 600px) {
+        /* AJUSTE CRÍTICO: MENU PARA CELULAR DEITADO (LANDSCAPE) E TELAS PEQUENAS */
+        @media (max-height: 600px), (max-width: 800px) {
             .menu-sidebar {
-                top: auto;
-                bottom: 15px; /* Mais próximo do fundo */
-                right: 50%;
-                left: 50%; /* Centraliza apenas no mobile portrait */
-                transform: translateX(-50%);
-                width: 85%; /* Largura um pouco menor para não encostar nas bordas */
-                align-items: stretch; /* Estica os botões */
+                top: 50%;
+                right: 20px; /* Colado na direita */
+                left: auto;
+                transform: translateY(-50%);
+                width: 220px; /* Largura bem reduzida (era 320px) */
                 padding-right: 0;
-                gap: 5px; /* Espaço reduzido entre botões (estilo original) */
+                gap: 4px; /* Espaço mínimo entre botões */
+                align-items: flex-end;
+            }
+
+            .menu-header {
+                padding: 5px 20px; /* Cabeçalho mais compacto */
+            }
+
+            .menu-brand {
+                font-size: 18px; /* Logo menor */
+            }
+
+            .menu-season {
+                top: 30px;
+                right: 20px;
+                font-size: 8px; /* Texto da temporada discreto */
             }
             
-            /* Adjust Cards for Mobile: Compact sizes similar to original code */
+            /* CARDS SUPER COMPACTOS (REDUÇÃO DE 75%) */
             .menu-btn-modern {
-                height: 35px; /* Altura reduzida (era 50px) */
-                padding: 0 10px; /* Padding menor */
-                font-size: 12px; /* Fonte menor (era 16px) */
-                text-align: center;
-                justify-content: center;
-                /* Angulo mais suave para economizar pixels laterais */
-                clip-path: polygon(10px 0, 100% 0, 97% 100%, 0% 100%);
-                border-right: none;
-                border-bottom: 2px solid #555; /* Borda inferior mais fina */
-                margin-left: 0;
-                box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+                height: 30px; /* Altura reduzida de 60px para 30px */
+                padding: 0 10px;
+                font-size: 11px; /* Fonte pequena */
+                border-right: 3px solid #555; /* Borda proporcional */
+                clip-path: polygon(10px 0, 100% 0, 100% 100%, 0% 100%); /* Recorte menor */
+                background: linear-gradient(90deg, rgba(20,20,20,0.8) 0%, rgba(40,40,40,0.95) 100%); /* Fundo mais sólido para leitura */
             }
             
             .menu-btn-modern.primary { 
-                height: 45px; /* Botão jogar um pouco maior, mas compacto */
-                border-bottom: 2px solid #fff; 
+                height: 40px; /* Botão jogar levemente maior (era 80px) */
                 font-size: 14px; 
+                border-right: 3px solid #fff;
             }
 
-            /* Esconder subtitulos no mobile para limpar o visual */
+            /* Esconde subtítulos para economizar espaço vertical */
             .btn-sub { display: none; }
             
-            /* Ajuste de conteúdo flex para centralizar */
+            /* Ajuste o alinhamento do texto */
             .btn-content {
+                flex-direction: row;
                 align-items: center;
-                width: 100%;
+                justify-content: flex-end;
             }
 
-            /* Botões de rodapé (Fullscreen/Exit) menores */
-            .menu-sidebar div[style*="display: flex"] {
-                margin-top: 5px;
+            .char-info { 
+                bottom: 20px;
+                left: 20px;
             }
-            
-            .char-info { display: none; } /* Hide info on small screens */
-            
-            /* Cabeçalho menor no mobile */
-            .menu-header { 
-                justify-content: center; 
-                padding: 10px; 
-                top: 10px;
+            .char-name { font-size: 24px; }
+            .char-details { font-size: 10px; }
+
+            /* Rodapé e botões extras minúsculos */
+            .menu-footer { display: none; } /* Remove rodapé no mobile para limpar a tela */
+            #mobile-fs-btn, #mobile-exit-btn {
+                font-size: 9px;
+                padding: 2px 5px;
             }
-            .menu-brand {
-                font-size: 20px; /* Reduzido de 32px */
-            }
-            .menu-season { display: none; }
         }
     </style>
     <script type="importmap">
@@ -2131,6 +2137,7 @@
             return g;
         }
 
+        // --- AQUI ESTAVA O PROBLEMA: A FUNÇÃO SPAWNENEMIES AGORA ESTÁ DE VOLTA ---
         function spawnEnemies(count, level) {
             // Auto-cleanup: remove old enemies from scene and memory
             enemies.forEach(e => {
@@ -2376,35 +2383,43 @@
                         // Construct specific render link using the calculated roomQuery
                         const link = "https://canaa-zona-de-combate.onrender.com" + roomQuery;
 
-                        // Tentativa 1: Clipboard API (Moderno)
-                        try {
-                            await navigator.clipboard.writeText(link);
-                        } catch (err) {
-                            // Tentativa 2: Fallback para execCommand (Compatível com iFrame/Restrito)
-                            console.warn("Clipboard API blocked, using fallback...");
+                        // FIX: Abordagem segura para copiar (evita erro de permissão em iframe)
+                        let copied = false;
+                        
+                        // Tenta usar Clipboard API apenas se disponível
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            try {
+                                await navigator.clipboard.writeText(link);
+                                copied = true;
+                            } catch (err) {
+                                // Silencioso: falha na API moderna, vai para o fallback
+                            }
+                        }
+
+                        if (!copied) {
+                            // Fallback clássico (execCommand) - Funciona melhor em iframes
                             const textArea = document.createElement("textarea");
                             textArea.value = link;
-                            
-                            // Evitar scroll ao focar
                             textArea.style.position = "fixed";
                             textArea.style.left = "-9999px";
                             textArea.style.top = "0";
-                            
                             document.body.appendChild(textArea);
                             textArea.focus();
                             textArea.select();
-                            
                             try {
-                                const successful = document.execCommand('copy');
-                                if (!successful) throw new Error("Copy failed");
+                                document.execCommand('copy');
+                                copied = true;
                             } catch (e) {
-                                console.error("Fallback copy failed", e);
-                                throw e; 
+                                console.error("Copy failed", e);
                             }
                             document.body.removeChild(textArea);
                         }
 
-                        inviteBtn.innerText = "LINK COPIED! ✅";
+                        if (copied) {
+                            inviteBtn.innerText = "LINK COPIED! ✅";
+                        } else {
+                            inviteBtn.innerText = "COPY FAILED ❌";
+                        }
 
                         // Show QR Code
                         const qrPopup = document.getElementById('qr-popup');
@@ -3247,6 +3262,9 @@
 
                                 pivots.lCanela.rotation.x = baseKnee - kneeL;
                                 pivots.rCanela.rotation.x = baseKnee - kneeR;
+
+                                // Body Bobbing
+                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
                             }
                         }
                     }
