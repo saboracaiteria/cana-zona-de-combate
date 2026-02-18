@@ -400,11 +400,11 @@
         #aim-zone { position: absolute; top: 0; right: 0; width: 60%; height: 100%; pointer-events: auto; z-index: 5; touch-action: none; }
         
         /* Z-INDEX AUMENTADO PARA GARANTIR QUE OS BOTOES APAREÇAM */
-        .action-btn { position: absolute; background: rgba(0, 0, 0, 0.6); border: 2px solid var(--canaa-gold); border-radius: 15px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; z-index: 50; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--canaa-gold); touch-action: none; }
+        .action-btn { position: absolute; background: rgba(0, 0, 0, 0.6); border: 2px solid var(--canaa-gold); border-radius: 15px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; z-index: 150; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--canaa-gold); touch-action: none; }
         #fire-btn { bottom: 120px; right: 150px; width: 90px; height: 90px; background: rgba(184, 115, 51, 0.2); border-color: #ff3333; font-size: 30px; }
         #jump-btn { bottom: 40px; right: 40px; width: 70px; height: 70px; }
         #aim-btn { bottom: 220px; right: 40px; width: 60px; height: 60px; }
-        #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 50; touch-action: none; }
+        #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 150; touch-action: none; }
         
         .minimap-container { border: 2px solid var(--canaa-green) !important; box-shadow: 0 0 10px var(--canaa-green); }
 
@@ -3272,6 +3272,9 @@
 
                                 pivots.lCanela.rotation.x = baseKnee - kneeL;
                                 pivots.rCanela.rotation.x = baseKnee - kneeR;
+
+                                // Body Bobbing
+                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
                             }
                         }
                     }
@@ -3467,14 +3470,15 @@
                 playerGroup.rotation.y = Math.PI - 0.5; // Slight angle towards camera
 
                 // Camera orbits closer to the soldier
+                // AJUSTE: Raio reduzido de 3.5 para 2.5 para aproximar a camera
                 camera.position.set(
-                    5 + Math.cos(t * 0.5) * 3.5, 
-                    1.8, // Eye level
-                    5 + Math.sin(t * 0.5) * 3.5
+                    5 + Math.cos(t * 0.5) * 2.5, 
+                    1.7, // Eye level ajustado levemente para o close
+                    5 + Math.sin(t * 0.5) * 2.5
                 );
                 
                 // Look slightly above waist (chest area)
-                camera.lookAt(5, 1.4, 5);
+                camera.lookAt(5, 1.45, 5); // Foco ajustado levemente para cima (peito/rosto)
 
                 // Idle Animation for Menu
                 if(playerMeshParts && playerMeshParts.rArmPivot) {
