@@ -20,6 +20,9 @@
             --canaa-green: #00FF41;
             --canaa-copper: #B87333;
             --bg-dark: #050505;
+            --hud-bg: rgba(10, 15, 20, 0.85);
+            --cod-yellow: #fbbf24; 
+            --cod-grey: #1f2937;
         }
 
         body {
@@ -32,6 +35,9 @@
             -webkit-user-select: none;
         }
 
+        /* --- UI UTILS --- */
+        .hidden { display: none !important; }
+        
         #rotate-overlay {
             position: fixed;
             top: 0;
@@ -54,23 +60,13 @@
         }
 
         @keyframes rotateDevice {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            50% {
-                transform: rotate(-90deg);
-            }
-
-            100% {
-                transform: rotate(0deg);
-            }
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(-90deg); }
+            100% { transform: rotate(0deg); }
         }
 
         @media screen and (orientation: portrait) and (max-width: 900px) {
-            #rotate-overlay {
-                display: flex;
-            }
+            #rotate-overlay { display: flex; }
         }
 
         #html-layer {
@@ -84,113 +80,7 @@
             z-index: 10;
         }
 
-        .scene-object {
-            position: absolute;
-            transform: translate(-50%, -50%);
-            will-change: transform, top, left, opacity;
-            transform-origin: center center;
-            transition: opacity 0.1s;
-        }
-
-        .coin {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-            animation: spin 20s infinite linear;
-        }
-
-        .coin-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            transform-style: preserve-3d;
-            background: #8B4513;
-            /* Rim color fallback */
-            border: 4px solid #B8860B;
-            box-sizing: border-box;
-        }
-
-        .coin-face.front {
-            transform: translateZ(10px);
-        }
-
-        .coin-face.back {
-            transform: rotateY(180deg) translateZ(10px);
-        }
-
-        .layer-base {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            transform: translateZ(1px);
-        }
-
-        .layer-pop {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            transform: translateZ(4px);
-            filter: drop-shadow(0px 8px 6px rgba(0, 0, 0, 0.6));
-        }
-
-        .coin-edge {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: linear-gradient(to right, #8B4513, #FFD700, #8B4513, #FFD700, #8B4513);
-            border: 2px solid #5d2906;
-            box-sizing: border-box;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotateY(0deg);
-            }
-
-            100% {
-                transform: rotateY(360deg);
-            }
-        }
-
-        .svg-content {
-            width: 100%;
-            height: 100%;
-            overflow: visible;
-        }
-
-        .font-sabor {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 900;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-        }
-
-        .font-acai {
-            font-family: 'Lobster', cursive;
-        }
-
-        .font-delivery {
-            font-family: 'Varela Round', sans-serif;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-        }
-
-        .shine-effect {
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 60%);
-            pointer-events: none;
-            z-index: -1;
-        }
-
+        /* --- NEW MODERN MENU STYLES (TACTICAL / COD MOBILE STYLE) --- */
         #main-menu {
             position: absolute;
             top: 0;
@@ -200,187 +90,256 @@
             display: block;
             color: white;
             z-index: 200;
-            background: linear-gradient(to bottom, #12002f 0%, #240046 50%, #460046 100%);
+            /* Gradient overlay: Dark on right (for menu), clear on left (for character) */
+            background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.9) 100%);
             overflow: hidden;
+            transition: background 0.3s ease;
         }
 
-        .vapor-sun {
+        /* PAUSED STATE OVERRIDE - Fundo escuro para leitura */
+        #main-menu.paused-mode {
+            background: rgba(0, 0, 0, 0.95) !important; /* Solid dark background when paused */
+        }
+
+        /* Top Header Strip */
+        .menu-header {
             position: absolute;
-            bottom: 35%;
-            /* Raised from 24% to be above mountains */
-            left: 20%;
-            transform: translateX(-50%);
-            width: 48vh;
-            height: 48vh;
-            background: radial-gradient(circle at 50% 30%, #fff700 0%, #ff8c00 40%, #ff0055 100%);
-            border-radius: 50%;
-            box-shadow: 0 0 100px #ff0055, 0 0 40px #ff8c00 inset;
-            z-index: 1;
-            /* Modernized scanlines with smoother falloff */
-            -webkit-mask-image: linear-gradient(to bottom,
-                    black 60%,
-                    transparent 60%, transparent 63%,
-                    black 63%, black 67%,
-                    transparent 67%, transparent 71%,
-                    black 71%, black 76%,
-                    transparent 76%, transparent 82%,
-                    black 82%, black 89%,
-                    transparent 89%, transparent 97%,
-                    black 97%);
-            mask-image: linear-gradient(to bottom,
-                    black 60%,
-                    transparent 60%, transparent 63%,
-                    black 63%, black 67%,
-                    transparent 67%, transparent 71%,
-                    black 71%, black 76%,
-                    transparent 76%, transparent 82%,
-                    black 82%, black 89%,
-                    transparent 89%, transparent 97%,
-                    black 97%);
-            animation: sunPulse 4s ease-in-out infinite alternate;
+            top: 0;
+            right: 0;
+            width: auto;
+            padding: 20px 40px;
+            background: transparent;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            transition: opacity 0.2s;
         }
 
-        @keyframes sunPulse {
-            from {
-                opacity: 0.9;
-                transform: translateX(-50%) scale(1.0);
-                filter: blur(0px);
-            }
-
-            to {
-                opacity: 1.0;
-                transform: translateX(-50%) scale(1.02);
-                filter: blur(1px);
-            }
+        .menu-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 32px;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+            font-style: italic;
+        }
+        
+        .menu-brand span {
+            color: var(--canaa-gold);
         }
 
-        .vapor-grid {
+        .menu-season {
             position: absolute;
-            bottom: -30%;
-            left: -50%;
-            width: 200%;
-            height: 60%;
-            background:
-                linear-gradient(rgba(0, 243, 255, 0.4) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 243, 255, 0.4) 1px, transparent 1px);
-            background-size: 50px 50px;
-            transform: perspective(250px) rotateX(60deg);
-            transform-origin: center top;
-            animation: gridMove 1.5s linear infinite;
-            z-index: 2;
-            box-shadow: 0 -30px 60px rgba(18, 0, 47, 1) inset;
-            -webkit-mask-image: linear-gradient(to bottom, transparent 2%, black 25%);
-            mask-image: linear-gradient(to bottom, transparent 2%, black 25%);
+            top: 60px;
+            right: 40px;
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--canaa-gold);
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-transform: uppercase;
         }
 
-        @keyframes gridMove {
-            0% {
-                background-position: 0 0;
-            }
-
-            100% {
-                background-position: 0 50px;
-            }
-        }
-
-        .vapor-mountains {
+        /* Sidebar Container - ESTILO COD MOBILE (DIREITA) */
+        .menu-sidebar {
             position: absolute;
-            bottom: 25.5%;
-            left: 0;
+            top: 50%;
+            right: 0; /* Encostado na direita */
+            left: auto; /* Garante que não centralize */
+            transform: translateY(-50%);
+            width: 320px; /* Largura fixa dos cards */
+            padding-right: 40px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* Espaço entre cards levemente reduzido */
+            align-items: flex-end; /* Alinhar tudo à direita */
+            pointer-events: none; /* Permite clicar no jogo atrás se não clicar no botão */
+            transition: opacity 0.2s;
+        }
+
+        /* CARD BUTTON STYLES (COD STYLE) */
+        .menu-btn-modern {
+            pointer-events: auto; /* Reativa cliques nos botões */
             width: 100%;
-            height: 28%;
-            /* More realistic jagged mountain path */
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="none"><path d="M0,300 L120,240 L250,150 L380,260 L520,100 L680,230 L850,50 L1020,260 L1200,200 L1200,300 Z" fill="black" opacity="0.8"/><path d="M0,300 L150,260 L300,180 L450,280 L600,140 L750,250 L900,100 L1050,280 L1200,230 L1200,300 Z" fill="url(%23mountainGrad)" opacity="0.4"/><defs><linearGradient id="mountainGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ff0055"/><stop offset="1" stop-color="black"/></linearGradient></defs></svg>');
-            background-repeat: no-repeat;
-            background-size: 100% 100%;
-            z-index: 2;
-            filter: blur(0.5px);
+            height: 55px; /* Altura levemente reduzida */
+            background: linear-gradient(90deg, rgba(20,20,20,0.6) 0%, rgba(40,40,40,0.9) 100%);
+            border: none;
+            border-right: 4px solid #555; /* Borda grossa na direita */
+            color: #fff;
+            padding: 0 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px; /* Fonte ajustada */
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: right;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            /* Recorte angular na esquerda */
+            clip-path: polygon(20px 0, 100% 0, 100% 100%, 0% 100%);
+            margin-left: auto;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
         }
 
-        .vapor-mountains::after {
-            content: "";
+        /* Card Background Detail */
+        .menu-btn-modern::before {
+            content: '';
             position: absolute;
-            bottom: 0;
-            left: 0;
+            top: 0;
+            right: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(to top, rgba(18, 0, 47, 0.8) 0%, transparent 100%);
-            pointer-events: none;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.03) 10px,
+                rgba(255,255,255,0.03) 20px
+            );
+            z-index: -1;
         }
 
-        .menu-content {
+        .menu-btn-modern:hover {
+            transform: translateX(-15px) scale(1.05); /* Pula para a esquerda */
+            background: linear-gradient(90deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 215, 0, 0.8) 100%);
+            border-right-color: #fff;
+            color: #000;
+            text-shadow: none;
+        }
+
+        /* PLAY BUTTON (Yellow Card) */
+        .menu-btn-modern.primary {
+            height: 75px; /* Card maior */
+            background: linear-gradient(90deg, rgba(200, 150, 0, 0.8) 0%, rgba(255, 215, 0, 1) 100%);
+            border-right: 4px solid #fff;
+            color: #000;
+            font-size: 22px;
+            text-shadow: none;
+        }
+        .menu-btn-modern.primary:hover {
+            background: #fff;
+            border-right-color: var(--canaa-gold);
+        }
+
+        .menu-btn-modern.mp {
+            border-right-color: #00f3ff;
+        }
+        
+        .menu-btn-modern.coop {
+            border-right-color: #FF00FF;
+        }
+
+        /* Badge/Subtext */
+        .btn-sub {
+            display: block;
+            font-size: 10px;
+            font-family: 'Rajdhani';
+            font-weight: 600;
+            opacity: 0.8;
+            margin-top: -2px;
+            letter-spacing: 2px;
+        }
+        
+        .btn-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        /* Character Info Overlay - LEFT SIDE */
+        .char-info {
             position: absolute;
-            background: rgba(10, 15, 20, 0.9);
-            padding: 5px; /* Reduzido de 8px */
-            border: 1px solid rgba(0, 243, 255, 0.2);
-            border-top: 3px solid #00f3ff;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            bottom: 40px;
+            left: 40px;
+            text-align: left;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        
+        .char-name {
+            font-family: 'Orbitron';
+            font-size: 42px; 
+            font-weight: 900;
+            color: #fff;
+            text-transform: uppercase;
+            line-height: 0.9;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+            font-style: italic;
+        }
+
+        .char-details {
+            font-family: 'Rajdhani';
+            background: var(--canaa-gold);
+            color: #000;
+            font-size: 14px; 
+            font-weight: 800;
+            display: inline-block;
+            padding: 2px 8px;
+            margin-top: 5px;
+            transform: skewX(-10deg);
+        }
+
+        /* Legacy Menu Content (Adapted for Settings/Lobby) */
+        /* FIX: High contrast background for settings modal */
+        .menu-content {
+            /* Remove absolute positioning default so it works inside flex containers */
+            position: relative; 
+            background: #0a0a0a; /* Solid black */
+            padding: 20px; 
+            border: 1px solid #333;
+            border-top: 4px solid var(--canaa-gold);
+            /* Remove global backdrop shadow that was causing "giant" feel in lobbies */
+            /* box-shadow: 0 0 0 1000px rgba(0,0,0,0.7); */
             text-align: center;
-            width: 200px; /* Reduzido de 220px */
-            max-width: 85%;
+            width: 300px; 
+            max-width: 90%;
             z-index: 100;
-            backdrop-filter: blur(15px);
-            border-radius: 8px;
+            border-radius: 2px;
             max-height: 95vh;
             overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,1); /* Local shadow only */
         }
 
-        #start-view {
-            position: absolute !important;
-            right: 5% !important;
-            top: 50% !important;
-            transform: translateY(-50%) !important;
-            left: auto !important;
-            margin: 0 !important;
-            display: block !important;
-        }
-
+        /* Specific fix for Settings which is NOT in a flex container */
         #settings-view {
-            position: absolute !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            right: auto !important;
+            position: absolute;
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.85); /* Dimmer only for settings */
         }
 
-        @media (max-width: 800px) {
-            #start-view {
-                right: 2% !important;
-                width: 190px !important; /* Reduzido */
-            }
+        /* FIX: Ensure fullscreen overlays stay at 0,0 and dont shift */
+        #lobby-screen, #game-over-screen, #win-screen, #level-complete-screen {
+            top: 0 !important; 
+            left: 0 !important; 
+            transform: none !important;
+            /* Ensure background is visible but not "giant" block */
+            background-color: rgba(0, 0, 0, 0.85); 
         }
 
-        h1 {
-            font-family: 'Orbitron', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #fff;
-            text-shadow: 0px 0px 10px rgba(0, 243, 255, 0.8);
-            margin-bottom: 2px; /* Reduzido */
-            font-size: 1.0em; /* Reduzido de 1.2em */
-            font-weight: 900;
-        }
-
-        h2 {
-            font-family: 'Orbitron', sans-serif;
-            color: #00f3ff;
-            margin-bottom: 10px; /* Reduzido */
-            font-size: 1.0em; /* Reduzido */
-            border-bottom: 1px solid rgba(0, 243, 255, 0.3);
-            padding-bottom: 5px;
-            display: inline-block;
-        }
-
+        /* --- SHARED UI ELEMENTS --- */
+        h1 { font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px; color: #fff; text-shadow: 0px 0px 10px rgba(0, 243, 255, 0.8); margin-bottom: 2px; font-size: 1.0em; font-weight: 900; }
+        h2 { font-family: 'Orbitron', sans-serif; color: #00f3ff; margin-bottom: 10px; font-size: 1.0em; border-bottom: 1px solid rgba(0, 243, 255, 0.3); padding-bottom: 5px; display: inline-block; }
+        
         .menu-btn {
             background: linear-gradient(90deg, rgba(0, 243, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
             color: #00f3ff;
             border: 1px solid rgba(0, 243, 255, 0.2);
             border-left: 2px solid #00f3ff;
-            padding: 5px 10px; /* Reduzido */
-            margin: 2px 0; /* Reduzido */
+            padding: 10px;
+            margin: 5px 0;
             font-family: 'Rajdhani', sans-serif;
             font-weight: 700;
-            font-size: 11px; /* Reduzido de 12px */
+            font-size: 14px;
             cursor: pointer;
             width: 100%;
             text-transform: uppercase;
@@ -391,461 +350,90 @@
             border-radius: 3px;
             text-align: left;
         }
+        .menu-btn:hover { background: linear-gradient(90deg, rgba(0, 243, 255, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%); color: #fff; padding-left: 20px; }
+        .menu-btn.secondary { border-color: rgba(255, 255, 255, 0.2); border-left: 3px solid #aaa; color: #ccc; background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.3) 100%); }
+        .menu-btn.secondary:hover { background: rgba(255, 255, 255, 0.1); color: #fff; border-left-color: #fff; }
+        .menu-btn.danger { border-color: rgba(255, 50, 50, 0.3); border-left: 3px solid #ff3333; color: #ff3333; background: linear-gradient(90deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%); }
+        .menu-btn.danger:hover { background: rgba(255, 51, 51, 0.2); color: white; }
+        .menu-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 
-        .menu-btn:hover {
-            background: linear-gradient(90deg, rgba(0, 243, 255, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
-            color: #fff;
-            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-            padding-left: 20px; /* Reduzido */
-            text-shadow: 0 0 5px #00f3ff;
-        }
+        .menu-footer { margin-top: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.3); font-family: 'Rajdhani'; letter-spacing: 1px; text-transform: uppercase; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 5px; width: 100%; text-align: right; }
 
-        .menu-btn.secondary {
-            border-color: rgba(255, 255, 255, 0.2);
-            border-left: 3px solid #aaa;
-            color: #ccc;
-            background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.3) 100%);
-        }
+        /* SCREENS */
+        #game-over-screen, #win-screen, #level-complete-screen, #lobby-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 200; background-color: rgba(5, 5, 5, 0.8); backdrop-filter: blur(5px); }
+        
+        #lobby-player-list { background: rgba(0, 0, 0, 0.5); border: 1px solid #333; padding: 5px; margin: 5px 0; max-height: 100px; overflow-y: auto; text-align: left; font-size: 11px; color: #ccc; }
+        .lobby-player-item { padding: 3px 5px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+        .lobby-player-item.me { color: var(--canaa-green); font-weight: bold; }
+        
+        #connection-log { font-size: 9px; color: #aaa; text-align: left; background: #000; padding: 5px; margin-top: 5px; border: 1px solid #333; height: 50px; overflow-y: auto; font-family: monospace; }
+        .log-error { color: #ff3333; } .log-success { color: #00FF41; }
+        
+        .online-badge { background: var(--canaa-green); color: #000; font-size: 8px; padding: 1px 4px; border-radius: 3px; font-weight: 900; margin-left: 5px; vertical-align: middle; }
 
-        .menu-btn.secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border-left-color: #fff;
-        }
+        .setting-row { margin: 3px 0; text-align: left; }
+        .setting-row label { display: block; font-size: 10px; margin-bottom: 1px; color: #aaa; font-family: 'Rajdhani', sans-serif; font-weight: bold; }
+        input[type="range"] { width: 100%; height: 4px; accent-color: var(--canaa-gold); cursor: pointer; }
 
-        .menu-btn.danger {
-            border-color: rgba(255, 50, 50, 0.3);
-            border-left: 3px solid #ff3333;
-            color: #ff3333;
-            background: linear-gradient(90deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
-        }
+        /* HUD & GAMEPLAY */
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; background: transparent; transform: translate(-50%, -50%); pointer-events: none; opacity: 0.8; z-index: 10; background-image: linear-gradient(#00FF41, #00FF41), linear-gradient(#00FF41, #00FF41); background-size: 2px 100%, 100% 2px; background-position: center; background-repeat: no-repeat; }
+        .hit-marker { width: 10px !important; height: 10px !important; background: transparent !important; background-image: none !important; border: 2px solid #ff0000 !important; border-radius: 50% !important; transform: translate(-50%, -50%) rotate(45deg) !important; box-shadow: 0 0 10px #ff0000 !important; }
+        
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; z-index: 20; }
+        .info-panel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); padding: 8px 15px; border: 1px solid var(--canaa-gold); border-top: 3px solid var(--canaa-gold); color: #fff; font-family: 'Rajdhani', monospace; font-size: 16px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 5px rgba(0, 0, 0, 1); z-index: 100; }
+        .info-panel span { color: var(--canaa-gold); }
+        
+        #level-indicator { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); color: #fff; font-family: 'Orbitron', sans-serif; font-size: 48px; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); display: none; z-index: 15; letter-spacing: 8px; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.5), transparent); padding: 10px 50px; }
+        #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-shadow: inset 0 0 0 0 rgba(255, 0, 0, 0); pointer-events: none; transition: box-shadow 0.1s; z-index: 5; }
+        
+        #multiplayer-status { position: absolute; top: 55px; left: 120px; color: #00f3ff; font-family: 'Rajdhani', monospace; font-size: 12px; font-weight: bold; display: none; text-shadow: 0 0 5px #00f3ff; z-index: 21; }
+        #master-status { position: absolute; top: 75px; left: 120px; color: gold; font-family: 'Rajdhani', monospace; font-size: 10px; font-weight: bold; display: none; text-shadow: 0 0 5px gold; z-index: 21; }
+        
+        #top-bar { position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 101; }
+        #pause-btn { position: absolute; top: 20px; right: 20px; z-index: 150; pointer-events: auto; display: none; cursor: pointer; }
+        .icon-btn { width: 45px; height: 45px; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--canaa-green); color: var(--canaa-green); clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px); display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: 0 0 5px rgba(0, 255, 65, 0.3); }
+        
+        #mobile-ui { display: none; z-index: 30; }
+        #joystick-zone { position: absolute; bottom: 60px; left: 50px; width: 120px; height: 120px; background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0) 70%); border: 2px dashed rgba(0, 255, 65, 0.3); border-radius: 50%; pointer-events: auto; touch-action: none; }
+        #joystick-knob { width: 50px; height: 50px; background: rgba(0, 255, 65, 0.5); border: 2px solid #fff; box-shadow: 0 0 10px var(--canaa-green); border-radius: 50%; position: absolute; top: 35px; left: 35px; }
+        #aim-zone { position: absolute; top: 0; right: 0; width: 60%; height: 100%; pointer-events: auto; z-index: 5; touch-action: none; }
+        
+        .action-btn { position: absolute; background: rgba(0, 0, 0, 0.6); border: 2px solid var(--canaa-gold); border-radius: 15px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; z-index: 20; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--canaa-gold); touch-action: none; }
+        #fire-btn { bottom: 120px; right: 150px; width: 90px; height: 90px; background: rgba(184, 115, 51, 0.2); border-color: #ff3333; font-size: 30px; }
+        #jump-btn { bottom: 40px; right: 40px; width: 70px; height: 70px; }
+        #aim-btn { bottom: 220px; right: 40px; width: 60px; height: 60px; }
+        #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 20; touch-action: none; }
+        
+        .minimap-container { border: 2px solid var(--canaa-green) !important; box-shadow: 0 0 10px var(--canaa-green); }
 
-        .menu-btn.danger:hover {
-            background: rgba(255, 51, 51, 0.2);
-            color: white;
-            box-shadow: 0 0 10px rgba(255, 50, 50, 0.4);
-        }
-
-        .menu-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            border-color: #333;
-            color: #555;
-            filter: grayscale(1);
-        }
-
-        @keyframes pulse-mp {
-            0% {
-                box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.4);
+        /* MOBILE MENU ADJUSTMENTS - SÓ ATIVA EM CELULARES ESTREITOS (VERTICAL) */
+        @media (max-width: 600px) {
+            .menu-sidebar {
+                top: auto;
+                bottom: 20px;
+                right: 50%;
+                left: 50%; /* Centraliza apenas no mobile portrait */
+                transform: translateX(-50%);
+                width: 90%; 
+                align-items: center;
+                padding-right: 0;
             }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(0, 243, 255, 0);
+            /* Adjust Cards for Mobile: Smaller, Stacked Bottom */
+            .menu-btn-modern {
+                height: 50px;
+                font-size: 16px;
+                text-align: center;
+                justify-content: center;
+                clip-path: polygon(15px 0, 100% 0, 95% 100%, 0% 100%);
+                border-right: none;
+                border-bottom: 3px solid #555;
             }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(0, 243, 255, 0);
-            }
-        }
-
-        .pulse-btn {
-            animation: pulse-mp 1.5s infinite;
-            background: rgba(0, 243, 255, 0.2) !important;
-            font-weight: 900 !important;
-        }
-
-        .menu-footer {
-            margin-top: 5px; /* Reduzido */
-            font-size: 8px; /* Reduzido */
-            color: rgba(255, 255, 255, 0.3);
-            font-family: 'Rajdhani';
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 5px;
-            width: 100%;
-        }
-
-        #game-over-screen,
-        #win-screen,
-        #level-complete-screen,
-        #lobby-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 200;
-            background-color: rgba(5, 5, 5, 0.95);
-        }
-
-        #lobby-player-list {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
-            padding: 5px; /* Reduzido */
-            margin: 5px 0; /* Reduzido */
-            max-height: 100px; /* Reduzido drásticamente para caber tudo */
-            overflow-y: auto;
-            text-align: left;
-            font-size: 11px; /* Reduzido */
-            color: #ccc;
-        }
-
-        .lobby-player-item {
-            padding: 3px 5px; /* Reduzido */
-            border-bottom: 1px solid #222;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .lobby-player-item.me {
-            color: var(--canaa-green);
-            font-weight: bold;
-        }
-
-        #connection-log {
-            font-size: 9px; /* Reduzido */
-            color: #aaa;
-            text-align: left;
-            background: #000;
-            padding: 5px;
-            margin-top: 5px; /* Reduzido */
-            border: 1px solid #333;
-            height: 50px; /* Reduzido */
-            overflow-y: auto;
-            font-family: monospace;
-        }
-
-        .log-error {
-            color: #ff3333;
-        }
-
-        .log-success {
-            color: #00FF41;
-        }
-
-        .online-badge {
-            position: absolute;
-            top: 50%;
-            right: 10px;
-            transform: translateY(-50%);
-            background: var(--canaa-green);
-            color: #000;
-            font-size: 8px; /* Reduzido */
-            padding: 1px 4px; /* Reduzido */
-            border-radius: 3px;
-            font-weight: 900;
-        }
-
-        .rotation-alert {
-            display: none;
-            background: rgba(255, 215, 0, 0.15);
-            border: 1px dashed var(--canaa-gold);
-            color: var(--canaa-gold);
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            animation: pulseAlert 2s infinite;
-        }
-
-        @keyframes pulseAlert {
-            0% {
-                opacity: 0.7;
-            }
-
-            50% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0.7;
-            }
-        }
-
-        .setting-row {
-            margin: 3px 0; /* Reduzido */
-            text-align: left;
-        }
-
-        .setting-row label {
-            display: block;
-            font-size: 10px; /* Reduzido */
-            margin-bottom: 1px;
-            color: #ff00ff;
-            font-family: 'Rajdhani', sans-serif;
-            font-weight: bold;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            height: 4px;
-            accent-color: #00f3ff;
-            cursor: pointer;
-        }
-
-        /* NOVA MIRA EM CRUZ */
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            background: transparent;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            opacity: 0.8;
-            z-index: 10;
-            display: none;
-            /* Cross shape using gradients */
-            background-image: linear-gradient(#00FF41, #00FF41), linear-gradient(#00FF41, #00FF41);
-            background-size: 2px 100%, 100% 2px;
-            background-position: center;
-            background-repeat: no-repeat;
-            border-radius: 0;
-            box-shadow: none;
-        }
-
-        .hit-marker {
-            width: 10px !important;
-            height: 10px !important;
-            background: transparent !important;
-            background-image: none !important; /* Remove cross for hit marker */
-            border: 2px solid #ff0000 !important;
-            border-radius: 50% !important; /* Circle hit marker */
-            transform: translate(-50%, -50%) rotate(45deg) !important;
-            box-shadow: 0 0 10px #ff0000 !important;
-        }
-
-        #hud {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: none;
-            z-index: 20;
-        }
-
-        .info-panel {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 8px 15px;
-            border: 1px solid var(--canaa-gold);
-            border-top: 3px solid var(--canaa-gold);
-            color: #fff;
-            font-family: 'Rajdhani', monospace;
-            font-size: 16px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            text-shadow: 0 2px 5px rgba(0, 0, 0, 1);
-            z-index: 100;
-        }
-
-        .info-panel span {
-            color: var(--canaa-gold);
-        }
-
-        #level-indicator {
-            position: absolute;
-            top: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #fff;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 48px;
-            font-weight: 900;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-            display: none;
-            z-index: 15;
-            letter-spacing: 8px;
-            background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.5), transparent);
-            padding: 10px 50px;
-        }
-
-        #damage-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            box-shadow: inset 0 0 0 0 rgba(255, 0, 0, 0);
-            pointer-events: none;
-            transition: box-shadow 0.1s;
-            z-index: 5;
-        }
-
-        #multiplayer-status {
-            position: absolute;
-            top: 55px;
-            left: 120px;
-            color: #00f3ff;
-            font-family: 'Rajdhani', monospace;
-            font-size: 12px;
-            font-weight: bold;
-            display: none;
-            text-shadow: 0 0 5px #00f3ff;
-            z-index: 21;
-        }
-
-        #master-status {
-            position: absolute;
-            top: 75px;
-            left: 120px;
-            color: gold;
-            font-family: 'Rajdhani', monospace;
-            font-size: 10px;
-            font-weight: bold;
-            display: none;
-            text-shadow: 0 0 5px gold;
-            z-index: 21;
-        }
-
-        #top-bar {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 101;
-        }
-
-        #pause-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 150;
-            pointer-events: auto;
-            display: none;
-            cursor: pointer;
-        }
-
-        .icon-btn {
-            width: 45px;
-            height: 45px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid var(--canaa-green);
-            color: var(--canaa-green);
-            clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 20px;
-            box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
-        }
-
-        #mobile-ui {
-            display: none;
-            z-index: 30;
-        }
-
-        #joystick-zone {
-            position: absolute;
-            bottom: 60px;
-            left: 50px;
-            width: 120px;
-            height: 120px;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
-            border: 2px dashed rgba(0, 255, 65, 0.3);
-            border-radius: 50%;
-            pointer-events: auto;
-            touch-action: none;
-        }
-
-        #joystick-knob {
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 255, 65, 0.5);
-            border: 2px solid #fff;
-            box-shadow: 0 0 10px var(--canaa-green);
-            border-radius: 50%;
-            position: absolute;
-            top: 35px;
-            left: 35px;
-        }
-
-        #aim-zone {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 60%;
-            height: 100%;
-            pointer-events: auto;
-            z-index: 5;
-            touch-action: none;
-        }
-
-        .action-btn {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid var(--canaa-gold);
-            border-radius: 15px;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-            pointer-events: auto;
-            z-index: 20;
-            font-family: 'Orbitron', sans-serif;
-            text-shadow: 0 0 5px var(--canaa-gold);
-            touch-action: none;
-        }
-
-        #fire-btn {
-            bottom: 120px;
-            right: 150px;
-            width: 90px;
-            height: 90px;
-            background: rgba(184, 115, 51, 0.2);
-            border-color: #ff3333;
-            font-size: 30px;
-        }
-
-        #jump-btn {
-            bottom: 40px;
-            right: 40px;
-            width: 70px;
-            height: 70px;
-        }
-
-        #aim-btn {
-            bottom: 220px;
-            right: 40px;
-            width: 60px;
-            height: 60px;
-        }
-
-        #cam-toggle-btn {
-            position: absolute;
-            top: 20px;
-            right: 80px;
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid var(--canaa-green);
-            border-radius: 10px;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
-            touch-action: none;
-        }
-
-        .minimap-container {
-            border: 2px solid var(--canaa-green) !important;
-            box-shadow: 0 0 10px var(--canaa-green);
+            .menu-btn-modern.primary { height: 60px; border-bottom: 3px solid #fff; }
+            .btn-sub { display: none; }
+            
+            .char-info { display: none; } /* Hide info on small screens */
+            .menu-header { justify-content: center; padding: 10px; }
+            .menu-season { display: none; }
         }
     </style>
     <script type="importmap">
@@ -919,30 +507,59 @@
         </div>
     </div>
 
+    <!-- NEW MAIN MENU STRUCTURE (COD STYLE) -->
     <div id="main-menu">
-        <div class="vapor-sun"></div>
-        <div class="vapor-mountains"></div>
-        <div class="vapor-grid"></div>
-
-        <div class="menu-content" id="start-view">
-            <h1>COMBAT ZONE<br><span style="font-size: 0.6em; color: #00f3ff;">CANAAN</span></h1>
-            <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <button class="menu-btn" id="play-btn" style="flex: 1;">PLAY NOW</button>
-                <button class="menu-btn" id="invite-btn" style="flex: 1; border-color: #00FF41; color: #00FF41;">INVITE
-                    FRIENDS 🔗</button>
-            </div>
-            <button class="menu-btn" id="multiplayer-btn" style="border-color: #00f3ff; color: #00f3ff;">ONLINE PVP<span
-                    class="online-badge" style="background: #00f3ff; color: #000;">LIVE</span></button>
-            <button class="menu-btn" id="coop-btn" style="border-color: #FF00FF; color: #FF00FF;">CO-OP PVE<span
-                    class="online-badge" style="background: #FF00FF; color: #fff;">BETA</span></button>
-            <button class="menu-btn secondary" id="settings-btn">SETTINGS</button>
-            <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <button class="menu-btn" id="mobile-fs-btn" style="flex: 1; font-size: 14px;">⛶</button>
-                <button class="menu-btn danger" id="mobile-exit-btn" style="flex: 1; font-size: 14px;">✕</button>
-            </div>
-            <div class="menu-footer">CANAAN GAME &nbsp;|&nbsp; 2026<br><span style="font-size: 8px; opacity: 0.7;">Music
-                    by Patrick de Arteaga</span></div>
+        <div class="menu-header">
+            <div class="menu-brand">COMBAT <span>ZONE</span></div>
+            <div class="menu-season">SEASON CANAA RELOADED</div>
         </div>
+
+        <!-- Sidebar for Buttons (Right Side Cards) -->
+        <div class="menu-sidebar" id="start-view">
+            <button class="menu-btn-modern primary" id="play-btn">
+                <div class="btn-content">
+                    PLAY NOW
+                    <span class="btn-sub">START OPERATION</span>
+                </div>
+            </button>
+            <button class="menu-btn-modern mp" id="multiplayer-btn">
+                <div class="btn-content">
+                    MULTIPLAYER
+                    <span class="btn-sub">RANKED / PVP</span>
+                </div>
+            </button>
+            <button class="menu-btn-modern coop" id="coop-btn">
+                <div class="btn-content">
+                    CO-OP PVE
+                    <span class="btn-sub">ZOMBIE SURVIVAL</span>
+                </div>
+            </button>
+            <button class="menu-btn-modern" id="invite-btn" style="border-right-color: #00FF41; color: #00FF41;">
+                <div class="btn-content">
+                    INVITE SQUAD
+                    <span class="btn-sub">ONLINE</span>
+                </div>
+            </button>
+            <button class="menu-btn-modern secondary" id="settings-btn" style="border-right-color: #999; color: #aaa;">
+                <div class="btn-content">
+                    LOADOUT
+                    <span class="btn-sub">SETTINGS</span>
+                </div>
+            </button>
+            <div style="display: flex; gap: 5px; margin-top: 10px; width: 100%; justify-content: flex-end;">
+                <button class="menu-btn" id="mobile-fs-btn" style="flex: 1; font-size: 10px; max-width: 80px;">FULLSCREEN</button>
+                <button class="menu-btn danger" id="mobile-exit-btn" style="flex: 1; font-size: 10px; max-width: 60px;">EXIT</button>
+            </div>
+            <div class="menu-footer">CANAAN GAME &nbsp;|&nbsp; 2026</div>
+        </div>
+
+        <!-- Character Info Decoration (Left Side) -->
+        <div class="char-info">
+            <div class="char-name">GHOST<br>OPERATOR</div>
+            <div class="char-details">UNIT: SPECIAL FORCES</div>
+        </div>
+
+        <!-- HIDDEN / SUB-MENUS -->
         <div class="menu-content" id="settings-view" style="display: none;">
             <h2>SYSTEM</h2>
             <div class="setting-row"><label>VOLUME</label><input type="range" id="vol-slider" min="0" max="100"
@@ -1645,61 +1262,7 @@
 
         function mulberry32(a) { return function () { var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; } }
 
-        function createHtmlCoin() {
-            const el = document.createElement('div'); el.className = 'scene scene-object'; el.innerHTML = getCoinHTML();
-            el.style.width = '400px'; el.style.height = '400px';
-            el.style.position = 'absolute';
-            el.style.pointerEvents = 'none';
-            document.getElementById('html-layer').appendChild(el); return el;
-        }
-
-        // --- CORREÇÃO DA MOEDA 3D (REMOVIDO AÇAITERIA) ---
-        function getCoinHTML() {
-            // MULTI-LAYER EDGE TO FILL 3D VOLUME
-            let edges = "";
-            for (let i = -10; i <= 10; i += 2) {
-                edges += `<div class="coin-edge" style="transform: translateZ(${i}px)"></div>`;
-            }
-
-            return `
-                <div class="shine-effect"></div>
-                <div class="coin">
-                    ${edges}
-                    <div class="coin-face front">
-                        <div class="layer-base">
-                            <svg viewBox="0 0 400 400" class="svg-content">
-                                <circle cx="200" cy="200" r="198" fill="url(#darkBg)"/>
-                                <circle cx="200" cy="200" r="190" fill="none" stroke="url(#metalGold)" stroke-width="12"/>
-                                <text width="400" class="font-sabor" font-size="38" fill="url(#metalGold)" text-anchor="middle" filter="url(#glow)">
-                                    <textPath href="#archSabor" startOffset="50%">CANAAN</textPath>
-                                </text>
-                                <text x="200" y="325" class="font-delivery" font-size="36" fill="url(#metalGold)" text-anchor="middle">ZONE</text>
-                            </svg>
-                        </div>
-                        <div class="layer-pop">
-                            <svg viewBox="0 0 400 400" class="svg-content">
-                                <g transform="translate(200, 220) rotate(-5)">
-                                    <text x="0" y="0" class="font-acai" font-size="95" fill="url(#metalGold)" stroke="#3d2203" stroke-width="1" text-anchor="middle">Combat</text>
-                                </g>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="coin-face back">
-                        <div class="layer-base">
-                            <svg viewBox="0 0 400 400" class="svg-content">
-                                <circle cx="200" cy="200" r="198" fill="url(#darkBg)"/>
-                                <circle cx="200" cy="200" r="190" fill="none" stroke="url(#metalGold)" stroke-width="12"/>
-                                <text width="400" class="font-sabor" font-size="42" fill="url(#metalGold)" text-anchor="middle" filter="url(#glow)">
-                                    <text x="200" y="210">COMBAT</text>
-                                </text>
-                                <text x="200" y="300" class="font-delivery" font-size="28" fill="url(#metalGold)" text-anchor="middle">ZONE</text>
-                            </svg>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-
+        /* MOEDA REMOVIDA CONFORME SOLICITADO */
 
         // --- GERADOR DE TEXTURAS PROCEDURAIS DE ALTA QUALIDADE (NOISE/GRUNGE) ---
         function createProTexture(type, colorHex) {
@@ -1947,6 +1510,7 @@
 
         function createPlayer() {
             playerGroup = new THREE.Group();
+            playerGroup.position.set(5, 0, 5); // Default start pos
             scene.add(playerGroup);
             const matBlack = new THREE.MeshStandardMaterial({ color: 0x222222 });
             const matGreen = new THREE.MeshLambertMaterial({ color: 0x2F4F2F });
@@ -2202,7 +1766,7 @@
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     let shouldPlaceWall = false;
-                       
+                        
                     if (isOpenLevel) {
                         // Layout Aberto (PVP): Paredes apenas nas bordas externas
                         const isBorder = (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1);
@@ -2258,7 +1822,10 @@
             }
         }
 
-        function setupSkyLogo() { document.getElementById('html-layer').innerHTML = ''; trackedHtmlObjects = []; trackedHtmlObjects.push({ el: createHtmlCoin(), direction: new THREE.Vector3(0.2, 1.5, -0.5).normalize(), distance: 800, type: 'sky', active: true }); }
+        function setupSkyLogo() { 
+            document.getElementById('html-layer').innerHTML = ''; 
+            trackedHtmlObjects = []; 
+        }
 
         function updateHtmlObjects() {
             const layer = document.getElementById('html-layer');
@@ -2531,15 +2098,6 @@
             return g;
         }
 
-
-
-
-
-
-
-
-
-        // --- AQUI ESTAVA O PROBLEMA: A FUNÇÃO SPAWNENEMIES AGORA ESTÁ DE VOLTA ---
         function spawnEnemies(count, level) {
             // Auto-cleanup: remove old enemies from scene and memory
             enemies.forEach(e => {
@@ -2736,6 +2294,10 @@
                 
                 document.getElementById('main-menu').classList.remove('paused-mode');
                 
+                // Show decorative elements again in case they were hidden
+                document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.opacity = '1');
+                document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.pointerEvents = 'auto');
+
                 isPlaying = true;
                 gamePaused = false;
                 
@@ -2822,11 +2384,11 @@
                         
                         qrPopup.style.display = 'flex';
                         
-                        setTimeout(() => inviteBtn.innerText = "INVITE FRIENDS 🔗", 2000);
+                        setTimeout(() => inviteBtn.innerText = "INVITE SQUAD", 2000);
                     } catch (e) {
                         console.error("Invite error:", e);
                         inviteBtn.innerText = "ERROR ❌";
-                        setTimeout(() => inviteBtn.innerText = "INVITE FRIEND 🔗", 2000);
+                        setTimeout(() => inviteBtn.innerText = "INVITE SQUAD", 2000);
                     }
                 };
             }
@@ -2837,10 +2399,18 @@
                 isPlaying = false;
                 gamePaused = true;
                 document.exitPointerLock();
+                
+                // Show Settings
                 document.getElementById('settings-view').style.display = 'block';
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important');
+                
+                // Show Main Menu container but hide distracting elements
                 document.getElementById('main-menu').style.display = 'block';
                 document.getElementById('main-menu').classList.add('paused-mode');
+                
+                // Hide main menu UI elements to clean up pause screen
+                document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.opacity = '0');
+                document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.pointerEvents = 'none');
             });
             
             // FIX: Permitir clicar no fundo do menu para despausar (resume)
@@ -2850,7 +2420,26 @@
                 }
             });
 
-            document.getElementById('abort-mission-btn').onclick = () => {  document.getElementById('settings-view').style.display = 'none'; document.getElementById('hud').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('main-menu').classList.remove('paused-mode'); isPlaying = false; gamePaused = false; scene.add(camera); cleanupMultiplayer(); playMenuMusic(); };
+            document.getElementById('abort-mission-btn').onclick = () => {  
+                document.getElementById('settings-view').style.display = 'none'; 
+                document.getElementById('hud').style.display = 'none'; 
+                document.getElementById('mobile-ui').style.display = 'none'; 
+                document.getElementById('crosshair').style.display = 'none'; 
+                
+                document.getElementById('main-menu').style.display = 'block'; 
+                document.getElementById('start-view').style.display = 'flex'; 
+                document.getElementById('main-menu').classList.remove('paused-mode'); 
+                
+                // Restore UI visibility
+                document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.opacity = '1');
+                document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.pointerEvents = 'auto');
+
+                isPlaying = false; 
+                gamePaused = false; 
+                scene.add(camera); 
+                cleanupMultiplayer(); 
+                playMenuMusic(); 
+            };
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('continue-btn').onclick = () => {
@@ -2879,8 +2468,8 @@
                 if (isPC) document.body.requestPointerLock();
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
-            document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
-            document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'block'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
+            document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
+            document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('settings-btn').onclick = () => {
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important');
                 document.getElementById('settings-view').style.display = 'block';
@@ -2894,7 +2483,7 @@
                     resumeGame();
                 } else {
                     document.getElementById('settings-view').style.display = 'none';
-                    document.getElementById('start-view').style.setProperty('display', 'block', 'important');
+                    document.getElementById('start-view').style.setProperty('display', 'flex', 'important');
                 }
             };
             
@@ -2911,7 +2500,7 @@
             document.addEventListener('keydown', (e) => {
                 const k = e.code;
                 if (k === 'Escape') {
-                     if (isPlaying) {
+                      if (isPlaying) {
                         // PAUSE
                         isPlaying = false;
                         gamePaused = true;
@@ -2920,6 +2509,11 @@
                         document.getElementById('start-view').style.setProperty('display', 'none', 'important');
                         document.getElementById('main-menu').style.display = 'block';
                         document.getElementById('main-menu').classList.add('paused-mode');
+                        
+                        // Hide main menu distractions
+                        document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.opacity = '0');
+                        document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.pointerEvents = 'none');
+
                       } else if (gamePaused) {
                         // UNPAUSE (Resume)
                         // Chamada direta da lógica de resume para garantir o "user gesture"
@@ -3598,11 +3192,6 @@
                                 pivots.rCanela.rotation.x = -0.1;
                                 m.position.y = Math.max(m.position.y, 0.85); // Prevent sinking if idle
                             } else {
-                                // Detectar movimento lateral predominante (Strafing)
-                                // Remote doesn't send detailed input, so infer from rotation relative to movement?
-                                // Simplified for remote: just use frontal walk animation for now to avoid complexity/bugs
-                                const isStrafing = false; 
-                                
                                 // Update walk cycle if moving
                                 m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
                                 const wc = m.userData.walkCycle;
@@ -3625,10 +3214,6 @@
 
                                 pivots.lCanela.rotation.x = baseKnee - kneeL;
                                 pivots.rCanela.rotation.x = baseKnee - kneeR;
-
-                                // Body Bobbing (Weight transfer)
-                                // Quica levemente quando pisa
-                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
                             }
                         }
                     }
@@ -3675,95 +3260,46 @@
                     // 1. REALISTIC ANIMATION LOGIC (Local Player)
 
                     if (!isGrounded) {
-                        // JUMP ANIMATION: One knee up (Left), One straight (Right)
-                        // Left Leg (Up): 90 degrees forward relative to waist (Thigh Up)
+                        // JUMP ANIMATION
                         playerMeshParts.lLegPivot.rotation.x = 1.6;
-                        // Knee bent (Shin goes back/down towards butt)
                         playerMeshParts.lCanelaPivot.rotation.x = -1.8;
-
-                        // Right Leg (Down): Straight (Impulse leg)
                         playerMeshParts.rLegPivot.rotation.x = 0.2;
                         playerMeshParts.rCanelaPivot.rotation.x = -0.1;
                     } else {
                         // WALKING / IDLE
-                        // Ajuste base para ficar menos "agachado/levantado"
                         const baseCrouch = 0.15; 
                         const baseKnee = -0.3; 
                         
-                        // Detectar se está movendo
                         const isMoving = (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1);
 
                         if (!isMoving) {
-                            // IDLE: Postura relaxada, pés no chão
+                            // IDLE
                             playerMeshParts.lLegPivot.rotation.set(0.1, 0, 0);
                             playerMeshParts.rLegPivot.rotation.set(0.1, 0, 0);
                             playerMeshParts.lCanelaPivot.rotation.x = -0.1;
                             playerMeshParts.rCanelaPivot.rotation.x = -0.1;
                             playerMesh.position.y = 0.95;
                         } else {
-                            // Detectar movimento lateral predominante (Strafing)
-                            const isStrafing = Math.abs(moveInput.x) > 0.1 && Math.abs(moveInput.x) > Math.abs(moveInput.y);
-                            
-                            // Oscillation vars (Passos)
+                            // WALK
                             const swingPhase = Math.cos(walkCycle);
+                            const liftL = Math.max(0, swingPhase);    
+                            const liftR = Math.max(0, -swingPhase);    
+                            const kneeL = liftL * 0.9; 
+                            const kneeR = liftR * 0.9;
+                            const legSwing = Math.sin(walkCycle) * 0.5;
+                            
+                            playerMeshParts.lLegPivot.rotation.z = 0;
+                            playerMeshParts.rLegPivot.rotation.z = 0;
+                            
+                            playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
+                            playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
 
-                            if (isStrafing) {
-                                // CAMINHADA LATERAL (Strafe) REALISTA
-                                // Levanta o pé explicitamente alternando as pernas
-                                const strafeDir = Math.sign(moveInput.x);
-                                
-                                // Perna Esquerda (Alternância baseada no ciclo)
-                                if (swingPhase > 0) {
-                                    // Fase aérea (Passada): Levanta coxa e dobra joelho
-                                    playerMeshParts.lLegPivot.rotation.x = baseCrouch + 0.8; 
-                                    playerMeshParts.lCanelaPivot.rotation.x = baseKnee - 1.5; 
-                                    // Abre levemente para o lado
-                                    playerMeshParts.lLegPivot.rotation.z = -strafeDir * 0.3; 
-                                } else {
-                                    // Fase chão (Apoio): Pé firme
-                                    playerMeshParts.lLegPivot.rotation.x = baseCrouch;
-                                    playerMeshParts.lCanelaPivot.rotation.x = baseKnee;
-                                    playerMeshParts.lLegPivot.rotation.z = 0;
-                                }
+                            playerMeshParts.lCanelaPivot.rotation.x = baseKnee - kneeL;
+                            playerMeshParts.rCanelaPivot.rotation.x = baseKnee - kneeR;
 
-                                // Perna Direita
-                                if (swingPhase < 0) {
-                                    // Fase aérea (Passada)
-                                    playerMeshParts.rLegPivot.rotation.x = baseCrouch + 0.8;
-                                    playerMeshParts.rCanelaPivot.rotation.x = baseKnee - 1.5;
-                                    playerMeshParts.rLegPivot.rotation.z = -strafeDir * 0.3;
-                                } else {
-                                    // Fase chão (Apoio)
-                                    playerMeshParts.rLegPivot.rotation.x = baseCrouch;
-                                    playerMeshParts.rCanelaPivot.rotation.x = baseKnee;
-                                    playerMeshParts.rLegPivot.rotation.z = 0;
-                                }
-                            } else {
-                                // CAMINHADA FRONTAL
-                                // Joelho dobra quando avança (levantando o pé)
-                                const liftL = Math.max(0, swingPhase);    
-                                const liftR = Math.max(0, -swingPhase);    
-                                const kneeL = liftL * 0.9; 
-                                const kneeR = liftR * 0.9;
-                                const legSwing = Math.sin(walkCycle) * 0.5;
-                                
-                                playerMeshParts.lLegPivot.rotation.z = 0;
-                                playerMeshParts.rLegPivot.rotation.z = 0;
-                                
-                                playerMeshParts.lLegPivot.rotation.x = baseCrouch + legSwing;
-                                playerMeshParts.rLegPivot.rotation.x = baseCrouch - legSwing;
-
-                                playerMeshParts.lCanelaPivot.rotation.x = baseKnee - kneeL;
-                                playerMeshParts.rCanelaPivot.rotation.x = baseKnee - kneeR;
-                            }
-
-                            // Body Bobbing (Weight transfer)
+                            // Body Bobbing
                             playerMesh.position.y = 0.95 + Math.abs(Math.cos(walkCycle)) * 0.04;
-
-                            // Subtle torso twist
-                            if (playerMeshParts.torso) {
-                                playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
-                            }
+                            if (playerMeshParts.torso) playerMeshParts.torso.rotation.y = Math.sin(walkCycle) * 0.1;
                         }
                     }
 
@@ -3789,7 +3325,6 @@
                         playerMeshParts.lElbow.rotation.set(0.2, 0, 0);
                     } else {
                         // 3. TPS BODY LOGIC (Braços sempre levantados)
-                        // Use currentPitch directly to keep arms raised towards aim
                         playerMeshParts.rArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.rArmPivot.rotation.x, currentPitch, 0.2);
                         playerMeshParts.lArmPivot.rotation.x = THREE.MathUtils.lerp(playerMeshParts.lArmPivot.rotation.x, currentPitch, 0.2);
 
@@ -3828,123 +3363,71 @@
                     camera.rotation.set(pitch + recoilAngle * 0.5, yaw, 0);
                 }
                 updateAimAssist();
-            }
-            requestAnimationFrame(animate);
-            if (isPlaying) {
-                const speed = 0.18, fwd = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw), rgt = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                const mx = (fwd.x * -moveInput.y + rgt.x * moveInput.x) * speed, mz = (fwd.z * -moveInput.y + rgt.z * moveInput.x) * speed;
-                if ((moveInput.x !== 0 || moveInput.y !== 0) && isGrounded && performance.now() - lastStepTime > 350) { playSound('step'); lastStepTime = performance.now(); }
+                
+                // --- RESTORED GAMEPLAY LOGIC (MOVEMENT & SHOOTING) ---
+                const speed = 0.18;
+                const fwd = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                const rgt = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                const mx = (fwd.x * -moveInput.y + rgt.x * moveInput.x) * speed;
+                const mz = (fwd.z * -moveInput.y + rgt.z * moveInput.x) * speed;
+
+                if ((moveInput.x !== 0 || moveInput.y !== 0) && isGrounded && performance.now() - lastStepTime > 350) { 
+                    playSound('step'); lastStepTime = performance.now(); 
+                }
+
                 if (!checkWall(playerGroup.position.x + mx, playerGroup.position.z)) playerGroup.position.x += mx;
                 if (!checkWall(playerGroup.position.x, playerGroup.position.z + mz)) playerGroup.position.z += mz;
                 
-                // RAMP / ELEVATION PHYSICS (Simple Raycast Down)
+                // Gravity
                 let groundY = 0;
                 const rayOrigin = playerGroup.position.clone();
-                rayOrigin.y += 2; // Start ray above player
+                rayOrigin.y += 2;
                 const downDir = new THREE.Vector3(0, -1, 0);
                 const rampRay = new THREE.Raycaster(rayOrigin, downDir, 0, 10);
-                const rampHits = rampRay.intersectObjects([...ramps, ...walls], false); // Include walls
-                if (rampHits.length > 0) {
-                    groundY = rampHits[0].point.y;
-                }
-
-                // Fix: Check if falling
-                if (isGrounded && playerGroup.position.y > groundY + 0.1) {
-                    isGrounded = false;
-                }
-
+                const rampHits = rampRay.intersectObjects([...ramps, ...walls], false);
+                if (rampHits.length > 0) groundY = rampHits[0].point.y;
+                
+                if (isGrounded && playerGroup.position.y > groundY + 0.1) isGrounded = false;
                 if (!isGrounded) velocityY -= GRAVITY;
                 playerGroup.position.y += velocityY;
+                if (playerGroup.position.y <= groundY + 0.05) { playerGroup.position.y = groundY + 0.05; velocityY = 0; isGrounded = true; }
+
+                processShooting(); 
+                updateEnemies(); 
+                updateHealthKits(); 
+                drawMinimap(); 
+                updateBullets(); 
+                updateHtmlObjects();
+                // -----------------------------------------------------
+
+            } else if (!gamePaused && playerGroup) { 
+                // --- NEW MENU SCENE LOGIC (The "Code Doll" Cover) ---
+                const t = Date.now() * 0.0005; 
                 
-                if (playerGroup.position.y <= groundY + 0.05) { 
-                    playerGroup.position.y = groundY + 0.05; 
-                    velocityY = 0; 
-                    isGrounded = true; 
+                // Ensure player is at a clean spot for the menu
+                playerGroup.position.set(5, 0, 5); 
+                playerGroup.rotation.y = Math.PI - 0.5; // Slight angle towards camera
+
+                // Camera orbits closer to the soldier
+                camera.position.set(
+                    5 + Math.cos(t * 0.5) * 3.5, 
+                    1.8, // Eye level
+                    5 + Math.sin(t * 0.5) * 3.5
+                );
+                
+                // Look slightly above waist (chest area)
+                camera.lookAt(5, 1.4, 5);
+
+                // Idle Animation for Menu
+                if(playerMeshParts && playerMeshParts.rArmPivot) {
+                    // Arms relaxed holding gun
+                    playerMeshParts.rArmPivot.rotation.x = 1.2;
+                    playerMeshParts.lArmPivot.rotation.x = 1.2;
+                    // Breathing
+                    playerGroup.scale.y = 1 + Math.sin(t * 4) * 0.005;
                 }
-
-
-
-                if (isMultiplayerMode) Object.values(remotePlayers).forEach(r => {
-                    const m = r.mesh;
-                    if (!m) return;
-
-                    // Lerp position and rotation
-                    m.position.lerp(r.targetPos, 0.15);
-                    let rd = r.targetRot - m.rotation.y;
-                    while (rd > Math.PI) rd -= Math.PI * 2;
-                    while (rd < -Math.PI) rd += Math.PI * 2;
-                    m.rotation.y += rd * 0.15; m.traverse(child => { if (child.isMesh && child.material) { child.material.transparent = true; child.material.opacity = r.invincible ? 0.5 : 1.0; if (child.material.emissive) { if (r.invincible) child.material.emissive.setHex(0x00ffff); else child.material.emissive.setHex(0x000000); } } });
-
-                    const pivots = m.userData.pivots;
-                    if (pivots) {
-                        // Apply Pitch to head and arms
-                        if (pivots.head) pivots.head.rotation.x = r.targetPitch;
-                        const remotePitch = (Math.PI / 2) + r.targetPitch;
-                        if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
-                        if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
-
-                        // Animation State
-                        const isRemoteGrounded = m.position.y <= 0.2;
-                        if (!isRemoteGrounded) {
-                            // JUMP
-                            if (pivots.lLeg) pivots.lLeg.rotation.x = 1.6;
-                            if (pivots.lCanela) pivots.lCanela.rotation.x = -1.8;
-                            if (pivots.rLeg) pivots.rLeg.rotation.x = 0.2;
-                            if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
-                        } else {
-                            // WALK / IDLE
-                            // Ajuste base para ficar menos "agachado/levantado"
-                            const baseCrouch = 0.15; 
-                            const baseKnee = -0.3; 
-                            
-                            // Detectar se está movendo
-                            const isMoving = r.isMoving;
-
-                            if (!isMoving) {
-                                // IDLE: Postura relaxada, pés no chão
-                                pivots.lLeg.rotation.set(0.1, 0, 0);
-                                pivots.rLeg.rotation.set(0.1, 0, 0);
-                                pivots.lCanela.rotation.x = -0.1;
-                                pivots.rCanela.rotation.x = -0.1;
-                                m.position.y = Math.max(m.position.y, 0.85); // Prevent sinking if idle
-                            } else {
-                                // Detectar movimento lateral predominante (Strafing)
-                                // Remote doesn't send detailed input, so infer from rotation relative to movement?
-                                // Simplified for remote: just use frontal walk animation for now to avoid complexity/bugs
-                                const isStrafing = false; 
-                                
-                                // Update walk cycle if moving
-                                m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
-                                const wc = m.userData.walkCycle;
-                                
-                                // Oscillation vars (Passos)
-                                const swingPhase = Math.cos(wc);
-
-                                // Joelho dobra quando avança (levantando o pé)
-                                const liftL = Math.max(0, swingPhase);    
-                                const liftR = Math.max(0, -swingPhase);    
-                                const kneeL = liftL * 0.9; 
-                                const kneeR = liftR * 0.9;
-                                const legSwing = Math.sin(wc) * 0.5;
-                                
-                                pivots.lLeg.rotation.z = 0;
-                                pivots.rLeg.rotation.z = 0;
-                                
-                                pivots.lLeg.rotation.x = baseCrouch + legSwing;
-                                pivots.rLeg.rotation.x = baseCrouch - legSwing;
-
-                                pivots.lCanela.rotation.x = baseKnee - kneeL;
-                                pivots.rCanela.rotation.x = baseKnee - kneeR;
-
-                                // Body Bobbing (Weight transfer)
-                                // Quica levemente quando pisa
-                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
-                            }
-                        }
-                    }
-                });
-                processShooting(); updateEnemies(); updateHealthKits(); drawMinimap(); updateBullets(); updateHtmlObjects();
-            } else if (!gamePaused) { const t = Date.now() * 0.0006; camera.position.set(Math.cos(t) * 40 + 45, 30, Math.sin(t) * 40 + 45); camera.lookAt(45, 0, 45); }
+            }
+            requestAnimationFrame(animate);
             if (scene && camera && renderer) renderer.render(scene, camera);
         }
         init();
