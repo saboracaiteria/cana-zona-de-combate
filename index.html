@@ -410,29 +410,62 @@
         @media (max-width: 600px) {
             .menu-sidebar {
                 top: auto;
-                bottom: 20px;
+                bottom: 15px; /* Mais próximo do fundo */
                 right: 50%;
                 left: 50%; /* Centraliza apenas no mobile portrait */
                 transform: translateX(-50%);
-                width: 90%; 
-                align-items: center;
+                width: 85%; /* Largura um pouco menor para não encostar nas bordas */
+                align-items: stretch; /* Estica os botões */
                 padding-right: 0;
+                gap: 5px; /* Espaço reduzido entre botões (estilo original) */
             }
-            /* Adjust Cards for Mobile: Smaller, Stacked Bottom */
+            
+            /* Adjust Cards for Mobile: Compact sizes similar to original code */
             .menu-btn-modern {
-                height: 50px;
-                font-size: 16px;
+                height: 35px; /* Altura reduzida (era 50px) */
+                padding: 0 10px; /* Padding menor */
+                font-size: 12px; /* Fonte menor (era 16px) */
                 text-align: center;
                 justify-content: center;
-                clip-path: polygon(15px 0, 100% 0, 95% 100%, 0% 100%);
+                /* Angulo mais suave para economizar pixels laterais */
+                clip-path: polygon(10px 0, 100% 0, 97% 100%, 0% 100%);
                 border-right: none;
-                border-bottom: 3px solid #555;
+                border-bottom: 2px solid #555; /* Borda inferior mais fina */
+                margin-left: 0;
+                box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
             }
-            .menu-btn-modern.primary { height: 60px; border-bottom: 3px solid #fff; }
+            
+            .menu-btn-modern.primary { 
+                height: 45px; /* Botão jogar um pouco maior, mas compacto */
+                border-bottom: 2px solid #fff; 
+                font-size: 14px; 
+            }
+
+            /* Esconder subtitulos no mobile para limpar o visual */
             .btn-sub { display: none; }
             
+            /* Ajuste de conteúdo flex para centralizar */
+            .btn-content {
+                align-items: center;
+                width: 100%;
+            }
+
+            /* Botões de rodapé (Fullscreen/Exit) menores */
+            .menu-sidebar div[style*="display: flex"] {
+                margin-top: 5px;
+            }
+            
             .char-info { display: none; } /* Hide info on small screens */
-            .menu-header { justify-content: center; padding: 10px; }
+            
+            /* Cabeçalho menor no mobile */
+            .menu-header { 
+                justify-content: center; 
+                padding: 10px; 
+                top: 10px;
+            }
+            .menu-brand {
+                font-size: 20px; /* Reduzido de 32px */
+            }
             .menu-season { display: none; }
         }
     </style>
