@@ -155,7 +155,7 @@
             z-index: 20;
             display: flex;
             flex-direction: column;
-            gap: 12px; /* Espaço entre cards levemente reduzido */
+            gap: 8px; /* Reduzido de 12px para 8px para caber melhor */
             align-items: flex-end; /* Alinhar tudo à direita */
             pointer-events: none; /* Permite clicar no jogo atrás se não clicar no botão */
             transition: opacity 0.2s;
@@ -165,14 +165,14 @@
         .menu-btn-modern {
             pointer-events: auto; /* Reativa cliques nos botões */
             width: 100%;
-            height: 55px; /* Altura levemente reduzida */
+            height: 40px; /* Reduzido de 55px para 40px */
             background: linear-gradient(90deg, rgba(20,20,20,0.6) 0%, rgba(40,40,40,0.9) 100%);
             border: none;
             border-right: 4px solid #555; /* Borda grossa na direita */
             color: #fff;
             padding: 0 20px;
             font-family: 'Orbitron', sans-serif;
-            font-size: 16px; /* Fonte ajustada */
+            font-size: 14px; /* Reduzido de 16px */
             font-weight: 800;
             text-transform: uppercase;
             text-align: right;
@@ -217,11 +217,11 @@
 
         /* PLAY BUTTON (Yellow Card) */
         .menu-btn-modern.primary {
-            height: 75px; /* Card maior */
+            height: 55px; /* Reduzido de 75px para 55px */
             background: linear-gradient(90deg, rgba(200, 150, 0, 0.8) 0%, rgba(255, 215, 0, 1) 100%);
             border-right: 4px solid #fff;
             color: #000;
-            font-size: 22px;
+            font-size: 18px; /* Reduzido de 22px */
             text-shadow: none;
         }
         .menu-btn-modern.primary:hover {
@@ -293,7 +293,7 @@
             /* Remove absolute positioning default so it works inside flex containers */
             position: relative; 
             background: #0a0a0a; /* Solid black */
-            padding: 20px; 
+            padding: 15px; /* Reduzido de 20px */
             border: 1px solid #333;
             border-top: 4px solid var(--canaa-gold);
             /* Remove global backdrop shadow that was causing "giant" feel in lobbies */
@@ -303,7 +303,7 @@
             max-width: 90%;
             z-index: 100;
             border-radius: 2px;
-            max-height: 95vh;
+            max-height: 85vh; /* Reduzido de 95vh para evitar corte em telas pequenas */
             overflow-y: auto;
             box-shadow: 0 10px 30px rgba(0,0,0,1); /* Local shadow only */
         }
@@ -328,18 +328,18 @@
 
         /* --- SHARED UI ELEMENTS --- */
         h1 { font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px; color: #fff; text-shadow: 0px 0px 10px rgba(0, 243, 255, 0.8); margin-bottom: 2px; font-size: 1.0em; font-weight: 900; }
-        h2 { font-family: 'Orbitron', sans-serif; color: #00f3ff; margin-bottom: 10px; font-size: 1.0em; border-bottom: 1px solid rgba(0, 243, 255, 0.3); padding-bottom: 5px; display: inline-block; }
+        h2 { font-family: 'Orbitron', sans-serif; color: #00f3ff; margin-bottom: 5px; font-size: 1.0em; border-bottom: 1px solid rgba(0, 243, 255, 0.3); padding-bottom: 5px; display: inline-block; }
         
         .menu-btn {
             background: linear-gradient(90deg, rgba(0, 243, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
             color: #00f3ff;
             border: 1px solid rgba(0, 243, 255, 0.2);
             border-left: 2px solid #00f3ff;
-            padding: 10px;
-            margin: 5px 0;
+            padding: 8px; /* Reduzido de 10px */
+            margin: 3px 0; /* Reduzido de 5px */
             font-family: 'Rajdhani', sans-serif;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 13px; /* Reduzido de 14px */
             cursor: pointer;
             width: 100%;
             text-transform: uppercase;
@@ -358,7 +358,7 @@
         .menu-btn.danger:hover { background: rgba(255, 51, 51, 0.2); color: white; }
         .menu-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 
-        .menu-footer { margin-top: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.3); font-family: 'Rajdhani'; letter-spacing: 1px; text-transform: uppercase; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 5px; width: 100%; text-align: right; }
+        .menu-footer { margin-top: 5px; font-size: 9px; color: rgba(255, 255, 255, 0.3); font-family: 'Rajdhani'; letter-spacing: 1px; text-transform: uppercase; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 5px; width: 100%; text-align: right; }
 
         /* SCREENS */
         #game-over-screen, #win-screen, #level-complete-screen, #lobby-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 200; background-color: rgba(5, 5, 5, 0.8); backdrop-filter: blur(5px); }
@@ -399,11 +399,12 @@
         #joystick-knob { width: 50px; height: 50px; background: rgba(0, 255, 65, 0.5); border: 2px solid #fff; box-shadow: 0 0 10px var(--canaa-green); border-radius: 50%; position: absolute; top: 35px; left: 35px; }
         #aim-zone { position: absolute; top: 0; right: 0; width: 60%; height: 100%; pointer-events: auto; z-index: 5; touch-action: none; }
         
-        .action-btn { position: absolute; background: rgba(0, 0, 0, 0.6); border: 2px solid var(--canaa-gold); border-radius: 15px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; z-index: 20; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--canaa-gold); touch-action: none; }
+        /* Z-INDEX AUMENTADO PARA GARANTIR QUE OS BOTOES APAREÇAM */
+        .action-btn { position: absolute; background: rgba(0, 0, 0, 0.6); border: 2px solid var(--canaa-gold); border-radius: 15px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; z-index: 50; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--canaa-gold); touch-action: none; }
         #fire-btn { bottom: 120px; right: 150px; width: 90px; height: 90px; background: rgba(184, 115, 51, 0.2); border-color: #ff3333; font-size: 30px; }
         #jump-btn { bottom: 40px; right: 40px; width: 70px; height: 70px; }
         #aim-btn { bottom: 220px; right: 40px; width: 60px; height: 60px; }
-        #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 20; touch-action: none; }
+        #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 50; touch-action: none; }
         
         .minimap-container { border: 2px solid var(--canaa-green) !important; box-shadow: 0 0 10px var(--canaa-green); }
 
@@ -2542,7 +2543,16 @@
             document.getElementById('edit-hud-btn').onclick = () => { settings.isEditing = true; document.body.classList.add('editing-hud'); document.getElementById('main-menu').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'block'; document.getElementById('save-hud-btn').style.display = 'block'; };
             document.getElementById('save-hud-btn').onclick = () => { settings.isEditing = false; document.body.classList.remove('editing-hud'); document.getElementById('save-hud-btn').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('mobile-ui').style.display = 'none'; };
             document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
-            document.getElementById('mode-switch-btn').onclick = () => { isPC = !isPC; document.getElementById('mode-switch-btn').innerText = isPC ? "💻" : "📱"; };
+            
+            // CORREÇÃO: Botão agora alterna a visibilidade da interface móvel imediatamente
+            document.getElementById('mode-switch-btn').onclick = () => { 
+                isPC = !isPC; 
+                document.getElementById('mode-switch-btn').innerText = isPC ? "💻" : "📱"; 
+                if(isPlaying) {
+                    document.getElementById('mobile-ui').style.display = isPC ? 'none' : 'block';
+                }
+            };
+            
             document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === document.body && isPlaying) { yaw -= e.movementX * settings.sens; pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * settings.sens)); } });
             
             document.addEventListener('keydown', (e) => {
@@ -3262,9 +3272,6 @@
 
                                 pivots.lCanela.rotation.x = baseKnee - kneeL;
                                 pivots.rCanela.rotation.x = baseKnee - kneeR;
-
-                                // Body Bobbing
-                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
                             }
                         }
                     }
