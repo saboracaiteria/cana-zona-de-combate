@@ -2783,8 +2783,8 @@
                 let h = 6; // Default height
                 
                 if (w.geometry.parameters) {
-                     dx = (w.geometry.parameters.width / 2) + 0.5;
-                     dz = (w.geometry.parameters.depth / 2) + 0.5;
+                     dx = (w.geometry.parameters.width / 2) + 0.3; // Reduced from 0.5
+                     dz = (w.geometry.parameters.depth / 2) + 0.3;
                      h = w.geometry.parameters.height;
                 }
                 
@@ -3519,14 +3519,30 @@
                 if (!checkWall(playerGroup.position.x + mx, playerGroup.position.z)) playerGroup.position.x += mx;
                 if (!checkWall(playerGroup.position.x, playerGroup.position.z + mz)) playerGroup.position.z += mz;
                 
-                // Gravity
+                // Gravity & Floor Collision (Multi-Ray for Ledge Safety)
                 let groundY = 0;
-                const rayOrigin = playerGroup.position.clone();
-                rayOrigin.y += 2;
+                const playerRadius = 0.3; // Match the wall padding approximately
+                const rayOrigins = [
+                    playerGroup.position.clone(), // Center
+                    playerGroup.position.clone().add(new THREE.Vector3(playerRadius, 0, 0)), // Right
+                    playerGroup.position.clone().add(new THREE.Vector3(-playerRadius, 0, 0)), // Left
+                    playerGroup.position.clone().add(new THREE.Vector3(0, 0, playerRadius)), // Front
+                    playerGroup.position.clone().add(new THREE.Vector3(0, 0, -playerRadius)) // Back
+                ];
+                
                 const downDir = new THREE.Vector3(0, -1, 0);
-                const rampRay = new THREE.Raycaster(rayOrigin, downDir, 0, 10);
-                const rampHits = rampRay.intersectObjects([...ramps, ...walls], false);
-                if (rampHits.length > 0) groundY = rampHits[0].point.y;
+                
+                // Check all points
+                for(let ro of rayOrigins) {
+                    ro.y += 2; // Start above
+                    const rampRay = new THREE.Raycaster(ro, downDir, 0, 10);
+                    const rampHits = rampRay.intersectObjects([...ramps, ...walls], false);
+                    if (rampHits.length > 0) {
+                        if (rampHits[0].point.y > groundY) {
+                            groundY = rampHits[0].point.y;
+                        }
+                    }
+                }
                 
                 if (isGrounded && playerGroup.position.y > groundY + 0.1) isGrounded = false;
                 if (!isGrounded) velocityY -= GRAVITY;
