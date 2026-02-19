@@ -18,6 +18,7 @@
         :root {
             --canaa-gold: #FFD700;
             --canaa-green: #00FF41;
+            --canaa-blue: #0088FF;
             --canaa-copper: #B87333;
             --bg-dark: #050505;
             --hud-bg: rgba(10, 15, 20, 0.85);
@@ -414,6 +415,48 @@
         .info-panel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); padding: 8px 15px; border: 1px solid var(--canaa-gold); border-top: 3px solid var(--canaa-gold); color: #fff; font-family: 'Rajdhani', monospace; font-size: 16px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 5px rgba(0, 0, 0, 1); z-index: 100; }
         .info-panel span { color: var(--canaa-gold); }
         
+        /* NOVAS BARRAS DE STATUS (HP/ARMOR) - PARTE INFERIOR CENTRAL */
+        #status-bars {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .bar-container {
+            width: 100%;
+            height: 12px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #555;
+            position: relative;
+            transform: skewX(-15deg); /* Estilo tático */
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.2s;
+        }
+        #hp-bar { background: linear-gradient(90deg, #990000, #ff3333); width: 100%; }
+        #armor-bar { background: linear-gradient(90deg, #004488, #0088FF); width: 0%; }
+        
+        /* FIX: Etiqueta atualizada para mostrar os números */
+        .bar-label {
+            position: absolute;
+            right: 305px; /* Ajustado para caber o número */
+            font-size: 10px;
+            font-weight: 900;
+            color: #fff;
+            top: 0;
+            line-height: 12px;
+            text-align: right;
+            width: 80px; /* Alargado para caber o número */
+        }
+
         #level-indicator { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); color: #fff; font-family: 'Orbitron', sans-serif; font-size: 48px; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); display: none; z-index: 15; letter-spacing: 8px; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.5), transparent); padding: 10px 50px; }
         #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-shadow: inset 0 0 0 0 rgba(255, 0, 0, 0); pointer-events: none; transition: box-shadow 0.1s; z-index: 5; }
         
@@ -436,6 +479,10 @@
         #aim-btn { bottom: 220px; right: 40px; width: 60px; height: 60px; }
         #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 150; touch-action: none; }
         
+        /* NOVOS BOTÕES DE GRANADA */
+        #grenade-btn { bottom: 130px; right: 40px; width: 60px; height: 60px; border-color: #ffaa00; font-size: 20px; }
+        #smoke-btn { bottom: 200px; right: 120px; width: 50px; height: 50px; border-color: #aaa; font-size: 18px; }
+
         .minimap-container { border: 2px solid var(--canaa-green) !important; box-shadow: 0 0 10px var(--canaa-green); }
 
         /* AJUSTE CRÍTICO: MENU PARA CELULAR DEITADO (LANDSCAPE) E TELAS PEQUENAS */
@@ -587,8 +634,28 @@
         <div class="dot-red"></div>
     </div>
     <div id="hud">
-        <div id="info-panel" class="info-panel">HP: <span id="hp">100</span>% | <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span><span id="pvp-timer-display" style="display:none;">TIME: <span id="pvp-timer-count">04:00</span> | </span>LVL: <span id="level-display">1</span>/10 | KILLS: <span
-                id="score">0</span></div>
+        <div id="info-panel" class="info-panel">
+             <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span>
+             <span id="grenade-display" style="color:#ffaa00;">G: <span id="grenade-count">3</span></span>
+             <span id="smoke-display" style="color:#aaa;">| S: <span id="smoke-count">3</span></span>
+             | <span id="pvp-timer-display" style="display:none;">TIME: <span id="pvp-timer-count">04:00</span> | </span>
+             LVL: <span id="level-display">1</span>/10 | KILLS: <span id="score">0</span>
+        </div>
+        
+        <!-- NEW STATUS BARS (HP / ARMOR) -->
+        <div id="status-bars">
+             <div class="bar-container">
+                 <!-- FIX: Added ID armor for the Javascript to update without crashing -->
+                 <div class="bar-label">ARMOR <span id="armor">0</span></div>
+                 <div id="armor-bar" class="bar-fill"></div>
+             </div>
+             <div class="bar-container">
+                 <!-- FIX: Added ID hp for the Javascript to update without crashing -->
+                 <div class="bar-label">HP <span id="hp">100</span></div>
+                 <div id="hp-bar" class="bar-fill"></div>
+             </div>
+        </div>
+
         <div id="multiplayer-status">ONLINE: <span id="mp-count">0</span> PLAYERS | ROOM: <span id="room-id">...</span>
         </div>
         <div id="master-status">★ ROOM HOST</div>
@@ -768,6 +835,8 @@
         <div id="jump-btn" class="action-btn">▲</div>
         <div id="aim-btn" class="action-btn">◎</div>
         <div id="cam-toggle-btn">📷</div>
+        <div id="grenade-btn" class="action-btn">💣</div>
+        <div id="smoke-btn" class="action-btn">💨</div>
     </div>
 
     <script type="module">
@@ -815,6 +884,13 @@
 
         let lastSentPosition = new THREE.Vector3(0, 0, 0), lastSentRotation = 0, lastSentTime = 0;
         let audioCtx;
+
+        // --- NEW FEATURES GLOBALS ---
+        let playerArmor = 0;
+        let grenades = { explosive: 3, smoke: 3 };
+        let activeGrenades = [];
+        let armorVests = [];
+        let grenadePacks = [];
 
         // --- SISTEMA DE MÚSICA ALEATÓRIA ---
         let bgmPlayer = null;
@@ -1027,7 +1103,13 @@
             unsubMyPresence = onValue(myRef, (s) => {
                 const d = s.val(); if (!d) return;
                 if (d.hp < playerHP) {
-                    playerHP = d.hp; document.getElementById('hp').innerText = playerHP;
+                    playerHP = d.hp; 
+                    // Update HP bar width
+                    document.getElementById('hp-bar').style.width = playerHP + "%";
+                    // Update the visible text number safely
+                    const hpEl = document.getElementById('hp');
+                    if (hpEl) hpEl.innerText = Math.ceil(playerHP);
+                    
                     document.getElementById('damage-overlay').style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
                     setTimeout(() => document.getElementById('damage-overlay').style.boxShadow = "none", 200);
                     if (playerHP <= 0) respawnPvP();
@@ -1035,7 +1117,16 @@
                 // SYNC KILLS FOR PVP
                 if (d.kills !== undefined && !isCoopMode) {
                     score = d.kills;
-                    document.getElementById('score').innerText = score;
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = score;
+                }
+                // Sync Armor
+                if (d.armor !== undefined) {
+                    playerArmor = d.armor;
+                    document.getElementById('armor-bar').style.width = playerArmor + "%";
+                    // Update the visible text number safely
+                    const armorEl = document.getElementById('armor');
+                    if (armorEl) armorEl.innerText = Math.ceil(playerArmor);
                 }
             });
 
@@ -1050,7 +1141,8 @@
                         rot: parseFloat(r.toFixed(2)),
                         pitch: parseFloat(pitch.toFixed(2)),
                         isMoving: (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d), invincible: isInvincible,
-                        lastUpdate: serverTimestamp()
+                        lastUpdate: serverTimestamp(),
+                        armor: playerArmor // Sync armor
                     });
                     lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now;
                 }
@@ -1093,16 +1185,22 @@
                 const k = state.kills || 0;
                 if (l !== currentLevel) {
                     currentLevel = l; score = k;
-                    document.getElementById('score').innerText = score;
-                    document.getElementById('level-display').innerText = currentLevel;
-                    document.getElementById('level-indicator').innerText = "ZONA COOP " + currentLevel;
-                    document.getElementById('level-indicator').style.display = 'block';
-                    setTimeout(() => document.getElementById('level-indicator').style.display = 'none', 3000);
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = score;
+                    const levelDisplay = document.getElementById('level-display');
+                    if (levelDisplay) levelDisplay.innerText = currentLevel;
+                    const levelInd = document.getElementById('level-indicator');
+                    if (levelInd) {
+                        levelInd.innerText = "ZONA COOP " + currentLevel;
+                        levelInd.style.display = 'block';
+                        setTimeout(() => levelInd.style.display = 'none', 3000);
+                    }
                     // Se mudou de nível, limpar inimigos locais para forçar respawn/sync
                     enemies.forEach(e => scene.remove(e)); enemies = [];
                 } else if (k !== score) {
                     score = k;
-                    document.getElementById('score').innerText = score;
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = score;
                 }
             });
 
@@ -1178,7 +1276,8 @@
         function respawnPvP() {
             if (isMultiplayerMode && isCoopMode) {
                 playerLives--;
-                document.getElementById('lives-count').innerText = playerLives;
+                const livesEl = document.getElementById('lives-count');
+                if (livesEl) livesEl.innerText = playerLives;
                 if (playerLives <= 0) { showGameOver(); return; }
             }
             let rx, rz; 
@@ -1212,8 +1311,22 @@
                 safe = true;
             }
 
-            playerHP = 100; 
-            document.getElementById('hp').innerText = "100";
+            playerHP = 100;
+            playerArmor = 0; // Reset Armor on death
+            
+            // Safe DOM updates
+            const hpEl = document.getElementById('hp');
+            if (hpEl) hpEl.innerText = "100";
+            const hpBar = document.getElementById('hp-bar');
+            if (hpBar) hpBar.style.width = "100%";
+            const armorBar = document.getElementById('armor-bar');
+            if (armorBar) armorBar.style.width = "0%";
+            const armorEl = document.getElementById('armor');
+            if (armorEl) armorEl.innerText = "0";
+
+            grenades = { explosive: 3, smoke: 3 };
+            updateGrenadeUI();
+
             velocityY = 0; isGrounded = true;
             playerGroup.position.set(rx * 5, 2, rz * 5);
             pitch = 0; yaw = Math.random() * Math.PI * 2;
@@ -1224,6 +1337,7 @@
             if (myRef) {
                 update(myRef, { 
                     hp: 100, 
+                    armor: 0,
                     x: rx * 5, 
                     z: rz * 5, 
                     invincible: true,
@@ -1238,8 +1352,10 @@
             
             isPlaying = true; 
             const o = document.getElementById('damage-overlay');
-            o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; // Blue tint for spawn shield
-            setTimeout(() => o.style.backgroundColor = "transparent", 300);
+            if (o) {
+                o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; // Blue tint for spawn shield
+                setTimeout(() => o.style.backgroundColor = "transparent", 300);
+            }
         }
 
         
@@ -1341,7 +1457,9 @@
         }
 
         function registerKill() {
-            score++; document.getElementById('score').innerText = score;
+            score++; 
+            const scoreEl = document.getElementById('score');
+            if (scoreEl) scoreEl.innerText = score;
             if (isMultiplayerMode && myRef) {
                 // Ensure atomic increment
                 runTransaction(ref(db, `${roomPath}/players/${myUserId}/kills`), (k) => (k || 0) + 1);
@@ -1554,6 +1672,8 @@
                 createWorld(currentLevel);
                 createPlayer();
                 spawnHealthKits(6);
+                spawnArmorVests(); // Add Armor
+                spawnGrenadePacks(); // Add Grenade Packs
                 setupSkyLogo();
                 setupMinimap();
                 setupUI();
@@ -1617,6 +1737,221 @@
 
             window.addEventListener('resize', onResize); animate();
         }
+
+        // --- NEW FEATURES HELPER FUNCTIONS ---
+        function applyDamage(amount) {
+            if (isInvincible) return;
+            
+            let damage = amount;
+            if (playerArmor > 0) {
+                // Armor absorbs 50% damage
+                const absorb = damage * 0.5;
+                const remaining = damage - absorb;
+                
+                playerArmor = Math.max(0, playerArmor - absorb);
+                damage = remaining;
+            }
+            
+            playerHP -= damage;
+            
+            // Update UI safely
+            const hpEl = document.getElementById('hp');
+            if (hpEl) hpEl.innerText = Math.ceil(playerHP);
+            
+            const hpBar = document.getElementById('hp-bar');
+            if (hpBar) hpBar.style.width = Math.max(0, playerHP) + "%";
+            
+            const armorBar = document.getElementById('armor-bar');
+            if (armorBar) armorBar.style.width = Math.max(0, playerArmor) + "%";
+            
+            const armorEl = document.getElementById('armor');
+            if (armorEl) armorEl.innerText = Math.ceil(playerArmor);
+            
+            // Visual Effect
+            const o = document.getElementById('damage-overlay');
+            if (o) {
+                o.style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
+                setTimeout(() => o.style.boxShadow = "none", 200);
+            }
+
+            if (myRef) update(myRef, { hp: playerHP, armor: playerArmor });
+            if (playerHP <= 0) { if (isCoopMode) respawnPvP(); else showGameOver(); }
+        }
+
+        function updateGrenadeUI() {
+            const gCount = document.getElementById('grenade-count');
+            if (gCount) gCount.innerText = grenades.explosive;
+            const sCount = document.getElementById('smoke-count');
+            if (sCount) sCount.innerText = grenades.smoke;
+        }
+
+        function spawnArmorVests() {
+            armorVests.forEach(k => scene.remove(k)); armorVests = [];
+            const rng = mulberry32(currentLevel + 222);
+            for (let i = 0; i < 4; i++) { // 4 Vests
+                let rx, rz;
+                do { 
+                    rx = Math.floor(rng() * mazeSize); 
+                    rz = Math.floor(rng() * mazeSize); 
+                } while (mazeMap[rz][rx] === 1);
+                const k = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x0088FF, emissive: 0x002288 })); 
+                k.position.set(rx * 5, 0.5, rz * 5); 
+                k.userData = { active: true }; 
+                scene.add(k); 
+                armorVests.push(k);
+            }
+        }
+
+        function spawnGrenadePacks() {
+            grenadePacks.forEach(k => scene.remove(k)); grenadePacks = [];
+            // Spawn in 4 corners
+            const corners = [
+                {x: 5, z: 5},
+                {x: 5, z: 95},
+                {x: 95, z: 5},
+                {x: 95, z: 95}
+            ];
+            
+            corners.forEach((c, i) => {
+                 const k = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x556B2F, emissive: 0x223311 })); // Olive Green
+                 k.position.set(c.x, 0.5, c.z);
+                 k.userData = { active: true };
+                 scene.add(k);
+                 grenadePacks.push(k);
+            });
+        }
+        
+        function updateGrenadePacks() {
+            grenadePacks.forEach((k) => {
+                if (!k.userData.active || playerGroup.position.distanceTo(k.position) >= 1.5) return;
+                playSound('heal'); // Reuse pick up sound
+                grenades.explosive += 5;
+                grenades.smoke += 5;
+                updateGrenadeUI();
+                scene.remove(k); k.userData.active = false;
+            });
+        }
+
+        function updateArmorVests() {
+             armorVests.forEach((k) => {
+                if (!k.userData.active || playerGroup.position.distanceTo(k.position) >= 1.5 || playerArmor >= 100) return;
+                playSound('heal'); // Reuse heal sound
+                playerArmor = Math.min(100, playerArmor + 50); 
+                const armorBar = document.getElementById('armor-bar');
+                if (armorBar) armorBar.style.width = playerArmor + "%";
+                const armorEl = document.getElementById('armor');
+                if (armorEl) armorEl.innerText = playerArmor;
+                if (myRef) update(myRef, { armor: playerArmor });
+                scene.remove(k); k.userData.active = false;
+            });
+        }
+
+        function throwGrenade(type) {
+            if (grenades[type] <= 0) return;
+            grenades[type]--;
+            updateGrenadeUI();
+
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: type === 'explosive' ? 0x222200 : 0xaaaaaa }));
+            
+            const startPos = playerGroup.position.clone();
+            startPos.y += 1.5;
+            
+            // Direction based on camera pitch/yaw
+            const dir = new THREE.Vector3(0, 0, -1);
+            dir.applyAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
+            dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+            
+            sphere.position.copy(startPos);
+            scene.add(sphere);
+
+            activeGrenades.push({
+                mesh: sphere,
+                velocity: dir.multiplyScalar(0.8), // Throw force
+                type: type,
+                life: 120 // Frames until explode
+            });
+        }
+
+        function updateGrenades() {
+            for (let i = activeGrenades.length - 1; i >= 0; i--) {
+                const g = activeGrenades[i];
+                g.life--;
+                
+                // Physics
+                g.velocity.y -= 0.02; // Gravity
+                g.mesh.position.add(g.velocity);
+                
+                // Floor collision
+                if (g.mesh.position.y < 0.2) {
+                    g.mesh.position.y = 0.2;
+                    g.velocity.y *= -0.5; // Bounce
+                    g.velocity.x *= 0.8; // Friction
+                    g.velocity.z *= 0.8;
+                }
+
+                if (g.life <= 0) {
+                    explodeGrenade(g);
+                    scene.remove(g.mesh);
+                    activeGrenades.splice(i, 1);
+                }
+            }
+        }
+
+        function explodeGrenade(g) {
+            // Visual Effect
+            const color = g.type === 'explosive' ? 0xffaa00 : 0xcccccc;
+            const size = g.type === 'explosive' ? 8 : 12; // Smoke bigger
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 }));
+            sphere.position.copy(g.mesh.position);
+            scene.add(sphere);
+            
+            // Expand and fade
+            let expand = 0;
+            const interval = setInterval(() => {
+                expand++;
+                sphere.scale.setScalar(1 + expand * 0.5);
+                sphere.material.opacity -= 0.05;
+                if (sphere.material.opacity <= 0) {
+                    clearInterval(interval);
+                    scene.remove(sphere);
+                }
+            }, 50);
+
+            if (g.type === 'explosive') {
+                // Damage Logic (Local + Remote via Transaction)
+                const range = 8;
+                
+                // 1. Damage Bots
+                enemies.forEach(e => {
+                    if (!e.userData.dead && e.position.distanceTo(g.mesh.position) < range) {
+                         e.userData.hp -= 100; // Grenade kills bots easily
+                         if (e.userData.hp <= 0) killEnemyLocal(e, true);
+                    }
+                });
+
+                // 2. Damage Remote Players
+                if (isMultiplayerMode && !isCoopMode) {
+                    Object.keys(remotePlayers).forEach(id => {
+                        const rp = remotePlayers[id];
+                        if (rp.mesh.position.distanceTo(g.mesh.position) < range) {
+                             runTransaction(ref(db, `${roomPath}/players/${id}/hp`), (hp) => {
+                                if (hp > 0) return Math.max(0, hp - 80); // Grenade huge damage
+                                return 0;
+                            }).then((result) => {
+                                if (result.committed && result.snapshot.val() === 0) registerKill();
+                            });
+                        }
+                    });
+                }
+                
+                // 3. Self Damage
+                if (playerGroup.position.distanceTo(g.mesh.position) < range) {
+                    applyDamage(50);
+                }
+            }
+        }
+        
+        // --- END NEW HELPER FUNCTIONS ---
 
         function createPlayer() {
             playerGroup = new THREE.Group();
@@ -1685,7 +2020,7 @@
             rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); rightArm.position.y = -0.15; rElbow.add(rightArm);
 
             const lArmPivot = new THREE.Object3D(); lArmPivot.name = "lArmPivot"; lArmPivot.position.set(-0.32, 0.1, 0); peitoPivot.add(lArmPivot);
-            const mLBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5), matSkin); mLBiceps.position.y = -0.22; lArmPivot.add(mLBiceps);
+            const mLBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5), matSkin); mLBiceps.position.y = -0.15; lArmPivot.add(mLBiceps);
             const lElbow = new THREE.Object3D(); lElbow.position.y = -0.25; mLBiceps.add(lElbow);
             leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); leftArm.position.y = -0.15; lElbow.add(leftArm);
 
@@ -1970,7 +2305,13 @@
         function updateHealthKits() {
             healthKits.forEach((k, i) => {
                 if (k.userData.taken || playerGroup.position.distanceTo(k.position) >= 1.5 || playerHP >= 100) return;
-                playSound('heal'); playerHP = Math.min(100, playerHP + 25); document.getElementById('hp').innerText = playerHP;
+                playSound('heal'); 
+                playerHP = Math.min(100, playerHP + 25); 
+                
+                const hpEl = document.getElementById('hp');
+                if (hpEl) hpEl.innerText = playerHP;
+                const hpBar = document.getElementById('hp-bar');
+                if (hpBar) hpBar.style.width = playerHP + "%";
 
                 if (myRef) update(myRef, { hp: playerHP });
 
@@ -2264,11 +2605,25 @@
                 // FIX: Only force level 1 in single player. For multi/coop, respect selected/synced level.
                 if (mode === 'single') currentLevel = 1;
                 
-                playerHP = 100; playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
+                playerHP = 100;
+                playerArmor = 0; // Reset Armor
+                grenades = { explosive: 3, smoke: 3 }; // Reset Grenades
+                updateGrenadeUI();
+
+                playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
                 isMultiplayerMode = (mode === 'multi' || mode === 'coop'); isCoopMode = (mode === 'coop');
-                document.getElementById('lives-display').style.display = (isCoopMode || !isMultiplayerMode) ? 'inline' : 'none';
-                document.getElementById('pvp-timer-display').style.display = (isMultiplayerMode && !isCoopMode) ? 'inline' : 'none';
-                document.getElementById('lives-count').innerText = playerLives;
+                
+                const livesDisp = document.getElementById('lives-display');
+                if (livesDisp) livesDisp.style.display = (isCoopMode || !isMultiplayerMode) ? 'inline' : 'none';
+                
+                const pvpTimerDisp = document.getElementById('pvp-timer-display');
+                if (pvpTimerDisp) pvpTimerDisp.style.display = (isMultiplayerMode && !isCoopMode) ? 'inline' : 'none';
+                
+                const livesCount = document.getElementById('lives-count');
+                if (livesCount) livesCount.innerText = playerLives;
+                
+                const armorEl = document.getElementById('armor');
+                if (armorEl) armorEl.innerText = 0; // UI Reset
 
                 if (mode === 'multi') { startPVPTimer();
                     // Manter o roomPath da sala específica
@@ -2285,12 +2640,30 @@
                 }
 
                 playGameMusic();
-                document.getElementById('hp').innerText = 100; document.getElementById('score').innerText = 0; document.getElementById('level-display').innerText = 1;
-                ['game-over-screen', 'win-screen', 'lobby-screen'].forEach(id => document.getElementById(id).style.display = 'none');
-                document.getElementById('pause-btn').style.display = 'flex'; document.getElementById('damage-overlay').style.boxShadow = "none";
-                const ms = document.getElementById('multiplayer-status'); ms.style.display = isMultiplayerMode ? 'block' : 'none';
-                if (isCoopMode) { ms.innerHTML = `CO-OP: <span id="mp-count">0</span> OP | ROOM: <span id="room-id">${myUserId ? myUserId.substring(0, 6) : '...'}</span>`; ms.style.color = "#00FF41"; }
-                else { ms.innerHTML = `ONLINE: <span id="mp-count">0</span> PL | ROOM: <span id="room-id">${myUserId ? myUserId.substring(0, 6) : '...'}</span>`; ms.style.color = "#00f3ff"; }
+                
+                const hpEl = document.getElementById('hp');
+                if (hpEl) hpEl.innerText = 100; 
+                
+                const scoreEl = document.getElementById('score');
+                if (scoreEl) scoreEl.innerText = 0; 
+                
+                const levelDisplay = document.getElementById('level-display');
+                if (levelDisplay) levelDisplay.innerText = 1;
+
+                ['game-over-screen', 'win-screen', 'lobby-screen'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+
+                document.getElementById('pause-btn').style.display = 'flex'; 
+                document.getElementById('damage-overlay').style.boxShadow = "none";
+                
+                const ms = document.getElementById('multiplayer-status'); 
+                if (ms) {
+                    ms.style.display = isMultiplayerMode ? 'block' : 'none';
+                    if (isCoopMode) { ms.innerHTML = `CO-OP: <span id="mp-count">0</span> OP | ROOM: <span id="room-id">${myUserId ? myUserId.substring(0, 6) : '...'}</span>`; ms.style.color = "#00FF41"; }
+                    else { ms.innerHTML = `ONLINE: <span id="mp-count">0</span> PL | ROOM: <span id="room-id">${myUserId ? myUserId.substring(0, 6) : '...'}</span>`; ms.style.color = "#00f3ff"; }
+                }
                 document.getElementById('master-status').style.display = 'none';
 
                 playerGroup.position.set(5, 0, 5);
@@ -2302,6 +2675,8 @@
 
                 enemies.forEach(e => scene.remove(e)); enemies = [];
                 healthKits.forEach(k => scene.remove(k)); healthKits = [];
+                armorVests.forEach(k => scene.remove(k)); armorVests = []; // Clear Armor
+                grenadePacks.forEach(k => scene.remove(k)); grenadePacks = []; // Clear Grenades
 
                 if (isMultiplayerMode) {
                     if (isCoopMode) {
@@ -2329,9 +2704,16 @@
 
                 const kitCount = currentLevel <= 2 ? 6 : 8;
                 spawnHealthKits(kitCount);
+                spawnArmorVests(); // Spawn Armor
+                spawnGrenadePacks(); // Spawn Grenade Packs
 
                 setupSkyLogo(); isPlaying = true; gamePaused = false;
-                const ind = document.getElementById('level-indicator'); ind.innerText = isCoopMode ? "COOP ZONE 1" : (isMultiplayerMode ? "PVP ZONE" : "LEVEL 1"); ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000);
+                const ind = document.getElementById('level-indicator'); 
+                if (ind) {
+                    ind.innerText = isCoopMode ? "COOP ZONE 1" : (isMultiplayerMode ? "PVP ZONE" : "LEVEL 1"); 
+                    ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000);
+                }
+
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
                 if (isPC) setTimeout(() => { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch (e) { } }, 50);
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
@@ -2366,9 +2748,12 @@
 
                 
                     const winScreen = document.getElementById('win-screen');
-                    winScreen.querySelector('h1').innerText = 'MISSION ACCOMPLISHED';
-                    winScreen.querySelector('p').innerText = 'You conquered all 10 levels! Mission accomplished successfully!';
-                    winScreen.style.display = 'flex';
+                    if (winScreen) {
+                        winScreen.querySelector('h1').innerText = 'MISSION ACCOMPLISHED';
+                        const pEl = winScreen.querySelector('p');
+                        if(pEl) pEl.innerText = 'You conquered all 10 levels! Mission accomplished successfully!';
+                        winScreen.style.display = 'flex';
+                    }
                     document.getElementById('mobile-ui').style.display = 'none';
                 
                 return;
@@ -2565,7 +2950,10 @@
                 document.getElementById('level-complete-screen').style.display = 'none';
                 document.getElementById('pause-btn').style.display = 'flex';
                 playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true;
-                playerHP = 100; document.getElementById('hp').innerText = 100;
+                playerHP = 100; 
+                const hpEl = document.getElementById('hp');
+                if (hpEl) hpEl.innerText = 100;
+                
                 camera.rotation.set(0, 0, 0); camera.quaternion.identity();
 
                 // O nível já foi incrementado na função nextLevel()
@@ -2575,14 +2963,20 @@
                         update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: {}, kits: {} });
                     }
                 } else {
-                    score = 0; document.getElementById('score').innerText = 0;
+                    score = 0; 
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = 0;
                 }
 
                 createWorld(currentLevel);
-                document.getElementById('level-display').innerText = currentLevel;
+                
+                const levelDisplay = document.getElementById('level-display');
+                if (levelDisplay) levelDisplay.innerText = currentLevel;
+                
                 const botCount = 15 + (currentLevel - 1) * 2;
                 if (isMasterClient || !isMultiplayerMode) spawnEnemies(botCount, currentLevel);
                 spawnHealthKits(6);
+                spawnArmorVests();
                 isPlaying = true;
                 if (isPC) document.body.requestPointerLock();
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
@@ -2594,25 +2988,6 @@
                 document.getElementById('settings-view').style.display = 'block';
             };
             document.getElementById('mobile-fs-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
-            document.getElementById('mobile-exit-btn').onclick = () => { if (confirm("Do you want to quit?")) window.close(); else window.location.href = "about:blank"; };
-            
-            // ATUALIZADO: Usar resumeGame() para garantir a lógica correta
-            document.getElementById('back-btn').onclick = () => {
-                if (gamePaused) {
-                    resumeGame();
-                } else {
-                    document.getElementById('settings-view').style.display = 'none';
-                    document.getElementById('start-view').style.setProperty('display', 'flex', 'important');
-                }
-            };
-            
-            document.getElementById('vol-slider').oninput = (e) => { settings.volume = parseInt(e.target.value) / 100; if (bgmPlayer) bgmPlayer.volume = settings.volume; };
-            document.getElementById('fov-slider').oninput = (e) => { settings.fov = parseInt(e.target.value); camera.fov = settings.fov; camera.updateProjectionMatrix(); };
-            document.getElementById('sens-slider').oninput = (e) => { settings.sens = (parseInt(e.target.value) / 50) * 0.01; };
-            document.getElementById('graphics-select').onchange = (e) => { applyGraphicsSettings(e.target.value); };
-            document.getElementById('edit-hud-btn').onclick = () => { settings.isEditing = true; document.body.classList.add('editing-hud'); document.getElementById('main-menu').style.display = 'none'; document.getElementById('mobile-ui').style.display = 'block'; document.getElementById('save-hud-btn').style.display = 'block'; };
-            document.getElementById('save-hud-btn').onclick = () => { settings.isEditing = false; document.body.classList.remove('editing-hud'); document.getElementById('save-hud-btn').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('mobile-ui').style.display = 'none'; };
-            document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
             
             // CORREÇÃO: Botão agora alterna a visibilidade da interface móvel imediatamente
             document.getElementById('mode-switch-btn').onclick = () => { 
@@ -2622,6 +2997,11 @@
                     document.getElementById('mobile-ui').style.display = isPC ? 'none' : 'block';
                 }
             };
+
+            // GRENADE BUTTONS
+            document.getElementById('grenade-btn').addEventListener('touchstart', (e) => { e.preventDefault(); throwGrenade('explosive'); });
+            document.getElementById('smoke-btn').addEventListener('touchstart', (e) => { e.preventDefault(); throwGrenade('smoke'); });
+
 
             document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === document.body && isPlaying) { yaw -= e.movementX * settings.sens; pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * settings.sens)); } });
             
@@ -2660,6 +3040,8 @@
                 if (k === 'KeyD') keyState.d = true; 
                 if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } 
                 if (k === 'KeyV') toggleCameraMode();
+                if (k === 'KeyG') throwGrenade('explosive');
+                if (k === 'KeyF') throwGrenade('smoke');
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
             document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) isManualFiring = true; if (e.button === 2) isAiming = true; } });
@@ -3094,13 +3476,8 @@
 
                             // Dano instantâneo (lógica original)
                             if (target === playerGroup) {
-                                if (isInvincible) return; playerHP -= 5;
-                                document.getElementById('hp').innerText = playerHP;
-                                if (myRef) update(myRef, { hp: playerHP });
-                                if (playerHP <= 0) { if (isCoopMode) respawnPvP(); else showGameOver(); }
-                                const o = document.getElementById('damage-overlay');
-                                o.style.boxShadow = "inset 0 0 50px 20px rgba(255,0,0,0.5)";
-                                setTimeout(() => o.style.boxShadow = "none", 200);
+                                if (isInvincible) return; 
+                                applyDamage(5); // Bot damage
                             } else {
                                 const remoteId = target.userData.id;
                                 const remoteRef = ref(db, `${roomPath}/players/${remoteId}`);
@@ -3128,7 +3505,15 @@
         function drawMinimap() {
             minimapCtx.clearRect(0, 0, 100, 100); const s = 100 / (mazeSize * cellSize); minimapCtx.fillStyle = '#111'; minimapCtx.fillRect(0, 0, 100, 100); minimapCtx.fillStyle = '#555';
             for (let i = 0; i < mazeSize; i++) for (let j = 0; j < mazeSize; j++) if (mazeMap[i][j] === 1) minimapCtx.fillRect(j * cellSize * s, i * cellSize * s, cellSize * s, cellSize * s);
-            minimapCtx.fillStyle = '#00FF41'; healthKits.forEach(k => { if (!k.userData.taken) minimapCtx.fillRect(k.position.x * s, k.position.z * s, 3, 3); });
+            
+            // Health Kits (Green)
+            minimapCtx.fillStyle = '#00FF41'; 
+            healthKits.forEach(k => { if (!k.userData.taken) minimapCtx.fillRect(k.position.x * s, k.position.z * s, 3, 3); });
+            
+            // Armor Vests (Blue)
+            minimapCtx.fillStyle = '#0088FF';
+            armorVests.forEach(k => { if (k.userData.active) minimapCtx.fillRect(k.position.x * s, k.position.z * s, 3, 3); });
+
             if (isMultiplayerMode) { minimapCtx.fillStyle = isCoopMode ? '#00FF41' : '#f33'; Object.values(remotePlayers).forEach(r => minimapCtx.fillRect(r.mesh.position.x * s, r.mesh.position.z * s, 3, 3)); }
             if (!isMultiplayerMode || isCoopMode) { minimapCtx.fillStyle = '#f33'; enemies.forEach(e => { if (!e.userData.dead) minimapCtx.fillRect(e.position.x * s, e.position.z * s, 3, 3); }); }
             minimapCtx.fillStyle = '#fff'; minimapCtx.beginPath(); minimapCtx.arc(playerGroup.position.x * s, playerGroup.position.z * s, 3, 0, Math.PI * 2); minimapCtx.fill();
@@ -3551,9 +3936,11 @@
 
                 processShooting(); 
                 updateEnemies(); 
-                updateHealthKits(); 
+                updateHealthKits();
+                updateArmorVests(); // New Armor Logic
                 drawMinimap(); 
                 updateBullets(); 
+                updateGrenades(); // New Grenade Logic
                 updateHtmlObjects();
                 // -----------------------------------------------------
 
@@ -3599,6 +3986,4 @@
         })();
     </script>
 </body>
-
-
 </html>
