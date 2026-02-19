@@ -402,7 +402,7 @@
             background: radial-gradient(transparent 30%, black 35%);
         }
         #sniper-scope .cross-h {
-            position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.8);
+            position: absolute top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.8);
         }
         #sniper-scope .cross-v {
             position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: rgba(0,0,0,0.8);
@@ -479,9 +479,10 @@
         #aim-btn { bottom: 220px; right: 40px; width: 60px; height: 60px; }
         #cam-toggle-btn { position: absolute; top: 20px; right: 80px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7); border: 2px solid var(--canaa-green); border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; z-index: 150; touch-action: none; }
         
-        /* NOVOS BOTÕES DE GRANADA */
-        #grenade-btn { bottom: 130px; right: 40px; width: 60px; height: 60px; border-color: #ffaa00; font-size: 20px; }
-        #smoke-btn { bottom: 200px; right: 120px; width: 50px; height: 50px; border-color: #aaa; font-size: 18px; }
+        /* NOVOS BOTÕES DE GRANADA E ARMA */
+        #swap-btn { bottom: 130px; right: 260px; width: 60px; height: 60px; border-color: #00f3ff; font-size: 25px; z-index: 160; display: flex; }
+        #grenade-btn { bottom: 130px; right: 40px; width: 60px; height: 60px; border-color: #ffaa00; font-size: 20px; z-index: 160; display: flex; }
+        #smoke-btn { bottom: 200px; right: 120px; width: 50px; height: 50px; border-color: #aaa; font-size: 18px; z-index: 160; display: flex; }
 
         .minimap-container { border: 2px solid var(--canaa-green) !important; box-shadow: 0 0 10px var(--canaa-green); }
 
@@ -635,9 +636,10 @@
     </div>
     <div id="hud">
         <div id="info-panel" class="info-panel">
+             <span id="weapon-display" style="color:var(--canaa-blue);">WPN: <span id="weapon-name">SNIPER</span> | </span>
              <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span>
-             <span id="grenade-display" style="color:#ffaa00;">G: <span id="grenade-count">3</span></span>
-             <span id="smoke-display" style="color:#aaa;">| S: <span id="smoke-count">3</span></span>
+             <span id="grenade-display" style="color:#ffaa00;">G: <span id="grenade-count">6</span></span>
+             <span id="smoke-display" style="color:#aaa;">| S: <span id="smoke-count">6</span></span>
              | <span id="pvp-timer-display" style="display:none;">TIME: <span id="pvp-timer-count">04:00</span> | </span>
              LVL: <span id="level-display">1</span>/10 | KILLS: <span id="score">0</span>
         </div>
@@ -667,7 +669,7 @@
         <div id="fullscreen-btn" class="icon-btn">⛶</div>
     </div>
     <button id="save-hud-btn"
-        style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 300; padding: 15px 40px; background: var(--canaa-gold); border: none; border-radius: 5px; font-weight: bold; display: none; font-family: 'Orbitron';">SAVE
+        style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 300; padding: 15px 40px; background: var(--canaa-gold); border: none; border-radius: 5px; font-weight: bold; display: none; font-family: 'Orbitron'; cursor: pointer;">SAVE
         POSITIONS</button>
 
     <div id="rotate-overlay">
@@ -764,7 +766,7 @@
 
     <div id="lobby-screen" style="display: none;">
         <div class="menu-content" style="border-color: #00f3ff; width: 300px; max-width: 90%;">
-            <h1 style="color: #00f3ff; margin-bottom: 5px;" id="lobby-title">LOBBY</h1>
+            <h1 id="lobby-title" style="color: #00f3ff; margin: 0;">LOBBY</h1>
             <div style="font-family: 'Rajdhani'; color: #aaa; margin-bottom: 10px;">Status: <span id="connection-status"
                     style="color: #ffff00">Aguardando oponente...</span></div>
             <div style="text-align: left; margin-bottom: 5px; color: #fff;">Operators:</div>
@@ -834,6 +836,7 @@
         <div id="fire-btn" class="action-btn">🔫</div>
         <div id="jump-btn" class="action-btn">▲</div>
         <div id="aim-btn" class="action-btn">◎</div>
+        <div id="swap-btn" class="action-btn">🔄</div>
         <div id="cam-toggle-btn">📷</div>
         <div id="grenade-btn" class="action-btn">💣</div>
         <div id="smoke-btn" class="action-btn">💨</div>
@@ -853,7 +856,7 @@
 
         let myUserId = null, myRef = null, remotePlayers = {}, isMultiplayerMode = false, isCoopMode = false, networkInterval = null;
         let lastActivityTime = Date.now(); // Monitoramento de inatividade
-        let isThirdPerson = true, isAiming = false, isManualFiring = false, moveInput = { x: 0, y: 0 }, keyState = { w: false, a: false, s: false, d: false }, pitch = 0, yaw = 0, velocityY = 0, isGrounded = true, recoil = 0, gunRecoilZ = 0, lastShotTime = 0, lastStepTime = 0, minimapCanvas, minimapCtx;
+        let isThirdPerson = true, isAiming = false, isManualFiring = false, wasManualFiring = false, currentWeapon = 1, moveInput = { x: 0, y: 0 }, keyState = { w: false, a: false, s: false, d: false }, pitch = 0, yaw = 0, velocityY = 0, isGrounded = true, recoil = 0, gunRecoilZ = 0, lastShotTime = 0, lastStepTime = 0, minimapCanvas, minimapCtx;
 
         // --- RESTORED GLOBALS ---
         let scene, camera, renderer, skyMesh, skyUniforms;
@@ -887,7 +890,7 @@
 
         // --- NEW FEATURES GLOBALS ---
         let playerArmor = 0;
-        let grenades = { explosive: 3, smoke: 3 };
+        let grenades = { explosive: 6, smoke: 6 };
         let activeGrenades = [];
         let armorVests = [];
         let grenadePacks = [];
@@ -1324,7 +1327,7 @@
             const armorEl = document.getElementById('armor');
             if (armorEl) armorEl.innerText = "0";
 
-            grenades = { explosive: 3, smoke: 3 };
+            grenades = { explosive: 6, smoke: 6 };
             updateGrenadeUI();
 
             velocityY = 0; isGrounded = true;
@@ -1804,17 +1807,25 @@
 
         function spawnGrenadePacks() {
             grenadePacks.forEach(k => scene.remove(k)); grenadePacks = [];
-            // Spawn in 4 corners
-            const corners = [
-                {x: 5, z: 5},
-                {x: 5, z: 95},
-                {x: 95, z: 5},
-                {x: 95, z: 95}
-            ];
             
-            corners.forEach((c, i) => {
+            // Encontrar paredes internas válidas
+            const internalWalls = walls.filter(w => {
+                const px = w.position.x;
+                const pz = w.position.z;
+                // Evita bordas e garante que seja um bloco padrão de altura 6
+                return px > 5 && px < 90 && pz > 5 && pz < 90 && w.geometry && w.geometry.parameters && w.geometry.parameters.height === 6;
+            });
+
+            // Embaralhar as paredes
+            const shuffledWalls = internalWalls.sort(() => 0.5 - Math.random());
+            
+            // Selecionar até 12 posições espalhadas para as caixas de granadas
+            const selectedWalls = shuffledWalls.slice(0, Math.min(12, shuffledWalls.length));
+            
+            selectedWalls.forEach((w) => {
                  const k = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x556B2F, emissive: 0x223311 })); // Olive Green
-                 k.position.set(c.x, 0.5, c.z);
+                 // Colocar as caixas em cima das paredes (y = 6.2 para ficar perfeitamente no topo)
+                 k.position.set(w.position.x, 6.2, w.position.z);
                  k.userData = { active: true };
                  scene.add(k);
                  grenadePacks.push(k);
@@ -1823,7 +1834,7 @@
         
         function updateGrenadePacks() {
             grenadePacks.forEach((k) => {
-                if (!k.userData.active || playerGroup.position.distanceTo(k.position) >= 1.5) return;
+                if (!k.userData.active || playerGroup.position.distanceTo(k.position) >= 2.5) return;
                 playSound('heal'); // Reuse pick up sound
                 grenades.explosive += 5;
                 grenades.smoke += 5;
@@ -1899,21 +1910,62 @@
 
         function explodeGrenade(g) {
             // Visual Effect
-            const color = g.type === 'explosive' ? 0xffaa00 : 0xcccccc;
-            const size = g.type === 'explosive' ? 8 : 12; // Smoke bigger
-            const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 }));
-            sphere.position.copy(g.mesh.position);
-            scene.add(sphere);
+            const isExp = g.type === 'explosive';
+            const color = isExp ? 0xff3300 : 0x777777; // Fogo ou Cinza tático (fumaça densa)
+            
+            const effectGroup = new THREE.Group();
+            effectGroup.position.copy(g.mesh.position);
+            scene.add(effectGroup);
+
+            const particles = [];
+            const pCount = isExp ? 1 : 8; // 1 esfera pro fogo, 8 para a nuvem de fumaça irregular
+
+            for(let i = 0; i < pCount; i++) {
+                // DoubleSide garante que se o jogador entrar na fumaça a tela fica cinza
+                // Não usar transparência inicial (transparent: false) cria bloqueio de profundidade 100% sólido
+                const mat = new THREE.MeshBasicMaterial({ 
+                    color: color, 
+                    transparent: isExp, 
+                    opacity: isExp ? 0.8 : 1.0,
+                    side: isExp ? THREE.FrontSide : THREE.DoubleSide
+                });
+                const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), mat);
+                
+                if (!isExp) {
+                    // Agrupar esferas para formato de nuvem irregular
+                    mesh.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.5);
+                    mesh.scale.setScalar(0.8 + Math.random() * 0.6);
+                }
+                
+                effectGroup.add(mesh);
+                particles.push(mat);
+            }
             
             // Expand and fade
             let expand = 0;
             const interval = setInterval(() => {
                 expand++;
-                sphere.scale.setScalar(1 + expand * 0.5);
-                sphere.material.opacity -= 0.05;
-                if (sphere.material.opacity <= 0) {
-                    clearInterval(interval);
-                    scene.remove(sphere);
+                const expandRate = isExp ? 0.5 : 0.02; // Crescimento controlado
+                effectGroup.scale.setScalar(1 + expand * expandRate);
+                
+                if (isExp) {
+                    particles[0].opacity -= 0.05;
+                    if (particles[0].opacity <= 0) {
+                        clearInterval(interval);
+                        scene.remove(effectGroup);
+                    }
+                } else {
+                    // Fumaça densa: fica 100% opaca por muito tempo (aprox 7.5s) e depois dissipa
+                    if (expand > 150) {
+                        particles.forEach(m => {
+                            m.transparent = true;
+                            m.opacity -= 0.02;
+                        });
+                        if (particles[0].opacity <= 0) {
+                            clearInterval(interval);
+                            scene.remove(effectGroup);
+                        }
+                    }
                 }
             }, 50);
 
@@ -2131,6 +2183,8 @@
 
             const rampMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9, map: floorTexture, side: THREE.DoubleSide });
 
+            // Inicializar RNG previsível para a geração de paredes aleatórias para que todos os clientes vejam o mesmo mapa
+            const wallRNG = mulberry32(level * 777); 
 
             if (isOpenLevel) {
                  // CENTRAL FORTRESS DESIGN (More walls in center, not overlapping)
@@ -2224,7 +2278,7 @@
                         const distCenter = Math.sqrt((cx-50)**2 + (cz-50)**2);
                         
                         // Avoid center fortress area
-                        if (distCenter > 15 && distCenter < 40 && Math.random() < 0.1) {
+                        if (distCenter > 15 && distCenter < 40 && wallRNG() < 0.1) {
                              shouldPlaceWall = true;
                         }
                     } else {
@@ -2607,8 +2661,12 @@
                 
                 playerHP = 100;
                 playerArmor = 0; // Reset Armor
-                grenades = { explosive: 3, smoke: 3 }; // Reset Grenades
+                grenades = { explosive: 6, smoke: 6 }; // Reset Grenades
                 updateGrenadeUI();
+
+                currentWeapon = 1;
+                const wpnDisplay = document.getElementById('weapon-name');
+                if (wpnDisplay) wpnDisplay.innerText = "SNIPER";
 
                 playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
                 isMultiplayerMode = (mode === 'multi' || mode === 'coop'); isCoopMode = (mode === 'coop');
@@ -2924,6 +2982,40 @@
                 }
             });
 
+            document.getElementById('settings-btn').onclick = () => {
+                document.getElementById('start-view').style.setProperty('display', 'none', 'important');
+                document.getElementById('settings-view').style.display = 'block';
+            };
+            
+            // --- CORREÇÃO DO HUD EDITÁVEL ---
+            document.getElementById('edit-hud-btn').onclick = () => {
+                settings.isEditing = true;
+                document.getElementById('settings-view').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                document.getElementById('mobile-ui').style.display = 'block';
+                document.getElementById('save-hud-btn').style.display = 'block';
+            };
+
+            document.getElementById('save-hud-btn').onclick = () => {
+                settings.isEditing = false;
+                document.getElementById('save-hud-btn').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'block';
+                document.getElementById('settings-view').style.display = 'block';
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('mobile-ui').style.display = 'none';
+                
+                // Salvar as posições
+                const els = ['fire-btn', 'jump-btn', 'aim-btn', 'swap-btn', 'grenade-btn', 'smoke-btn', 'joystick-zone', 'minimap-canvas', 'info-panel'];
+                const pos = {};
+                els.forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) pos[id] = { left: el.style.left, top: el.style.top, bottom: el.style.bottom, right: el.style.right };
+                });
+                localStorage.setItem('canaa_hud_pos', JSON.stringify(pos));
+            };
+            // --------------------------------
+
             document.getElementById('abort-mission-btn').onclick = () => {  
                 document.getElementById('settings-view').style.display = 'none'; 
                 document.getElementById('hud').style.display = 'none'; 
@@ -2987,6 +3079,29 @@
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important');
                 document.getElementById('settings-view').style.display = 'block';
             };
+            
+            // --- CORREÇÃO: ATIVAÇÃO DO EDITOR DE HUD ---
+            document.getElementById('edit-hud-btn').onclick = () => {
+                settings.isEditing = true;
+                document.getElementById('settings-view').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                document.getElementById('crosshair').style.display = 'block';
+                if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
+                document.getElementById('save-hud-btn').style.display = 'block';
+            };
+
+            document.getElementById('save-hud-btn').onclick = () => {
+                settings.isEditing = false;
+                document.getElementById('save-hud-btn').style.display = 'none';
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('crosshair').style.display = 'none';
+                document.getElementById('mobile-ui').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'block';
+                document.getElementById('settings-view').style.display = 'block';
+            };
+            // --- FIM DA CORREÇÃO ---
+
             document.getElementById('mobile-fs-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
             
             // CORREÇÃO: Botão agora alterna a visibilidade da interface móvel imediatamente
@@ -3040,13 +3155,25 @@
                 if (k === 'KeyD') keyState.d = true; 
                 if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } 
                 if (k === 'KeyV') toggleCameraMode();
+                if (k === 'KeyQ') toggleWeapon();
                 if (k === 'KeyG') throwGrenade('explosive');
                 if (k === 'KeyF') throwGrenade('smoke');
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
-            document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) isManualFiring = true; if (e.button === 2) isAiming = true; } });
+            document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) { isManualFiring = true; isAiming = true; } if (e.button === 2) isAiming = true; } });
             document.addEventListener('mouseup', () => { isManualFiring = false; isAiming = false; });
             setupMobileControls();
+        }
+
+        function toggleWeapon() {
+            currentWeapon = currentWeapon === 0 ? 1 : 0;
+            const wpnDisplay = document.getElementById('weapon-name');
+            if (wpnDisplay) {
+                wpnDisplay.innerText = currentWeapon === 1 ? "SNIPER" : "RIFLE";
+            }
+            isManualFiring = false;
+            wasManualFiring = false;
+            playSound('step'); // Audio feedback sonoro na troca
         }
 
         function setupMobileControls() {
@@ -3056,15 +3183,47 @@
             jz.addEventListener('touchend', (e) => { for (let t of e.changedTouches) if (t.identifier === joyId) { joyId = null; document.getElementById('joystick-knob').style.transform = ''; moveInput.x = 0; moveInput.y = 0; } });
             document.getElementById('aim-zone').addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; aimId = t.identifier; lTX = t.clientX; lTY = t.clientY; });
             document.getElementById('aim-zone').addEventListener('touchmove', (e) => { for (let t of e.changedTouches) if (t.identifier === aimId) { yaw -= (t.clientX - lTX) * settings.sens * 2.2; pitch = Math.max(-1.5, Math.min(1.5, pitch - (t.clientY - lTY) * settings.sens * 2.2)); lTX = t.clientX; lTY = t.clientY; } });
-            const fb = document.getElementById('fire-btn'); fb.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.changedTouches[0]; fireId = t.identifier; fTX = t.clientX; fTY = t.clientY; isManualFiring = true; });
+            const fb = document.getElementById('fire-btn'); fb.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.changedTouches[0]; fireId = t.identifier; fTX = t.clientX; fTY = t.clientY; isManualFiring = true; isAiming = true; });
             fb.addEventListener('touchmove', (e) => { if (settings.isEditing) return; for (let t of e.changedTouches) if (t.identifier === fireId) { yaw -= (t.clientX - fTX) * settings.sens * 2.2; pitch = Math.max(-1.5, Math.min(1.5, pitch - (t.clientY - fTY) * settings.sens * 2.2)); fTX = t.clientX; fTY = t.clientY; } });
-            fb.addEventListener('touchend', () => isManualFiring = false);
+            fb.addEventListener('touchend', () => { isManualFiring = false; isAiming = false; });
             document.getElementById('aim-btn').addEventListener('touchstart', (e) => { e.preventDefault(); isAiming = !isAiming; });
             document.getElementById('jump-btn').addEventListener('touchstart', (e) => { e.preventDefault(); if (isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } });
             document.getElementById('cam-toggle-btn').addEventListener('touchstart', (e) => { e.preventDefault(); toggleCameraMode(); });
+            document.getElementById('swap-btn').addEventListener('touchstart', (e) => { e.preventDefault(); toggleWeapon(); });
         }
 
-        function setupHUDDrag() { ['fire-btn', 'jump-btn', 'aim-btn', 'joystick-zone', 'minimap-canvas', 'info-panel'].forEach(id => { const el = document.getElementById(id); if (el) { el.style.pointerEvents = 'auto'; el.addEventListener('touchmove', (e) => { if (!settings.isEditing) return; const t = e.touches[0]; el.style.left = (t.clientX - el.offsetWidth / 2) + 'px'; el.style.top = (t.clientY - el.offsetHeight / 2) + 'px'; el.style.bottom = 'auto'; el.style.right = 'auto'; }); } }); }
+        function setupHUDDrag() { 
+            const ids = ['fire-btn', 'jump-btn', 'aim-btn', 'swap-btn', 'grenade-btn', 'smoke-btn', 'joystick-zone', 'minimap-canvas', 'info-panel'];
+            try {
+                const saved = JSON.parse(localStorage.getItem('canaa_hud_pos'));
+                if (saved) {
+                    ids.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && saved[id] && saved[id].left) {
+                            el.style.left = saved[id].left;
+                            el.style.top = saved[id].top;
+                            el.style.bottom = saved[id].bottom;
+                            el.style.right = saved[id].right;
+                        }
+                    });
+                }
+            } catch(e) {}
+
+            ids.forEach(id => { 
+                const el = document.getElementById(id); 
+                if (el) { 
+                    el.style.pointerEvents = 'auto'; 
+                    el.addEventListener('touchmove', (e) => { 
+                        if (!settings.isEditing) return; 
+                        const t = e.touches[0]; 
+                        el.style.left = (t.clientX - el.offsetWidth / 2) + 'px'; 
+                        el.style.top = (t.clientY - el.offsetHeight / 2) + 'px'; 
+                        el.style.bottom = 'auto'; 
+                        el.style.right = 'auto'; 
+                    }); 
+                } 
+            }); 
+        }
 
         function toggleCameraMode() {
             isThirdPerson = !isThirdPerson;
@@ -3114,18 +3273,41 @@
 
 
         function processShooting() {
-            const now = performance.now(); if (!isManualFiring || now - lastShotTime < 140) return;
+            const now = performance.now(); 
+            
+            let shouldFire = false;
+            
+            if (currentWeapon === 1) {
+                // SNIPER (Dispara ao soltar)
+                let shotFiredThisFrame = false;
+                if (wasManualFiring && !isManualFiring) {
+                    shotFiredThisFrame = true;
+                }
+                if (shotFiredThisFrame && now - lastShotTime >= 1500) {
+                    shouldFire = true;
+                }
+            } else {
+                // RIFLE (Dispara continuamente enquanto premido)
+                if (isManualFiring && now - lastShotTime >= 140) {
+                    shouldFire = true;
+                }
+            }
+            
+            wasManualFiring = isManualFiring;
+
+            if (!shouldFire) return;
+            
             lastShotTime = now; playSound('shoot'); recoilAngle = 0.05; pitch = Math.min(1.4, pitch + 0.01);
 
             // --- ATUALIZAÇÃO SOLICITADA ---
             // Simular o tranco da arma (Movimento rápido para frente/trás) - AUMENTADO
-            gunRecoil = 0.6; // Impulso instantâneo mais forte
+            gunRecoil = currentWeapon === 1 ? 0.6 : 0.15; // Impulso instantâneo mais forte apenas na sniper
 
             // Apply kick zoom in both modes
-            fovKick = 2;
+            fovKick = currentWeapon === 1 ? 2 : 0.5;
 
             const f = gunGroup.getObjectByName("flash"); if (f) { f.visible = true; setTimeout(() => f.visible = false, 40); }
-            muzzleFlashLight.intensity = 3; setTimeout(() => muzzleFlashLight.intensity = 0, 50); spawnBullet();
+            muzzleFlashLight.intensity = 3; setTimeout(() => muzzleFlashLight.intensity = 0, 50); spawnBullet(null, null, false, currentWeapon);
         }
         function checkWall(x, z) {
             for (let r of ramps) {
@@ -3193,10 +3375,10 @@
         function handleRemoteShoot(data) {
             const pos = new THREE.Vector3(data.x, data.y, data.z);
             const dir = new THREE.Vector3(data.dir.x, data.dir.y, data.dir.z);
-            spawnBullet(pos, dir, true);
+            spawnBullet(pos, dir, true, 1);
         }
 
-        function spawnBullet(pos, dir, isRemote = false) {
+        function spawnBullet(pos, dir, isRemote = false, wpnType = 1) {
             const b = new THREE.Mesh(new THREE.SphereGeometry(0.1, 4, 4), new THREE.MeshBasicMaterial({ color: isRemote ? 0xff0000 : 0x00FF41 }));
             const p = pos ? pos.clone() : new THREE.Vector3();
             const d = dir ? dir.clone() : new THREE.Vector3();
@@ -3219,7 +3401,7 @@
 
             const backPos = p.clone().sub(d.clone().multiplyScalar(1.0));
             b.position.copy(p);
-            b.userData = { velocity: d.multiplyScalar(5.0), life: 300, lastPos: backPos, isRemote: isRemote };
+            b.userData = { velocity: d.multiplyScalar(5.0), life: 300, lastPos: backPos, isRemote: isRemote, weaponType: wpnType };
             scene.add(b);
             bullets.push(b);
         }
@@ -3251,10 +3433,11 @@
                         if (o.userData && o.userData.id) { if (remotePlayers[o.userData.id] && remotePlayers[o.userData.id].invincible) { hit = true; return; }
                             hit = true; triggerHitMarker();
                             const targetId = o.userData.id;
+                            const dmg = b.userData.weaponType === 1 ? 70 : 15;
                             runTransaction(ref(db, `${roomPath}/players/${targetId}/hp`), (hp) => {
                                 if (hp === null) return 100;
                                 if (hp > 0) {
-                                    let newHp = hp - 70;
+                                    let newHp = hp - dmg;
                                     return newHp <= 0 ? 0 : newHp;
                                 }
                                 return 0;
@@ -3297,7 +3480,8 @@
                         }
 
                         if (o && o.userData && o.userData.isEnemyRoot && !o.userData.dead) {
-                            o.userData.hp -= 25;
+                            const dmg = b.userData.weaponType === 1 ? 100 : 25;
+                            o.userData.hp -= dmg;
                             triggerHitMarker();
                             o.traverse(child => {
                                 if (child.isMesh && child.material && child.material.emissive) {
@@ -3547,7 +3731,7 @@
 
         function updateAimAssist() {
             // Assistência apenas se estiver jogando
-            if (!isPlaying) return;
+            if (!isPlaying || (isAiming && currentWeapon === 1)) return; // Desativa a assistência de mira apenas na sniper
             
             let targets = [];
             // Seleciona alvos baseado no modo
@@ -3738,8 +3922,8 @@
                 const ch = document.getElementById('crosshair');
                 // SCOPE VISIBILITY LOGIC
                 const scope = document.getElementById('sniper-scope');
-                if (isMultiplayerMode && !isCoopMode && isAiming) {
-                    // Show Scope in PVP Aiming
+                if (isAiming && currentWeapon === 1) { // Apenas mostra a mira da sniper se for a arma 1 (Sniper)
+                    // Show Scope
                     if (scope) scope.style.display = 'block';
                     if (ch) ch.style.display = 'none';
                 } else {
