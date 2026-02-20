@@ -205,7 +205,7 @@
         }
 
         .menu-season {
-            /* Posição relative ao flex container agora */
+            /* Posição relativa ao flex container agora */
             position: relative;
             top: auto;
             right: auto;
@@ -928,6 +928,7 @@
 
         let myUserId = null, myRef = null, remotePlayers = {}, isMultiplayerMode = false, isCoopMode = false, networkInterval = null;
         let lastActivityTime = Date.now(); // Monitoramento de inatividade
+        let serverTimeOffset = 0; // Sincronização de relógio Firebase
         let isThirdPerson = true, isAiming = false, isManualFiring = false, wasManualFiring = false, currentWeapon = 0, moveInput = { x: 0, y: 0 }, keyState = { w: false, a: false, s: false, d: false }, pitch = 0, yaw = 0, velocityY = 0, isGrounded = true, recoil = 0, gunRecoilZ = 0, lastShotTime = 0, lastStepTime = 0, minimapCanvas, minimapCtx;
 
         // --- RESTORED GLOBALS ---
@@ -1055,7 +1056,8 @@
                 btn.onclick = () => {
                     const selectedLevel = parseInt(document.getElementById("pvp-level-select").value);
                     currentLevel = selectedLevel; // Set local immediately
-                    update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, endTime: Date.now() + 240000 }); // Alteração para Sincronização do Timer no PVP
+                    const trueNow = Date.now() + serverTimeOffset;
+                    update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, endTime: trueNow + 240000 }); // Alteração para Sincronização do Timer no PVP
                     resetGame('multi');
                 };
             }
@@ -1064,6 +1066,12 @@
 
         async function connectLobby() {
             document.getElementById("connection-status").innerText = "Autenticando...";
+            
+            // Sincronizar o relógio do cliente com o servidor
+            onValue(ref(db, ".info/serverTimeOffset"), (snap) => {
+                serverTimeOffset = snap.val() || 0;
+            });
+
             try { await signInAnonymously(auth); } catch (error) { logSystem("Erro Login: " + error.message, "error"); document.getElementById("connection-status").innerText = "Erro Auth"; }
             const unsubAuth = onAuthStateChanged(auth, (user) => {
                 if (user) {
@@ -1089,8 +1097,13 @@
                     // Auto-Start Listener
                     onValue(ref(db, `${roomPath}/state`), (snapshot) => {
                         const state = snapshot.val();
+                        const trueNow = Date.now() + serverTimeOffset;
+                        
                         if (state && state.endTime) {
-                            pvpMatchEndTime = state.endTime; // Alteração para Sincronização do Timer
+                            // Se o endTime for no futuro (ou recente), aceita a sincronização. Evita ler o tempo de uma partida velha finalizada.
+                            if (state.endTime > trueNow - 10000) {
+                                pvpMatchEndTime = state.endTime; 
+                            }
                         }
                         if (state && state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
                             if (state.level) currentLevel = state.level;
@@ -1443,8 +1456,8 @@
             if (pvpTimerInterval) clearInterval(pvpTimerInterval);
             pvpTimerInterval = setInterval(() => {
                 if (!isPlaying || gamePaused || !pvpMatchEndTime) return;
-                const now = Date.now();
-                const timeLeft = Math.max(0, Math.floor((pvpMatchEndTime - now) / 1000));
+                const trueNow = Date.now() + serverTimeOffset;
+                const timeLeft = Math.max(0, Math.floor((pvpMatchEndTime - trueNow) / 1000));
                 pvpTimer = timeLeft; // Atualiza lógica para Timer Sincronizado
                 updateTimerUI();
                 if (pvpTimer <= 0) {
@@ -1813,10 +1826,12 @@
                 // 1. Aciona a tela cheia imediatamente, antes de alterar a UI (evita bloqueio do navegador)
                 const doc = document.documentElement;
                 if (!document.fullscreenElement) {
-                    if (doc.requestFullscreen) doc.requestFullscreen().catch(() => {});
-                    else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
-                    else if (doc.mozRequestFullScreen) doc.mozRequestFullScreen();
-                    else if (doc.msRequestFullscreen) doc.msRequestFullscreen();
+                    try {
+                        if (doc.requestFullscreen) doc.requestFullscreen().catch(() => {});
+                        else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+                        else if (doc.mozRequestFullScreen) doc.mozRequestFullScreen();
+                        else if (doc.msRequestFullscreen) doc.msRequestFullscreen();
+                    } catch(err) {}
                 }
 
                 // 2. Só depois altera as telas
@@ -1827,11 +1842,10 @@
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
                 playMenuMusic();
                 startOverlay.removeEventListener('click', unlockAndStart);
-                startOverlay.removeEventListener('touchstart', unlockAndStart);
             };
 
+            // FIX MOBILE: Apenas 'click' é considerado um gesto válido para Fullscreen. 'touchstart' foi removido pois causa bloqueio.
             startOverlay.addEventListener('click', unlockAndStart);
-            startOverlay.addEventListener('touchstart', unlockAndStart);
 
             window.addEventListener('resize', onResize); animate();
         }
@@ -2942,8 +2956,9 @@
                     const roomID = urlParams.get('room') || 'global';
                     roomPath = `rooms/pvp/${roomID}`;
                     
-                    // FIX: Reiniciar o tempo da partida para evitar o loop de Game Over instantâneo
-                    pvpMatchEndTime = Date.now() + 240000; 
+                    // FIX: Reiniciar o tempo da partida sincronizado com o servidor global
+                    const trueNow = Date.now() + serverTimeOffset;
+                    pvpMatchEndTime = trueNow + 240000; 
                     if (isMasterClient) {
                         update(ref(db, `${roomPath}/state`), { endTime: pvpMatchEndTime });
                     }
@@ -3348,8 +3363,25 @@
             document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
 
-            document.getElementById('mobile-fs-btn').onclick = () => { try { if (!document.fullscreenElement) { const p = document.documentElement.requestFullscreen(); if(p) p.catch(()=>{}); } else { const p = document.exitFullscreen(); if(p) p.catch(()=>{}); } } catch(e){} };
-            document.getElementById('fullscreen-btn').onclick = () => { try { if (!document.fullscreenElement) { const p = document.documentElement.requestFullscreen(); if(p) p.catch(()=>{}); } else { const p = document.exitFullscreen(); if(p) p.catch(()=>{}); } } catch(e){} };
+            // FIX: Removed buggy exitFullscreen causing permissions error
+            document.getElementById('mobile-fs-btn').onclick = () => { 
+                try { 
+                    if (!document.fullscreenElement) { 
+                        const doc = document.documentElement;
+                        if (doc.requestFullscreen) doc.requestFullscreen().catch(()=>{});
+                        else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+                    } 
+                } catch(e){} 
+            };
+            document.getElementById('fullscreen-btn').onclick = () => { 
+                 try { 
+                    if (!document.fullscreenElement) { 
+                        const doc = document.documentElement;
+                        if (doc.requestFullscreen) doc.requestFullscreen().catch(()=>{});
+                        else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+                    } 
+                } catch(e){} 
+            };
             
             // CORREÇÃO: Botão agora alterna a visibilidade da interface móvel imediatamente
             document.getElementById('mode-switch-btn').onclick = () => { 
