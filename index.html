@@ -1813,17 +1813,7 @@
                 startOverlay.style.display = 'none';
                 document.getElementById('main-menu').style.display = 'block';
                 
-                // Suporte Multi-Navegador para Tela Cheia e sem preventDefault para não bloquear o gesto
-                const doc = document.documentElement;
-                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                    if (doc.requestFullscreen) {
-                        doc.requestFullscreen().catch(() => { });
-                    } else if (doc.webkitRequestFullscreen) {
-                        doc.webkitRequestFullscreen(); // Safari/iOS
-                    } else if (doc.msRequestFullscreen) {
-                        doc.msRequestFullscreen(); // Edge Antigo
-                    }
-                }
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
                 
                 if (!audioCtx) initAudio();
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
