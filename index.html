@@ -669,7 +669,7 @@
         <div id="fullscreen-btn" class="icon-btn">⛶</div>
     </div>
     <button id="save-hud-btn"
-        style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 300; padding: 15px 40px; background: var(--canaa-gold); border: none; border-radius: 5px; font-weight: bold; display: none; font-family: 'Orbitron'; cursor: pointer;">SAVE
+        style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 99999; padding: 10px 30px; background: var(--canaa-gold); border: none; border-radius: 5px; font-weight: bold; display: none; font-family: 'Orbitron'; font-size: 14px; cursor: pointer; pointer-events: auto !important; color: black;">SAVE
         POSITIONS</button>
 
     <div id="rotate-overlay">
@@ -742,13 +742,13 @@
         <div class="menu-content" id="settings-view" style="display: none;">
             <h2>SYSTEM</h2>
             <div class="setting-row"><label>VOLUME</label><input type="range" id="vol-slider" min="0" max="100"
-                    value="50"></div>
+                    value="50" style="width: 100%; height: 3px;"></div>
             <div class="setting-row"><label>FOV</label><input type="range" id="fov-slider" min="50" max="110"
-                    value="70"></div>
+                    value="70" style="width: 100%; height: 3px;"></div>
             <div class="setting-row"><label>SENSITIVITY</label><input type="range" id="sens-slider" min="1" max="100"
-                    value="50"></div>
+                    value="50" style="width: 100%; height: 3px;"></div>
             <div class="setting-row"><label>GRAPHICS</label>
-                <select id="graphics-select" style="background: #000; color: var(--canaa-green); border: 1px solid var(--canaa-green); font-family: 'Rajdhani'; padding: 5px;">
+                <select id="graphics-select" style="background: #000; color: var(--canaa-green); border: 1px solid var(--canaa-green); font-family: 'Rajdhani'; padding: 0 5px; width: 100%; box-sizing: border-box; font-size: 12px; height: 25px;">
                     <option value="high">HIGH</option>
                     <option value="low" selected>LOW</option>
                 </select>
@@ -2986,13 +2986,22 @@
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important');
                 document.getElementById('settings-view').style.display = 'block';
             };
+            document.getElementById('back-btn').onclick = () => {
+                if (isPlaying) {
+                    resumeGame();
+                } else {
+                    document.getElementById('settings-view').style.display = 'none';
+                    document.getElementById('start-view').style.display = 'flex';
+                }
+            };
             
-            // --- CORREÇÃO DO HUD EDITÁVEL ---
+            // --- CORREÇÃO DO HUD EDITÁVEL E DO BOTÃO SALVAR ---
             document.getElementById('edit-hud-btn').onclick = () => {
                 settings.isEditing = true;
                 document.getElementById('settings-view').style.display = 'none';
                 document.getElementById('main-menu').style.display = 'none';
                 document.getElementById('hud').style.display = 'block';
+                document.getElementById('crosshair').style.display = 'block'; 
                 document.getElementById('mobile-ui').style.display = 'block';
                 document.getElementById('save-hud-btn').style.display = 'block';
             };
@@ -3000,10 +3009,11 @@
             document.getElementById('save-hud-btn').onclick = () => {
                 settings.isEditing = false;
                 document.getElementById('save-hud-btn').style.display = 'none';
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('crosshair').style.display = 'none';
+                document.getElementById('mobile-ui').style.display = 'none';
                 document.getElementById('main-menu').style.display = 'block';
                 document.getElementById('settings-view').style.display = 'block';
-                document.getElementById('hud').style.display = 'none';
-                document.getElementById('mobile-ui').style.display = 'none';
                 
                 // Salvar as posições
                 const els = ['fire-btn', 'jump-btn', 'aim-btn', 'swap-btn', 'grenade-btn', 'smoke-btn', 'joystick-zone', 'minimap-canvas', 'info-panel'];
@@ -3075,34 +3085,9 @@
             };
             document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
-            document.getElementById('settings-btn').onclick = () => {
-                document.getElementById('start-view').style.setProperty('display', 'none', 'important');
-                document.getElementById('settings-view').style.display = 'block';
-            };
-            
-            // --- CORREÇÃO: ATIVAÇÃO DO EDITOR DE HUD ---
-            document.getElementById('edit-hud-btn').onclick = () => {
-                settings.isEditing = true;
-                document.getElementById('settings-view').style.display = 'none';
-                document.getElementById('main-menu').style.display = 'none';
-                document.getElementById('hud').style.display = 'block';
-                document.getElementById('crosshair').style.display = 'block';
-                if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
-                document.getElementById('save-hud-btn').style.display = 'block';
-            };
-
-            document.getElementById('save-hud-btn').onclick = () => {
-                settings.isEditing = false;
-                document.getElementById('save-hud-btn').style.display = 'none';
-                document.getElementById('hud').style.display = 'none';
-                document.getElementById('crosshair').style.display = 'none';
-                document.getElementById('mobile-ui').style.display = 'none';
-                document.getElementById('main-menu').style.display = 'block';
-                document.getElementById('settings-view').style.display = 'block';
-            };
-            // --- FIM DA CORREÇÃO ---
 
             document.getElementById('mobile-fs-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+            document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
             
             // CORREÇÃO: Botão agora alterna a visibilidade da interface móvel imediatamente
             document.getElementById('mode-switch-btn').onclick = () => { 
@@ -3118,7 +3103,13 @@
             document.getElementById('smoke-btn').addEventListener('touchstart', (e) => { e.preventDefault(); throwGrenade('smoke'); });
 
 
-            document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === document.body && isPlaying) { yaw -= e.movementX * settings.sens; pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * settings.sens)); } });
+            document.addEventListener('mousemove', (e) => { 
+                // CORREÇÃO: Permitir mexer o mouse livremente se estiver editando as configurações
+                if (document.pointerLockElement === document.body && isPlaying && !gamePaused && !settings.isEditing) { 
+                    yaw -= e.movementX * settings.sens; 
+                    pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * settings.sens)); 
+                } 
+            });
             
             document.addEventListener('keydown', (e) => {
                 const k = e.code;
@@ -3160,7 +3151,18 @@
                 if (k === 'KeyF') throwGrenade('smoke');
             });
             document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
-            document.addEventListener('mousedown', (e) => { if (isPlaying) { if (isPC && document.pointerLockElement !== document.body) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} } if (e.button === 0) { isManualFiring = true; isAiming = true; } if (e.button === 2) isAiming = true; } });
+            
+            // CORREÇÃO: Evitar que o clique trave o mouse no jogo durante a edição ou pausa
+            document.addEventListener('mousedown', (e) => { 
+                if (isPlaying && !gamePaused && !settings.isEditing) { 
+                    if (isPC && document.pointerLockElement !== document.body) { 
+                        try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} 
+                    } 
+                    if (e.button === 0) { isManualFiring = true; isAiming = true; } 
+                    if (e.button === 2) isAiming = true; 
+                } 
+            });
+
             document.addEventListener('mouseup', () => { isManualFiring = false; isAiming = false; });
             setupMobileControls();
         }
@@ -4080,7 +4082,6 @@
                 const rgt = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 const mx = (fwd.x * -moveInput.y + rgt.x * moveInput.x) * speed;
                 const mz = (fwd.z * -moveInput.y + rgt.z * moveInput.x) * speed;
-
                 if ((moveInput.x !== 0 || moveInput.y !== 0) && isGrounded && performance.now() - lastStepTime > 350) { 
                     playSound('step'); lastStepTime = performance.now(); 
                 }
