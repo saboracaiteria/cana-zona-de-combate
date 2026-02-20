@@ -1038,8 +1038,7 @@
             hasResetLobbyState = false; // Reset the flag so we can reset game state once connected
 
             // Lógica de Sala Fixa para garantir que todos entrem na mesma partida
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomID = urlParams.get('room') || 'global';
+            const roomID = 'global'; // FIX: Forçando sala global para todos se encontrarem sempre
 
             if (mode === 'coop') {
                 roomPath = `rooms/coop/${roomID}`; isCoopMode = true;
@@ -1124,7 +1123,7 @@
             if (!data) { listEl.innerHTML = '<div style="padding:10px; text-align:center">Nenhum operador nesta sala.</div>'; return; }
             
             // Filter active players first
-            const now = Date.now();
+            const now = Date.now() + serverTimeOffset; // FIX: Tempo sincronizado com Firebase para evitar jogadores invisíveis
             const activeIds = Object.keys(data).filter(key => {
                 const p = data[key];
                 return p.lastUpdate && (now - p.lastUpdate < 60000); // 60s timeout to prevent disappearance (AUTO LIMPEZA FALLBACK LOBBY)
@@ -1244,7 +1243,7 @@
             if (unsubGamePlayers) unsubGamePlayers();
             unsubGamePlayers = onValue(ref(db, roomPath + '/players'), (s) => {
                 const d = s.val(); if (!d) return;
-                const now = Date.now(), active = new Set(); let c = 0;
+                const now = Date.now() + serverTimeOffset, active = new Set(); let c = 0; // FIX: Tempo sincronizado com Firebase
                 const allIds = Object.keys(d).sort();
                 const newMasterStatus = (allIds[0] === myUserId);
                 if (isCoopMode && newMasterStatus !== isMasterClient) {
@@ -2951,9 +2950,8 @@
                 if (armorEl) armorEl.innerText = 0; // UI Reset
 
                 if (mode === 'multi') { 
-                    // Manter o roomPath da sala específica
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const roomID = urlParams.get('room') || 'global';
+                    // Manter o roomPath da sala fixa global
+                    const roomID = 'global';
                     roomPath = `rooms/pvp/${roomID}`;
                     
                     // FIX: Reiniciar o tempo da partida sincronizado com o servidor global
@@ -2965,8 +2963,7 @@
                     startPVPTimer();
                 }
                 if (mode === 'coop') {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const roomID = urlParams.get('room') || 'global';
+                    const roomID = 'global';
                     roomPath = `rooms/coop/${roomID}`;
                     // No coop, o nível é progressivo, mas começa em 1 se for reset total
                     if (currentLevel === 0) currentLevel = 1;
