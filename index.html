@@ -3266,13 +3266,19 @@
             };
 
             // GRENADE BUTTONS
-            document.getElementById('grenade-btn').addEventListener('touchstart', (e) => { e.preventDefault(); if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'explosive'; grenadeChargeStartTime = performance.now(); } });
-            document.getElementById('grenade-btn').addEventListener('touchend', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow(); });
-            document.getElementById('grenade-btn').addEventListener('touchcancel', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow(); });
+            let grenadeId = null, gTX = 0, gTY = 0;
 
-            document.getElementById('smoke-btn').addEventListener('touchstart', (e) => { e.preventDefault(); if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'smoke'; grenadeChargeStartTime = performance.now(); } });
-            document.getElementById('smoke-btn').addEventListener('touchend', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow(); });
-            document.getElementById('smoke-btn').addEventListener('touchcancel', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow(); });
+            const gBtn = document.getElementById('grenade-btn');
+            gBtn.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.changedTouches[0]; grenadeId = t.identifier; gTX = t.clientX; gTY = t.clientY; if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'explosive'; grenadeChargeStartTime = performance.now(); } });
+            gBtn.addEventListener('touchmove', (e) => { if (settings.isEditing) return; for (let t of e.changedTouches) if (t.identifier === grenadeId) { yaw -= (t.clientX - gTX) * settings.sens * 2.2; pitch = Math.max(-1.5, Math.min(1.5, pitch - (t.clientY - gTY) * settings.sens * 2.2)); gTX = t.clientX; gTY = t.clientY; } });
+            gBtn.addEventListener('touchend', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow(); grenadeId = null; });
+            gBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow(); grenadeId = null; });
+
+            const sBtn = document.getElementById('smoke-btn');
+            sBtn.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.changedTouches[0]; grenadeId = t.identifier; gTX = t.clientX; gTY = t.clientY; if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'smoke'; grenadeChargeStartTime = performance.now(); } });
+            sBtn.addEventListener('touchmove', (e) => { if (settings.isEditing) return; for (let t of e.changedTouches) if (t.identifier === grenadeId) { yaw -= (t.clientX - gTX) * settings.sens * 2.2; pitch = Math.max(-1.5, Math.min(1.5, pitch - (t.clientY - gTY) * settings.sens * 2.2)); gTX = t.clientX; gTY = t.clientY; } });
+            sBtn.addEventListener('touchend', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow(); grenadeId = null; });
+            sBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow(); grenadeId = null; });
 
 
             document.addEventListener('mousemove', (e) => { 
