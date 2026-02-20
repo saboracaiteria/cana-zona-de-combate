@@ -1383,10 +1383,26 @@
                 rx = Math.floor(Math.random() * (max - min) + min); 
                 rz = Math.floor(Math.random() * (max - min) + min);
                 
-                if (mazeMap[rz][rx] === 1) continue;
+                const px = rx * 5;
+                const pz = rz * 5;
+
+                // NOVO FIX: Verificar fisicamente todas as paredes do mapa para nunca nascer preso dentro delas
+                let insideWall = false;
+                for (let w of walls) {
+                    let wdx = 2.8, wdz = 2.8;
+                    if (w.geometry && w.geometry.parameters) {
+                        wdx = (w.geometry.parameters.width / 2) + 1.2; // Margem de segurança generosa para caber o player
+                        wdz = (w.geometry.parameters.depth / 2) + 1.2;
+                    }
+                    if (Math.abs(px - w.position.x) < wdx && Math.abs(pz - w.position.z) < wdz) {
+                        insideWall = true;
+                        break;
+                    }
+                }
+                
+                if (insideWall) continue; // Se a coordenada cair dentro de uma parede, tenta rolar outra
                 
                 if (isPVP) {
-                    const px = rx * 5, pz = rz * 5;
                     // Avoid spawning inside the new central fortress
                     if (Math.abs(px - 50) < 15 && Math.abs(pz - 50) < 15) continue;
                     // Avoid spawning near main ramps
@@ -1396,7 +1412,7 @@
                 
                 let tooClose = false;
                 Object.values(remotePlayers).forEach(rp => {
-                    if (rp.mesh.position.distanceTo(new THREE.Vector3(rx * 5, 0, rz * 5)) < 15) tooClose = true;
+                    if (rp.mesh.position.distanceTo(new THREE.Vector3(px, 0, pz)) < 15) tooClose = true;
                 });
                 if (tooClose && attempts < 150) continue;
                 
