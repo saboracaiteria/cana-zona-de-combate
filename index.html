@@ -1810,10 +1810,18 @@
             startOverlay.style.display = 'flex';
 
             const unlockAndStart = (e) => {
+                // 1. Aciona a tela cheia imediatamente, antes de alterar a UI (evita bloqueio do navegador)
+                const doc = document.documentElement;
+                if (!document.fullscreenElement) {
+                    if (doc.requestFullscreen) doc.requestFullscreen().catch(() => {});
+                    else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+                    else if (doc.mozRequestFullScreen) doc.mozRequestFullScreen();
+                    else if (doc.msRequestFullscreen) doc.msRequestFullscreen();
+                }
+
+                // 2. Só depois altera as telas
                 startOverlay.style.display = 'none';
                 document.getElementById('main-menu').style.display = 'block';
-                
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
                 
                 if (!audioCtx) initAudio();
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
