@@ -1810,10 +1810,21 @@
             startOverlay.style.display = 'flex';
 
             const unlockAndStart = (e) => {
-                if (e) e.preventDefault();
                 startOverlay.style.display = 'none';
                 document.getElementById('main-menu').style.display = 'block';
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
+                
+                // Suporte Multi-Navegador para Tela Cheia e sem preventDefault para não bloquear o gesto
+                const doc = document.documentElement;
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (doc.requestFullscreen) {
+                        doc.requestFullscreen().catch(() => { });
+                    } else if (doc.webkitRequestFullscreen) {
+                        doc.webkitRequestFullscreen(); // Safari/iOS
+                    } else if (doc.msRequestFullscreen) {
+                        doc.msRequestFullscreen(); // Edge Antigo
+                    }
+                }
+                
                 if (!audioCtx) initAudio();
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
                 playMenuMusic();
