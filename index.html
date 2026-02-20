@@ -205,7 +205,7 @@
         }
 
         .menu-season {
-            /* Posição relativa ao flex container agora */
+            /* Posição relative ao flex container agora */
             position: relative;
             top: auto;
             right: auto;
@@ -762,7 +762,7 @@
     <div id="main-menu">
         <div class="menu-header">
             <div class="menu-brand">COMBAT <span>ZONE</span></div>
-            <div class="menu-season">SEASON CANAA RELOADED</div>
+            <div class="menu-season">SEASON CANAA RELOAD</div>
         </div>
 
         <!-- Sidebar for Buttons (Right Side Cards) -->
@@ -2936,11 +2936,18 @@
                 const armorEl = document.getElementById('armor');
                 if (armorEl) armorEl.innerText = 0; // UI Reset
 
-                if (mode === 'multi') { startPVPTimer();
+                if (mode === 'multi') { 
                     // Manter o roomPath da sala específica
                     const urlParams = new URLSearchParams(window.location.search);
                     const roomID = urlParams.get('room') || 'global';
                     roomPath = `rooms/pvp/${roomID}`;
+                    
+                    // FIX: Reiniciar o tempo da partida para evitar o loop de Game Over instantâneo
+                    pvpMatchEndTime = Date.now() + 240000; 
+                    if (isMasterClient) {
+                        update(ref(db, `${roomPath}/state`), { endTime: pvpMatchEndTime });
+                    }
+                    startPVPTimer();
                 }
                 if (mode === 'coop') {
                     const urlParams = new URLSearchParams(window.location.search);
@@ -3025,8 +3032,8 @@
                     ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000);
                 }
 
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
-                if (isPC) setTimeout(() => { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch (e) { } }, 50);
+                // REMOVIDO a lógica automática de fullscreen que estava causando bloqueio no mobile
+                if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
                 initAudio();
             } catch (e) {
@@ -3335,14 +3342,14 @@
                 spawnHealthKits(6);
                 spawnArmorVests();
                 isPlaying = true;
-                if (isPC) document.body.requestPointerLock();
+                if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
             document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
 
-            document.getElementById('mobile-fs-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
-            document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+            document.getElementById('mobile-fs-btn').onclick = () => { try { if (!document.fullscreenElement) { const p = document.documentElement.requestFullscreen(); if(p) p.catch(()=>{}); } else { const p = document.exitFullscreen(); if(p) p.catch(()=>{}); } } catch(e){} };
+            document.getElementById('fullscreen-btn').onclick = () => { try { if (!document.fullscreenElement) { const p = document.documentElement.requestFullscreen(); if(p) p.catch(()=>{}); } else { const p = document.exitFullscreen(); if(p) p.catch(()=>{}); } } catch(e){} };
             
             // CORREÇÃO: Botão agora alterna a visibilidade da interface móvel imediatamente
             document.getElementById('mode-switch-btn').onclick = () => { 
