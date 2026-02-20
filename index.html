@@ -863,6 +863,7 @@
         const bulletRaycaster = new THREE.Raycaster(), aimRaycaster = new THREE.Raycaster(), occlusionRaycaster = new THREE.Raycaster();
         let playerGroup, playerMesh, gunGroup, playerArm, enemies = [], walls = [], bullets = [], healthKits = [], currentFloor = null, ramps = [];
         let score = 0, playerHP = 100, playerLives = 5, isPlaying = false, isPC = true, gamePaused = false, currentLevel = 1, maxLevels = 10, trackedHtmlObjects = [];
+        let pvpMatchEndTime = 0; // Alteração implementada para sincronização do Timer
         let pvpTimer = 0, pvpTimerInterval = null, isInvincible = false;
         let invincibilityTimeout = null; // Variable to manage invincibility timer
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
@@ -981,7 +982,7 @@
                 btn.onclick = () => {
                     const selectedLevel = parseInt(document.getElementById("pvp-level-select").value);
                     currentLevel = selectedLevel; // Set local immediately
-                    update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel });
+                    update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, endTime: Date.now() + 240000 }); // Alteração para Sincronização do Timer no PVP
                     resetGame('multi');
                 };
             }
@@ -1015,6 +1016,9 @@
                     // Auto-Start Listener
                     onValue(ref(db, `${roomPath}/state`), (snapshot) => {
                         const state = snapshot.val();
+                        if (state && state.endTime) {
+                            pvpMatchEndTime = state.endTime; // Alteração para Sincronização do Timer
+                        }
                         if (state && state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
                             if (state.level) currentLevel = state.level;
                             // Pequeno delay para garantir que o nível foi sincronizado
@@ -1364,11 +1368,11 @@
         
         function startPVPTimer() {
             if (pvpTimerInterval) clearInterval(pvpTimerInterval);
-            pvpTimer = 240; // 4 minutos
-            updateTimerUI();
             pvpTimerInterval = setInterval(() => {
-                if (!isPlaying || gamePaused) return;
-                pvpTimer--;
+                if (!isPlaying || gamePaused || !pvpMatchEndTime) return;
+                const now = Date.now();
+                const timeLeft = Math.max(0, Math.floor((pvpMatchEndTime - now) / 1000));
+                pvpTimer = timeLeft; // Atualiza lógica para Timer Sincronizado
                 updateTimerUI();
                 if (pvpTimer <= 0) {
                     clearInterval(pvpTimerInterval);
@@ -1396,15 +1400,17 @@
                     maxKills = pKills;
                     winnerId = id;
                     isDraw = false;
-                } else if (pKills === maxKills && maxKills > 0) {
-                    isDraw = true;
+                } else if (pKills === maxKills) {
+                    isDraw = true; // Alteração para Placar de Vitória restrito
                 }
             });
 
             if (isDraw) {
                 endPVPMatch(false, "EMPATE!");
-            } else if (winnerId === myUserId) {
-                endPVPMatch(true, "VITÓRIA PVP!");
+            } else if (winnerId === myUserId && maxKills > 0) {
+                endPVPMatch(true, "VITÓRIA PVP!"); // Vitória apenas se tiver mais kills absolutas e for > 0
+            } else if (winnerId === myUserId && maxKills === 0) {
+                endPVPMatch(false, "EMPATE! (0 KILLS)");
             } else {
                 endPVPMatch(false, "DERROTA PVP!");
             }
@@ -2072,7 +2078,7 @@
             rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); rightArm.position.y = -0.15; rElbow.add(rightArm);
 
             const lArmPivot = new THREE.Object3D(); lArmPivot.name = "lArmPivot"; lArmPivot.position.set(-0.32, 0.1, 0); peitoPivot.add(lArmPivot);
-            const mLBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5), matSkin); mLBiceps.position.y = -0.15; lArmPivot.add(mLBiceps);
+            const mLBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.5), matSkin); mLBiceps.position.y = -0.22; lArmPivot.add(mLBiceps);
             const lElbow = new THREE.Object3D(); lElbow.position.y = -0.25; mLBiceps.add(lElbow);
             leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); leftArm.position.y = -0.15; lElbow.add(leftArm);
 
@@ -2653,6 +2659,14 @@
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
                 document.getElementById('lobby-screen').style.display = 'none';
 
+                isMultiplayerMode = (mode === 'multi' || mode === 'coop'); isCoopMode = (mode === 'coop');
+
+                // LÓGICA DE OCULTAR MINIMAPA NO PVP
+                const minimapCanvasEl = document.getElementById('minimap-canvas');
+                if (minimapCanvasEl) {
+                    minimapCanvasEl.style.display = (isMultiplayerMode && !isCoopMode) ? 'none' : 'block';
+                }
+
                 // IMPORTANTE: Não limpar tudo se já estivermos no lobby
                 if (mode === 'single') await cleanupMultiplayer();
 
@@ -2669,7 +2683,6 @@
                 if (wpnDisplay) wpnDisplay.innerText = "SNIPER";
 
                 playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
-                isMultiplayerMode = (mode === 'multi' || mode === 'coop'); isCoopMode = (mode === 'coop');
                 
                 const livesDisp = document.getElementById('lives-display');
                 if (livesDisp) livesDisp.style.display = (isCoopMode || !isMultiplayerMode) ? 'inline' : 'none';
@@ -2954,7 +2967,7 @@
                     }
                 };
             }
-            document.getElementById('lobby-back-btn').onclick = () => {  document.getElementById('lobby-screen').style.display = 'none'; document.getElementById('start-view').style.display = 'block'; };
+            document.getElementById('lobby-back-btn').onclick = () => {  document.getElementById('lobby-screen').style.display = 'none'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; };
             document.getElementById('pause-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (!isPlaying) return;
@@ -2991,6 +3004,7 @@
                     resumeGame();
                 } else {
                     document.getElementById('settings-view').style.display = 'none';
+                    document.getElementById('start-view').style.removeProperty('display');
                     document.getElementById('start-view').style.display = 'flex';
                 }
             };
@@ -3033,6 +3047,7 @@
                 document.getElementById('crosshair').style.display = 'none'; 
                 
                 document.getElementById('main-menu').style.display = 'block'; 
+                document.getElementById('start-view').style.removeProperty('display');
                 document.getElementById('start-view').style.display = 'flex'; 
                 document.getElementById('main-menu').classList.remove('paused-mode'); 
                 
@@ -3083,8 +3098,8 @@
                 if (isPC) document.body.requestPointerLock();
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
-            document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
-            document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
+            document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
+            document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
 
             document.getElementById('mobile-fs-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
             document.getElementById('fullscreen-btn').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
@@ -3689,6 +3704,7 @@
 
         function setupMinimap() { minimapCanvas = document.createElement('canvas'); minimapCanvas.id = 'minimap-canvas'; minimapCanvas.width = 100; minimapCanvas.height = 100; minimapCanvas.className = 'minimap-container'; minimapCanvas.style.cssText = "position:absolute; top:20px; left:130px; background:rgba(0,0,0,0.8); pointer-events:auto; z-index:102; border:1px solid var(--canaa-green);"; document.body.appendChild(minimapCanvas); minimapCtx = minimapCanvas.getContext('2d', { willReadFrequently: true }); }
         function drawMinimap() {
+            if (isMultiplayerMode && !isCoopMode) return; // Não processa o minimapa no PVP
             minimapCtx.clearRect(0, 0, 100, 100); const s = 100 / (mazeSize * cellSize); minimapCtx.fillStyle = '#111'; minimapCtx.fillRect(0, 0, 100, 100); minimapCtx.fillStyle = '#555';
             for (let i = 0; i < mazeSize; i++) for (let j = 0; j < mazeSize; j++) if (mazeMap[i][j] === 1) minimapCtx.fillRect(j * cellSize * s, i * cellSize * s, cellSize * s, cellSize * s);
             
@@ -3730,90 +3746,6 @@
         }
 
         function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
-
-        function updateAimAssist() {
-            // Assistência apenas se estiver jogando
-            if (!isPlaying || (isAiming && currentWeapon === 1)) return; // Desativa a assistência de mira apenas na sniper
-            
-            let targets = [];
-            // Seleciona alvos baseado no modo
-            if (isMultiplayerMode && !isCoopMode) {
-                // PVP: Alvos são remotePlayers
-                targets = Object.values(remotePlayers).map(rp => rp.mesh);
-            } else {
-                // Single/Coop: Alvos são enemies
-                targets = enemies;
-            }
-            
-            if (targets.length === 0) return;
-
-            const camPos = camera.position;
-            const camDir = new THREE.Vector3();
-            camera.getWorldDirection(camDir);
-
-            let bestTarget = null;
-            let maxDot = 0;
-            // Angulo de detecção (FOV do assist)
-            // 0.95 equivale a cerca de 18 graus de cone
-            const threshold = isAiming ? 0.98 : 0.96; 
-
-            targets.forEach(t => {
-                if (!t || t.userData.dead) return;
-                
-                // Usar posição ajustada (centro do corpo/cabeça)
-                const tPos = t.position.clone();
-                tPos.y += 1.8; // Raised from 1.6 (User request: "suba mais")
-
-                // Shift target slightly to the right relative to camera (User request: "puxe mais para a direita")
-                const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                tPos.add(camRight.multiplyScalar(0.15)); // 15cm to the right
-
-                const dist = camPos.distanceTo(tPos);
-                if (dist > 60) return; // Muito longe
-
-                const dirToT = tPos.clone().sub(camPos).normalize();
-                const dot = camDir.dot(dirToT);
-
-                if (dot > threshold && dot > maxDot) {
-                    // Verificar paredes (Raycast simples)
-                    aimRaycaster.set(camPos, dirToT);
-                    aimRaycaster.far = dist;
-                    const intersects = aimRaycaster.intersectObjects(walls);
-                    if (intersects.length === 0) {
-                        maxDot = dot;
-                        bestTarget = tPos;
-                    }
-                }
-            });
-
-            if (bestTarget) {
-                // Calcular Yaw/Pitch desejados
-                const diff = bestTarget.clone().sub(camPos).normalize();
-                
-                // Yaw alvo (atan2 de x, -z para coordenada do jogo onde fwd é -Z)
-                const targetYaw = Math.atan2(diff.x, diff.z) + Math.PI; // Inverter Z
-                // Pitch alvo (asin de y)
-                const targetPitch = Math.asin(diff.y);
-
-                // Força da assistência (suave)
-                const strength = isAiming ? 0.08 : 0.03;
-
-                // Suavizar Yaw (lidar com a volta de 360 graus)
-                let dYaw = targetYaw - yaw;
-                while (dYaw > Math.PI) dYaw -= Math.PI * 2;
-                while (dYaw < -Math.PI) dYaw += Math.PI * 2;
-                
-                // Suavizar Pitch
-                const dPitch = targetPitch - pitch;
-
-                // Aplicar
-                yaw += dYaw * strength;
-                pitch += dPitch * strength;
-                
-                // Clamp pitch para evitar cambalhota
-                pitch = Math.max(-1.5, Math.min(1.5, pitch));
-            }
-        }
 
         function animate() {
             if (isPlaying && !gamePaused) {
@@ -4074,7 +4006,6 @@
                     camera.position.copy(playerGroup.position).add(headOffset);
                     camera.rotation.set(pitch + recoilAngle * 0.5, yaw, 0);
                 }
-                updateAimAssist();
                 
                 // --- RESTORED GAMEPLAY LOGIC (MOVEMENT & SHOOTING) ---
                 const speed = 0.18;
