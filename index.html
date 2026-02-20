@@ -70,6 +70,71 @@
             #rotate-overlay { display: flex; }
         }
 
+        #start-screen-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 999999; /* Acima de tudo */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            gap: 50px;
+        }
+
+        .start-title-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .start-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: clamp(50px, 10vw, 90px);
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            text-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+            font-style: italic;
+            line-height: 0.9;
+            text-align: center;
+        }
+        
+        .start-brand span { 
+            color: var(--canaa-gold); 
+        }
+
+        .start-season {
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--canaa-gold);
+            font-size: clamp(14px, 4vw, 24px);
+            font-weight: bold;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .press-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(30px, 6vw, 60px);
+            font-weight: 900;
+            color: var(--canaa-gold);
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            animation: pulseText 0.8s infinite alternate ease-in-out;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5);
+            text-align: center;
+            padding: 20px;
+        }
+
+        @keyframes pulseText {
+            0% { transform: scale(1); opacity: 0.8; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+            100% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 30px rgba(255, 215, 0, 1), 0 0 60px rgba(255, 215, 0, 0.8); }
+        }
+
         #html-layer {
             position: absolute;
             top: 0;
@@ -600,6 +665,13 @@
 </head>
 
 <body>
+    <div id="start-screen-overlay">
+        <div class="start-title-container">
+            <div class="start-brand">COMBAT <span>ZONE</span></div>
+            <div class="start-season">SEASON CANAA RELOAD</div>
+        </div>
+        <div class="press-text">INICIAR</div>
+    </div>
     <svg width="0" height="0" style="position:absolute; pointer-events: none;">
         <defs>
             <linearGradient id="metalGold" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1002,7 +1074,7 @@
 
                     // Registrar presença no lobby
                     const lobbyRef = ref(db, `${roomPath}/players/${myUserId}`);
-                    onDisconnect(lobbyRef).remove();
+                    onDisconnect(lobbyRef).remove(); // AUTO LIMPEZA LOBBY
                     set(lobbyRef, { id: myUserId, lastUpdate: serverTimestamp(), status: 'lobby' });
 
                     // Heartbeat do lobby
@@ -1042,7 +1114,7 @@
             const now = Date.now();
             const activeIds = Object.keys(data).filter(key => {
                 const p = data[key];
-                return p.lastUpdate && (now - p.lastUpdate < 60000); // 60s timeout to prevent disappearance
+                return p.lastUpdate && (now - p.lastUpdate < 60000); // 60s timeout to prevent disappearance (AUTO LIMPEZA FALLBACK LOBBY)
             }).sort();
 
             // Determine master based on ACTIVE players
@@ -1104,7 +1176,7 @@
 
         function setupPresence() {
             myRef = ref(db, `${roomPath}/players/${myUserId}`);
-            onDisconnect(myRef).remove();
+            onDisconnect(myRef).remove(); // AUTO LIMPEZA JOGO
             set(myRef, { id: myUserId, x: 5, y: 0, z: 5, rot: 0, hp: 100, kills: 0, deaths: 0, lastUpdate: serverTimestamp() });
 
             if (unsubMyPresence) unsubMyPresence();
@@ -1730,20 +1802,26 @@
             // Moved createWorld etc to loader callback
 
             // Força reset de telas no início
-            document.getElementById('main-menu').style.display = 'block';
+            document.getElementById('main-menu').style.display = 'none';
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-over-screen').style.display = 'none';
 
-            playMenuMusic();
+            const startOverlay = document.getElementById('start-screen-overlay');
+            startOverlay.style.display = 'flex';
 
-            const unlockAudio = () => {
+            const unlockAndStart = (e) => {
+                if (e) e.preventDefault();
+                startOverlay.style.display = 'none';
+                document.getElementById('main-menu').style.display = 'block';
+                if (!audioCtx) initAudio();
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-                if (bgmPlayer && bgmPlayer.paused) bgmPlayer.play().catch(() => { });
-                document.removeEventListener('click', unlockAudio);
-                document.removeEventListener('touchstart', unlockAudio);
+                playMenuMusic();
+                startOverlay.removeEventListener('click', unlockAndStart);
+                startOverlay.removeEventListener('touchstart', unlockAndStart);
             };
-            document.addEventListener('click', unlockAudio);
-            document.addEventListener('touchstart', unlockAudio);
+
+            startOverlay.addEventListener('click', unlockAndStart);
+            startOverlay.addEventListener('touchstart', unlockAndStart);
 
             window.addEventListener('resize', onResize); animate();
         }
