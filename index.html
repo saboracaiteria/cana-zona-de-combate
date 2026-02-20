@@ -3152,7 +3152,7 @@
                 document.getElementById('settings-view').style.display = 'block';
             };
             document.getElementById('back-btn').onclick = () => {
-                if (isPlaying) {
+                if (gamePaused) {
                     resumeGame();
                 } else {
                     document.getElementById('settings-view').style.display = 'none';
