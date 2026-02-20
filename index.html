@@ -3152,25 +3152,8 @@
                     try {
                         inviteBtn.innerText = "GENERATING...";
                         
-                        // Ensure room parameter exists
-                        const urlParams = new URLSearchParams(window.location.search);
-                        let roomQuery = window.location.search;
-
-                        if (!urlParams.has('room')) {
-                            const currentRoom = Math.random().toString(36).substring(2, 8);
-                            roomQuery = '?room=' + currentRoom;
-                            
-                            // Try to update URL, but don't crash if blocked (e.g. inside blob/iframe)
-                            try {
-                                const newUrl = window.location.pathname + roomQuery;
-                                window.history.pushState({ path: newUrl }, '', newUrl);
-                            } catch (err) {
-                                console.warn("Could not update URL history (likely blocked by sandbox):", err);
-                            }
-                        }
-
-                        // Construct specific render link using the calculated roomQuery
-                        const link = "https://canaa-zona-de-combate.onrender.com" + roomQuery;
+                        // Link base sem criação de sala
+                        const link = "https://canaa-zona-de-combate.onrender.com";
 
                         // FIX: Abordagem segura para copiar (evita erro de permissão em iframe)
                         let copied = false;
