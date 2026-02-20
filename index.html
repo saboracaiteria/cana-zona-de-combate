@@ -1813,6 +1813,7 @@
                 if (e) e.preventDefault();
                 startOverlay.style.display = 'none';
                 document.getElementById('main-menu').style.display = 'block';
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
                 if (!audioCtx) initAudio();
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
                 playMenuMusic();
