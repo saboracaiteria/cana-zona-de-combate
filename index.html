@@ -636,7 +636,7 @@
     </div>
     <div id="hud">
         <div id="info-panel" class="info-panel">
-             <span id="weapon-display" style="color:var(--canaa-blue);">WPN: <span id="weapon-name">SNIPER</span> | </span>
+             <span id="weapon-display" style="color:var(--canaa-blue);">WPN: <span id="weapon-name">RIFLE</span> | </span>
              <span id="lives-display" style="display:inline;">LIVES: <span id="lives-count">5</span> | </span>
              <span id="grenade-display" style="color:#ffaa00;">G: <span id="grenade-count">6</span></span>
              <span id="smoke-display" style="color:#aaa;">| S: <span id="smoke-count">6</span></span>
@@ -856,7 +856,7 @@
 
         let myUserId = null, myRef = null, remotePlayers = {}, isMultiplayerMode = false, isCoopMode = false, networkInterval = null;
         let lastActivityTime = Date.now(); // Monitoramento de inatividade
-        let isThirdPerson = true, isAiming = false, isManualFiring = false, wasManualFiring = false, currentWeapon = 1, moveInput = { x: 0, y: 0 }, keyState = { w: false, a: false, s: false, d: false }, pitch = 0, yaw = 0, velocityY = 0, isGrounded = true, recoil = 0, gunRecoilZ = 0, lastShotTime = 0, lastStepTime = 0, minimapCanvas, minimapCtx;
+        let isThirdPerson = true, isAiming = false, isManualFiring = false, wasManualFiring = false, currentWeapon = 0, moveInput = { x: 0, y: 0 }, keyState = { w: false, a: false, s: false, d: false }, pitch = 0, yaw = 0, velocityY = 0, isGrounded = true, recoil = 0, gunRecoilZ = 0, lastShotTime = 0, lastStepTime = 0, minimapCanvas, minimapCtx;
 
         // --- RESTORED GLOBALS ---
         let scene, camera, renderer, skyMesh, skyUniforms;
@@ -895,6 +895,7 @@
         let activeGrenades = [];
         let armorVests = [];
         let grenadePacks = [];
+        let isChargingGrenade = false, chargingGrenadeType = null, grenadeChargeStartTime = 0;
 
         // --- SISTEMA DE MÚSICA ALEATÓRIA ---
         let bgmPlayer = null;
@@ -1863,7 +1864,7 @@
             });
         }
 
-        function throwGrenade(type) {
+        function throwGrenade(type, chargeRatio = 0.5) {
             if (grenades[type] <= 0) return;
             grenades[type]--;
             updateGrenadeUI();
@@ -1881,12 +1882,25 @@
             sphere.position.copy(startPos);
             scene.add(sphere);
 
+            // Calcular a força baseada no tempo segurado (chargeRatio vai de 0.0 a 1.0)
+            const force = 0.3 + (chargeRatio * 0.9); // Lançamento fraco (0.3) até forte (1.2)
+
             activeGrenades.push({
                 mesh: sphere,
-                velocity: dir.multiplyScalar(0.8), // Throw force
+                velocity: dir.multiplyScalar(force), // Força dinâmica aplicada aqui
                 type: type,
                 life: 120 // Frames until explode
             });
+        }
+
+        function executeGrenadeThrow() {
+            if (!isChargingGrenade) return;
+            const holdTime = performance.now() - grenadeChargeStartTime;
+            let chargeRatio = holdTime / 1000; // 1 segundo para carregar ao máximo
+            if (chargeRatio > 1.0) chargeRatio = 1.0;
+            throwGrenade(chargingGrenadeType, chargeRatio);
+            isChargingGrenade = false;
+            chargingGrenadeType = null;
         }
 
         function updateGrenades() {
@@ -1894,9 +1908,35 @@
                 const g = activeGrenades[i];
                 g.life--;
                 
+                const oldPos = g.mesh.position.clone();
+                
                 // Physics
                 g.velocity.y -= 0.02; // Gravity
                 g.mesh.position.add(g.velocity);
+                
+                // Colisão com Paredes e Rampas (Raycast)
+                const dir = g.mesh.position.clone().sub(oldPos);
+                const dist = dir.length();
+                
+                if (dist > 0) {
+                    bulletRaycaster.set(oldPos, dir.normalize());
+                    bulletRaycaster.far = dist;
+                    const hits = bulletRaycaster.intersectObjects([...walls, ...ramps], true);
+                    
+                    if (hits.length > 0) {
+                        const hit = hits[0];
+                        // Coloca a granada no ponto de impacto e afasta um pouco para não bugar dentro da malha
+                        g.mesh.position.copy(hit.point).add(hit.normal.clone().multiplyScalar(0.05));
+                        
+                        // Quica na parede de forma realista refletindo a velocidade na normal da face
+                        if (hit.normal) {
+                            g.velocity.reflect(hit.normal).multiplyScalar(0.5); // Perde energia no impacto
+                        } else {
+                            g.velocity.x *= -0.5;
+                            g.velocity.z *= -0.5;
+                        }
+                    }
+                }
                 
                 // Floor collision
                 if (g.mesh.position.y < 0.2) {
@@ -1917,51 +1957,161 @@
         function explodeGrenade(g) {
             // Visual Effect
             const isExp = g.type === 'explosive';
-            const color = isExp ? 0xff3300 : 0x777777; // Fogo ou Cinza tático (fumaça densa)
             
             const effectGroup = new THREE.Group();
             effectGroup.position.copy(g.mesh.position);
             scene.add(effectGroup);
 
-            const particles = [];
-            const pCount = isExp ? 1 : 8; // 1 esfera pro fogo, 8 para a nuvem de fumaça irregular
+            if (isExp) {
+                // EXPLOSÃO REALISTA AVANÇADA (OTIMIZADA SEM LAG)
+                // Removido o PointLight (causador da recompilação de shaders/travamento).
+                // Substituído por uma esfera brilhante expansiva de baixo custo.
+                const flashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+                const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(2, 16, 16), flashMat);
+                effectGroup.add(flashMesh);
 
-            for(let i = 0; i < pCount; i++) {
-                // DoubleSide garante que se o jogador entrar na fumaça a tela fica cinza
-                // Não usar transparência inicial (transparent: false) cria bloqueio de profundidade 100% sólido
-                const mat = new THREE.MeshBasicMaterial({ 
-                    color: color, 
-                    transparent: isExp, 
-                    opacity: isExp ? 0.8 : 1.0,
-                    side: isExp ? THREE.FrontSide : THREE.DoubleSide
-                });
-                const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), mat);
+                // Nuvens de explosão (Evoluem de Fogo para Fumaça)
+                const cloudCount = 5; 
+                const clouds = [];
+                const cloudGeo = new THREE.SphereGeometry(1, 8, 8); // Geometria compartilhada para economizar RAM
                 
-                if (!isExp) {
+                for(let i=0; i < cloudCount; i++) {
+                    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+                    const mesh = new THREE.Mesh(cloudGeo, mat); 
+                    
+                    mesh.position.set(
+                        (Math.random() - 0.5) * 1.5, 
+                        (Math.random() - 0.5) * 1.5, 
+                        (Math.random() - 0.5) * 1.5  
+                    );
+                    
+                    mesh.scale.setScalar(0.5 + Math.random() * 0.5);
+                    const expSpeed = 1.2 + Math.random() * 0.8; 
+                    
+                    effectGroup.add(mesh);
+                    clouds.push({ mesh, mat, expSpeed, life: 0, maxLife: 20 + Math.random() * 15 });
+                }
+
+                // Estilhaços e Faíscas
+                const debrisCount = 20; 
+                const debrisList = [];
+                const dGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1); 
+                
+                for(let i=0; i < debrisCount; i++) {
+                    const isSpark = Math.random() > 0.4;
+                    const dMat = new THREE.MeshBasicMaterial({ color: isSpark ? 0xffcc00 : 0x222222, transparent: true, opacity: 1 });
+                    const dMesh = new THREE.Mesh(dGeo, dMat);
+                    
+                    const u = Math.random();
+                    const v = Math.random();
+                    const theta = 2 * Math.PI * u;
+                    const phi = Math.acos(2 * v - 1);
+                    const dir = new THREE.Vector3(
+                        Math.sin(phi) * Math.cos(theta),
+                        Math.sin(phi) * Math.sin(theta),
+                        Math.cos(phi)
+                    );
+                    
+                    // Impulso violento radial
+                    const speed = Math.random() * 2.5 + 1.0; 
+                    
+                    effectGroup.add(dMesh);
+                    debrisList.push({ mesh: dMesh, velocity: dir.multiplyScalar(speed), mat: dMat, isSpark });
+                }
+
+                let frames = 0;
+                const maxFrames = 45; 
+                const interval = setInterval(() => {
+                    frames++;
+                    
+                    // Animar flash (cresce e some super rápido)
+                    if (flashMat.opacity > 0) {
+                        flashMat.opacity -= 0.15;
+                        flashMesh.scale.addScalar(0.3);
+                    } else if (flashMesh.visible) {
+                        flashMesh.visible = false;
+                    }
+                    
+                    // Animar as Nuvens (Fogo -> Fumaça Negra -> Desaparecer)
+                    clouds.forEach(c => {
+                        c.life++;
+                        if (c.life < c.maxLife) {
+                            c.mesh.scale.addScalar(0.06 * c.expSpeed * (1 - c.life/c.maxLife)); 
+                            c.mesh.position.y += 0.02; 
+                            
+                            // Evolução térmica da explosão
+                            if (c.life < 4) c.mat.color.setHex(0xffffff); // Núcleo super quente
+                            else if (c.life < 8) c.mat.color.setHex(0xffaa00); // Fogo laranja/amarelo
+                            else if (c.life < 14) c.mat.color.setHex(0xbb2200); // Fogo escurecendo
+                            else c.mat.color.setHex(0x222222); // Fumaça preta/cinza
+                        }
+                        
+                        if (c.life > c.maxLife * 0.5) {
+                            c.mat.opacity -= 0.04;
+                        }
+                    });
+
+                    // Animar os estilhaços
+                    debrisList.forEach(d => {
+                        d.mesh.position.add(d.velocity);
+                        d.velocity.multiplyScalar(0.88); // Resistência do ar forte (frenagem rápida)
+                        d.velocity.y -= 0.06; // Gravidade alta nos estilhaços
+                        d.mesh.scale.multiplyScalar(0.9); 
+                        
+                        if (d.isSpark) {
+                            // Faíscas esfriam e somem rápido
+                            d.mat.opacity -= 0.05;
+                            if(frames === 5) d.mat.color.setHex(0xff3300);
+                        } else {
+                            // Pedaços de metal caem e somem mais devagar
+                            d.mat.opacity -= 0.02;
+                        }
+                    });
+
+                    if (frames >= maxFrames) {
+                        clearInterval(interval);
+                        scene.remove(effectGroup);
+                        clouds.forEach(c => c.mat.dispose());
+                        debrisList.forEach(d => d.mat.dispose());
+                        flashMat.dispose();
+                        flashMesh.geometry.dispose();
+                        cloudGeo.dispose();
+                        dGeo.dispose();
+                    }
+                }, 30);
+            } else {
+                // SMOKE GRENADE (FUMAÇA TÁTICA) OTIMIZADA
+                const color = 0x777777;
+                const particles = [];
+                const pCount = 8; // 8 para a nuvem de fumaça irregular
+                const sGeo = new THREE.SphereGeometry(1, 12, 12);
+
+                for(let i = 0; i < pCount; i++) {
+                    // DoubleSide garante que se o jogador entrar na fumaça a tela fica cinza
+                    const mat = new THREE.MeshBasicMaterial({ 
+                        color: color, 
+                        transparent: false, 
+                        opacity: 1.0,
+                        side: THREE.DoubleSide
+                    });
+                    const mesh = new THREE.Mesh(sGeo, mat);
+                    
                     // Agrupar esferas para formato de nuvem irregular
                     mesh.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.5);
                     mesh.scale.setScalar(0.8 + Math.random() * 0.6);
+                    
+                    effectGroup.add(mesh);
+                    particles.push(mat);
                 }
                 
-                effectGroup.add(mesh);
-                particles.push(mat);
-            }
-            
-            // Expand and fade
-            let expand = 0;
-            const interval = setInterval(() => {
-                expand++;
-                const expandRate = isExp ? 0.5 : 0.02; // Crescimento controlado
-                effectGroup.scale.setScalar(1 + expand * expandRate);
-                
-                if (isExp) {
-                    particles[0].opacity -= 0.05;
-                    if (particles[0].opacity <= 0) {
-                        clearInterval(interval);
-                        scene.remove(effectGroup);
-                    }
-                } else {
-                    // Fumaça densa: fica 100% opaca por muito tempo (aprox 7.5s) e depois dissipa
+                // Expand and fade
+                let expand = 0;
+                const interval = setInterval(() => {
+                    expand++;
+                    const expandRate = 0.02; // Crescimento controlado
+                    effectGroup.scale.setScalar(1 + expand * expandRate);
+                    
+                    // Fumaça densa: fica 100% opaca por muito tempo e depois dissipa
                     if (expand > 150) {
                         particles.forEach(m => {
                             m.transparent = true;
@@ -1970,14 +2120,16 @@
                         if (particles[0].opacity <= 0) {
                             clearInterval(interval);
                             scene.remove(effectGroup);
+                            particles.forEach(m => m.dispose());
+                            sGeo.dispose();
                         }
                     }
-                }
-            }, 50);
+                }, 50);
+            }
 
             if (g.type === 'explosive') {
                 // Damage Logic (Local + Remote via Transaction)
-                const range = 8;
+                const range = 6.5; // AUMENTADO O ALCANCE DE DANO (era 5)
                 
                 // 1. Damage Bots
                 enemies.forEach(e => {
@@ -2678,9 +2830,9 @@
                 grenades = { explosive: 6, smoke: 6 }; // Reset Grenades
                 updateGrenadeUI();
 
-                currentWeapon = 1;
+                currentWeapon = 0;
                 const wpnDisplay = document.getElementById('weapon-name');
-                if (wpnDisplay) wpnDisplay.innerText = "SNIPER";
+                if (wpnDisplay) wpnDisplay.innerText = "RIFLE";
 
                 playerLives = 5; score = 0; velocityY = 0; pitch = 0; yaw = 0; camera.rotation.set(0, 0, 0);
                 
@@ -3114,8 +3266,13 @@
             };
 
             // GRENADE BUTTONS
-            document.getElementById('grenade-btn').addEventListener('touchstart', (e) => { e.preventDefault(); throwGrenade('explosive'); });
-            document.getElementById('smoke-btn').addEventListener('touchstart', (e) => { e.preventDefault(); throwGrenade('smoke'); });
+            document.getElementById('grenade-btn').addEventListener('touchstart', (e) => { e.preventDefault(); if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'explosive'; grenadeChargeStartTime = performance.now(); } });
+            document.getElementById('grenade-btn').addEventListener('touchend', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow(); });
+            document.getElementById('grenade-btn').addEventListener('touchcancel', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow(); });
+
+            document.getElementById('smoke-btn').addEventListener('touchstart', (e) => { e.preventDefault(); if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'smoke'; grenadeChargeStartTime = performance.now(); } });
+            document.getElementById('smoke-btn').addEventListener('touchend', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow(); });
+            document.getElementById('smoke-btn').addEventListener('touchcancel', (e) => { e.preventDefault(); if(isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow(); });
 
 
             document.addEventListener('mousemove', (e) => { 
@@ -3162,10 +3319,18 @@
                 if (k === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; playSound('jump'); } 
                 if (k === 'KeyV') toggleCameraMode();
                 if (k === 'KeyQ') toggleWeapon();
-                if (k === 'KeyG') throwGrenade('explosive');
-                if (k === 'KeyF') throwGrenade('smoke');
+                if (k === 'KeyG') { if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'explosive'; grenadeChargeStartTime = performance.now(); } }
+                if (k === 'KeyF') { if(!isChargingGrenade) { isChargingGrenade = true; chargingGrenadeType = 'smoke'; grenadeChargeStartTime = performance.now(); } }
             });
-            document.addEventListener('keyup', (e) => { const k = e.code; if (k === 'KeyW') keyState.w = false; if (k === 'KeyA') keyState.a = false; if (k === 'KeyS') keyState.s = false; if (k === 'KeyD') keyState.d = false; });
+            document.addEventListener('keyup', (e) => { 
+                const k = e.code; 
+                if (k === 'KeyW') keyState.w = false; 
+                if (k === 'KeyA') keyState.a = false; 
+                if (k === 'KeyS') keyState.s = false; 
+                if (k === 'KeyD') keyState.d = false; 
+                if (k === 'KeyG' && isChargingGrenade && chargingGrenadeType === 'explosive') executeGrenadeThrow();
+                if (k === 'KeyF' && isChargingGrenade && chargingGrenadeType === 'smoke') executeGrenadeThrow();
+            });
             
             // CORREÇÃO: Evitar que o clique trave o mouse no jogo durante a edição ou pausa
             document.addEventListener('mousedown', (e) => { 
@@ -3424,6 +3589,92 @@
         }
         function triggerHitMarker() { const c = document.getElementById('crosshair'); c.classList.add('hit-marker'); setTimeout(() => c.classList.remove('hit-marker'), 150); }
 
+        function createBloodEffect(point, bounceDir) {
+            const particleCount = 8;
+            const group = new THREE.Group();
+            group.position.copy(point);
+            // Afasta levemente do corpo para evitar z-fighting
+            group.position.add(bounceDir.clone().multiplyScalar(0.1));
+            scene.add(group);
+
+            const particles = [];
+            const mat = new THREE.MeshBasicMaterial({ color: 0x990000, transparent: true, opacity: 1 });
+            const geo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+
+            for (let i = 0; i < particleCount; i++) {
+                const p = new THREE.Mesh(geo, mat);
+                // Direção do reflexo + espalhamento aleatório maior
+                const dir = bounceDir.clone().add(new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2
+                )).normalize().multiplyScalar(Math.random() * 0.15 + 0.05);
+                
+                group.add(p);
+                particles.push({ mesh: p, velocity: dir });
+            }
+
+            let frames = 0;
+            const maxFrames = 15;
+            const interval = setInterval(() => {
+                frames++;
+                mat.opacity = 1 - (frames / maxFrames);
+                particles.forEach(p => {
+                    p.velocity.y -= 0.01; // Adiciona gravidade para o sangue cair
+                    p.mesh.position.add(p.velocity);
+                    p.mesh.scale.multiplyScalar(0.9); // Encolhe gradualmente
+                });
+                if (frames >= maxFrames) {
+                    clearInterval(interval);
+                    scene.remove(group);
+                    mat.dispose();
+                    geo.dispose();
+                }
+            }, 30);
+        }
+
+        function createImpactEffect(point, bounceDir) {
+            const particleCount = 5;
+            const group = new THREE.Group();
+            group.position.copy(point);
+            // Afasta levemente para não ficar dentro da parede
+            group.position.add(bounceDir.clone().multiplyScalar(0.05));
+            scene.add(group);
+
+            const particles = [];
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 1 });
+            const geo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+
+            for (let i = 0; i < particleCount; i++) {
+                const p = new THREE.Mesh(geo, mat);
+                // Direção do reflexo + espalhamento aleatório
+                const dir = bounceDir.clone().add(new THREE.Vector3(
+                    (Math.random() - 0.5),
+                    (Math.random() - 0.5),
+                    (Math.random() - 0.5)
+                )).normalize().multiplyScalar(Math.random() * 0.1 + 0.05);
+                
+                group.add(p);
+                particles.push({ mesh: p, velocity: dir });
+            }
+
+            let frames = 0;
+            const maxFrames = 12;
+            const interval = setInterval(() => {
+                frames++;
+                mat.opacity = 1 - (frames / maxFrames);
+                particles.forEach(p => {
+                    p.mesh.position.add(p.velocity);
+                    p.mesh.scale.multiplyScalar(0.85); // Encolhe gradualmente
+                });
+                if (frames >= maxFrames) {
+                    clearInterval(interval);
+                    scene.remove(group);
+                    mat.dispose();
+                    geo.dispose();
+                }
+            }, 30);
+        }
 
         function updateBullets() {
             let active = 0; enemies.forEach(e => { if (!e.userData.dead) active++; });
@@ -3449,8 +3700,9 @@
                         while (o.parent && !o.userData.id) o = o.parent;
                         if (o.userData && o.userData.id) { if (remotePlayers[o.userData.id] && remotePlayers[o.userData.id].invincible) { hit = true; return; }
                             hit = true; triggerHitMarker();
+                            createBloodEffect(hits[0].point, b.userData.velocity.clone().multiplyScalar(-1).normalize());
                             const targetId = o.userData.id;
-                            const dmg = b.userData.weaponType === 1 ? 70 : 15;
+                            const dmg = b.userData.weaponType === 1 ? 70 : 10; // Dano do Rifle reduzido de 15 para 10 no PVP
                             runTransaction(ref(db, `${roomPath}/players/${targetId}/hp`), (hp) => {
                                 if (hp === null) return 100;
                                 if (hp > 0) {
@@ -3497,9 +3749,11 @@
                         }
 
                         if (o && o.userData && o.userData.isEnemyRoot && !o.userData.dead) {
-                            const dmg = b.userData.weaponType === 1 ? 100 : 25;
+                            const dmg = b.userData.weaponType === 1 ? 100 : 15; // Dano do Rifle reduzido de 25 para 15 nos Bots
                             o.userData.hp -= dmg;
                             triggerHitMarker();
+                            const hitPoint = (hits.length > 0 && hits[0].point) ? hits[0].point : b.position.clone();
+                            createBloodEffect(hitPoint, b.userData.velocity.clone().multiplyScalar(-1).normalize());
                             o.traverse(child => {
                                 if (child.isMesh && child.material && child.material.emissive) {
                                     const oldColor = child.material.emissive.getHex();
@@ -3515,10 +3769,13 @@
 
                 // Colisão com Paredes (Bloqueio de tiro)
                 if (!hit) {
-                    const wh = bulletRaycaster.intersectObjects([...walls, ...ramps], true); // Adicionado recursive true
+                    const envObjects = currentFloor ? [...walls, ...ramps, currentFloor] : [...walls, ...ramps];
+                    const wh = bulletRaycaster.intersectObjects(envObjects, true); // Adicionado recursive true
                     if (wh.length > 0) {
                         // Lógica original: se bater na parede, o tiro some
                         hit = true;
+                        // Cria a animação de impacto espirrando faíscas na direção contrária da bala
+                        createImpactEffect(wh[0].point, b.userData.velocity.clone().multiplyScalar(-1).normalize());
                     }
                 }
                 if (hit || b.userData.life <= 0) { scene.remove(b); bullets.splice(i, 1); }
@@ -4054,6 +4311,7 @@
                 updateEnemies(); 
                 updateHealthKits();
                 updateArmorVests(); // New Armor Logic
+                updateGrenadePacks(); // Correção: Chamar a verificação de coleta dos kits de granada
                 drawMinimap(); 
                 updateBullets(); 
                 updateGrenades(); // New Grenade Logic
