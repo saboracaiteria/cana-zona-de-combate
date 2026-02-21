@@ -957,7 +957,8 @@
         let hasResetLobbyState = false;
 
         let unsubLobbyPlayers = null, unsubGamePlayers = null, unsubMyPresence = null;
-        let unsubCoopLevel = null, unsubCoopKills = null, unsubCoopEnemies = null, unsubCoopKits = null;
+        let unsubCoopLevel = null, unsubCoopKills = null, unsubCoopEnemies = null, unsubCoopKits = null, unsubGrenades = null;
+        let remoteGrenadesHandled = new Set();
 
         let lastSentPosition = new THREE.Vector3(0, 0, 0), lastSentRotation = 0, lastSentTime = 0;
         let audioCtx;
@@ -1170,6 +1171,8 @@
             if (unsubCoopKills) unsubCoopKills();
             if (unsubCoopEnemies) unsubCoopEnemies();
             if (unsubCoopKits) unsubCoopKits();
+            if (unsubGrenades) unsubGrenades();
+            remoteGrenadesHandled.clear();
             Object.values(remotePlayers).forEach(rp => {
                 scene.remove(rp.mesh);
                 rp.mesh.traverse(child => {
@@ -1225,18 +1228,19 @@
             networkInterval = setInterval(() => {
                 if (!myRef || !isPlaying) return;
                 const p = playerGroup.position, r = yaw, now = Date.now();
-                if (p.distanceTo(lastSentPosition) > 0.01 || Math.abs(r - lastSentRotation) > 0.01 || (now - lastSentTime > 2000)) {
+                const currentMoving = (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d);
+                if (p.distanceTo(lastSentPosition) > 0.01 || Math.abs(r - lastSentRotation) > 0.01 || (now - lastSentTime > 2000) || window.lastSentMoving !== currentMoving) {
                     update(myRef, {
                         x: parseFloat(p.x.toFixed(2)),
                         y: parseFloat(p.y.toFixed(2)),
                         z: parseFloat(p.z.toFixed(2)),
                         rot: parseFloat(r.toFixed(2)),
                         pitch: parseFloat(pitch.toFixed(2)),
-                        isMoving: (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d), invincible: isInvincible,
+                        isMoving: currentMoving, invincible: isInvincible,
                         lastUpdate: serverTimestamp(),
                         armor: playerArmor // Sync armor
                     });
-                    lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now;
+                    lastSentPosition.copy(p); lastSentRotation = r; lastSentTime = now; window.lastSentMoving = currentMoving;
                 }
             }, 50);
 
@@ -1261,6 +1265,22 @@
                 });
                 document.getElementById('mp-count').innerText = c;
                 Object.keys(remotePlayers).forEach(k => { if (!active.has(k)) { scene.remove(remotePlayers[k].mesh); delete remotePlayers[k]; } });
+            });
+
+            // Sincronização de Lançamento de Granadas
+            if (unsubGrenades) unsubGrenades();
+            unsubGrenades = onValue(ref(db, roomPath + '/grenades'), (s) => {
+                const data = s.val(); if (!data) return;
+                Object.keys(data).forEach(k => {
+                    if (!remoteGrenadesHandled.has(k) && !k.startsWith(myUserId)) {
+                        remoteGrenadesHandled.add(k);
+                        const g = data[k];
+                        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: g.type === 'explosive' ? 0x222200 : 0xaaaaaa }));
+                        sphere.position.set(g.x, g.y, g.z);
+                        scene.add(sphere);
+                        activeGrenades.push({ mesh: sphere, velocity: new THREE.Vector3(g.vx, g.vy, g.vz), type: g.type, life: 120 });
+                    }
+                });
             });
         }
 
@@ -2001,13 +2021,25 @@
 
             // Calcular a força baseada no tempo segurado (chargeRatio vai de 0.0 a 1.0)
             const force = 0.3 + (chargeRatio * 0.9); // Lançamento fraco (0.3) até forte (1.2)
+            
+            const velocity = dir.multiplyScalar(force);
 
             activeGrenades.push({
                 mesh: sphere,
-                velocity: dir.multiplyScalar(force), // Força dinâmica aplicada aqui
+                velocity: velocity.clone(), // Força dinâmica aplicada aqui
                 type: type,
                 life: 120 // Frames until explode
             });
+
+            // Sincroniza o evento com o servidor (Ocultando-o da base de dados logo após 3s para evitar acumulação)
+            if (isMultiplayerMode) {
+                const gId = myUserId + '_' + Date.now();
+                set(ref(db, `${roomPath}/grenades/${gId}`), {
+                    type: type, x: startPos.x, y: startPos.y, z: startPos.z,
+                    vx: velocity.x, vy: velocity.y, vz: velocity.z
+                });
+                setTimeout(() => { remove(ref(db, `${roomPath}/grenades/${gId}`)); }, 3000); 
+            }
         }
 
         function executeGrenadeThrow() {
@@ -2229,7 +2261,7 @@
                     effectGroup.scale.setScalar(1 + expand * expandRate);
                     
                     // Fumaça densa: fica 100% opaca por muito tempo e depois dissipa
-                    if (expand > 150) {
+                    if (expand > 190) {
                         particles.forEach(m => {
                             m.transparent = true;
                             m.opacity -= 0.02;
@@ -4184,8 +4216,8 @@
                         if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
                         if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
 
-                        // Animation State
-                        const isRemoteGrounded = m.position.y <= 0.2;
+                        // Animation State (FIXED: Removido a elevação artificial que causava flutuação)
+                        const isRemoteGrounded = m.position.y <= 0.8; 
                         if (!isRemoteGrounded) {
                             // JUMP
                             if (pivots.lLeg) pivots.lLeg.rotation.x = 1.6;
@@ -4194,7 +4226,6 @@
                             if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
                         } else {
                             // WALK / IDLE
-                            // Ajuste base para ficar menos "agachado/levantado"
                             const baseCrouch = 0.15; 
                             const baseKnee = -0.3; 
                             
@@ -4207,7 +4238,6 @@
                                 pivots.rLeg.rotation.set(0.1, 0, 0);
                                 pivots.lCanela.rotation.x = -0.1;
                                 pivots.rCanela.rotation.x = -0.1;
-                                m.position.y = Math.max(m.position.y, 0.85); // Prevent sinking if idle
                             } else {
                                 // Update walk cycle if moving
                                 m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
@@ -4231,9 +4261,6 @@
 
                                 pivots.lCanela.rotation.x = baseKnee - kneeL;
                                 pivots.rCanela.rotation.x = baseKnee - kneeR;
-
-                                // Body Bobbing
-                                // m.position.y += Math.abs(Math.cos(wc)) * 0.04; // Don't modify remote Y directly for bobbing, let lerp handle main position
                             }
                         }
                     }
