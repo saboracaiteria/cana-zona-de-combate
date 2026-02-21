@@ -4215,18 +4215,42 @@
                     let rd = r.targetRot - m.rotation.y;
                     while (rd > Math.PI) rd -= Math.PI * 2;
                     while (rd < -Math.PI) rd += Math.PI * 2;
-                    m.rotation.y += rd * 0.15; m.traverse(child => { if (child.isMesh && child.material) { child.material.transparent = true; child.material.opacity = r.invincible ? 0.5 : 1.0; if (child.material.emissive) { if (r.invincible) child.material.emissive.setHex(0x00ffff); else child.material.emissive.setHex(0x000000); } } });
+                    m.rotation.y += rd * 0.15; 
+                    
+                    m.traverse(child => { 
+                        if (child.isMesh && child.material) { 
+                            child.material.transparent = true; 
+                            child.material.opacity = r.invincible ? 0.5 : 1.0; 
+                            if (child.material.emissive) { 
+                                if (r.invincible) child.material.emissive.setHex(0x00ffff); 
+                                else child.material.emissive.setHex(0x000000); 
+                            } 
+                        } 
+                    });
 
                     const pivots = m.userData.pivots;
                     if (pivots) {
-                        // Apply Pitch to head and arms
+                        // Detectar se está movendo e no chão (via Firebase)
+                        const isMoving = r.isMoving;
+                        const isRemoteGrounded = r.isGrounded; // FIX: Usando estado real do Firebase em vez da altura Y para não travar no salto
+
+                        // Update walk cycle if moving
+                        if (isMoving && isRemoteGrounded) {
+                            m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
+                        } else if (!isMoving) {
+                            m.userData.walkCycle = 0;
+                        }
+                        const wc = m.userData.walkCycle || 0;
+
+                        // Apply Pitch to head and arms + Arm Swing when walking
                         if (pivots.head) pivots.head.rotation.x = r.targetPitch;
                         const remotePitch = (Math.PI / 2) + r.targetPitch;
-                        if (pivots.rArm) pivots.rArm.rotation.x = remotePitch;
-                        if (pivots.lArm) pivots.lArm.rotation.x = remotePitch;
+                        const armSwing = (isMoving && isRemoteGrounded) ? Math.sin(wc) * 0.3 : 0; // FIX: Adicionado balanço dos braços
+                        
+                        if (pivots.rArm) pivots.rArm.rotation.x = remotePitch - armSwing;
+                        if (pivots.lArm) pivots.lArm.rotation.x = remotePitch + armSwing;
 
-                        // Animation State (FIXED: Removido a elevação artificial que causava flutuação)
-                        const isRemoteGrounded = m.position.y <= 0.8; 
+                        // Animation State
                         if (!isRemoteGrounded) {
                             // JUMP
                             if (pivots.lLeg) pivots.lLeg.rotation.x = 1.6;
@@ -4237,39 +4261,32 @@
                             // WALK / IDLE
                             const baseCrouch = 0.15; 
                             const baseKnee = -0.3; 
-                            
-                            // Detectar se está movendo
-                            const isMoving = r.isMoving;
 
                             if (!isMoving) {
                                 // IDLE: Postura relaxada, pés no chão
-                                pivots.lLeg.rotation.set(0.1, 0, 0);
-                                pivots.rLeg.rotation.set(0.1, 0, 0);
-                                pivots.lCanela.rotation.x = -0.1;
-                                pivots.rCanela.rotation.x = -0.1;
+                                if (pivots.lLeg) pivots.lLeg.rotation.set(0.1, 0, 0);
+                                if (pivots.rLeg) pivots.rLeg.rotation.set(0.1, 0, 0);
+                                if (pivots.lCanela) pivots.lCanela.rotation.x = -0.1;
+                                if (pivots.rCanela) pivots.rCanela.rotation.x = -0.1;
                             } else {
-                                // Update walk cycle if moving
-                                m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
-                                const wc = m.userData.walkCycle;
-                                
-                                // Oscillation vars (Passos)
+                                // WALK: Movimento das pernas
                                 const swingPhase = Math.cos(wc);
-
-                                // Joelho dobra quando avança (levantando o pé)
                                 const liftL = Math.max(0, swingPhase);    
                                 const liftR = Math.max(0, -swingPhase);    
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
                                 const legSwing = Math.sin(wc) * 0.5;
                                 
-                                pivots.lLeg.rotation.z = 0;
-                                pivots.rLeg.rotation.z = 0;
-                                
-                                pivots.lLeg.rotation.x = baseCrouch + legSwing;
-                                pivots.rLeg.rotation.x = baseCrouch - legSwing;
-
-                                pivots.lCanela.rotation.x = baseKnee - kneeL;
-                                pivots.rCanela.rotation.x = baseKnee - kneeR;
+                                if (pivots.lLeg) {
+                                    pivots.lLeg.rotation.z = 0;
+                                    pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                                }
+                                if (pivots.rLeg) {
+                                    pivots.rLeg.rotation.z = 0;
+                                    pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                                }
+                                if (pivots.lCanela) pivots.lCanela.rotation.x = baseKnee - kneeL;
+                                if (pivots.rCanela) pivots.rCanela.rotation.x = baseKnee - kneeR;
                             }
                         }
                     }
