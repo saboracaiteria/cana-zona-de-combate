@@ -4210,8 +4210,11 @@
                     const m = r.mesh;
                     if (!m) return;
 
+                    const prevPos = m.position.clone();
                     // Lerp position and rotation
                     m.position.lerp(r.targetPos, 0.15);
+                    const distMoved = prevPos.distanceTo(m.position);
+
                     let rd = r.targetRot - m.rotation.y;
                     while (rd > Math.PI) rd -= Math.PI * 2;
                     while (rd < -Math.PI) rd += Math.PI * 2;
@@ -4230,13 +4233,13 @@
 
                     const pivots = m.userData.pivots;
                     if (pivots) {
-                        // Detectar se está movendo e no chão (via Firebase)
-                        const isMoving = r.isMoving;
-                        const isRemoteGrounded = r.isGrounded; // FIX: Usando estado real do Firebase em vez da altura Y para não travar no salto
+                        // FIX: Detectar movimento através do deslocamento real na interpolação. Super fiável no multiplayer!
+                        const isMoving = distMoved > 0.005 || r.isMoving; 
+                        const isRemoteGrounded = r.isGrounded !== false;
 
                         // Update walk cycle if moving
                         if (isMoving && isRemoteGrounded) {
-                            m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.2;
+                            m.userData.walkCycle = (m.userData.walkCycle || 0) + 0.3;
                         } else if (!isMoving) {
                             m.userData.walkCycle = 0;
                         }
@@ -4245,7 +4248,7 @@
                         // Apply Pitch to head and arms + Arm Swing when walking
                         if (pivots.head) pivots.head.rotation.x = r.targetPitch;
                         const remotePitch = (Math.PI / 2) + r.targetPitch;
-                        const armSwing = (isMoving && isRemoteGrounded) ? Math.sin(wc) * 0.3 : 0; // FIX: Adicionado balanço dos braços
+                        const armSwing = (isMoving && isRemoteGrounded) ? Math.sin(wc) * 0.4 : 0;
                         
                         if (pivots.rArm) pivots.rArm.rotation.x = remotePitch - armSwing;
                         if (pivots.lArm) pivots.lArm.rotation.x = remotePitch + armSwing;
@@ -4275,7 +4278,7 @@
                                 const liftR = Math.max(0, -swingPhase);    
                                 const kneeL = liftL * 0.9; 
                                 const kneeR = liftR * 0.9;
-                                const legSwing = Math.sin(wc) * 0.5;
+                                const legSwing = Math.sin(wc) * 0.6; // Mais amplitude
                                 
                                 if (pivots.lLeg) {
                                     pivots.lLeg.rotation.z = 0;
