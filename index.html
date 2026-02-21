@@ -2946,20 +2946,44 @@
             const ehp = 100 + ((level - 1) * 25), ec = count, rng = mulberry32(level + 5000);
             const enemyData = {};
             for (let i = 0; i < ec; i++) {
-                let rx, rz;
+                let px, pz;
                 const openLevels = [1, 2, 3, 4, 8, 9, 10];
                 const isPVP = isMultiplayerMode && !isCoopMode;
                 const isOpen = isPVP && openLevels.includes(level);
-                do { 
-                    rx = Math.floor(rng() * mazeSize); 
-                    rz = Math.floor(rng() * mazeSize); 
-                } while (isOpen ? 
-                    (rx === 0 || rx === mazeSize-1 || rz === 0 || rz === mazeSize-1 || (rx === 7 && rz === 7) || (rx === 12 && rz === 12)) : 
-                    mazeMap[rz][rx] === 1);
-                const enemy = createEnemyMesh(rx * 5, rz * 5, level, i);
+                
+                let valid = false;
+                let attempts = 0;
+                
+                // FIX: Scanner físico que impede os Bots de nascerem dentro de paredes e rampas do PVP
+                while (!valid && attempts < 200) {
+                    attempts++;
+                    let rx = Math.floor(rng() * mazeSize); 
+                    let rz = Math.floor(rng() * mazeSize); 
+                    px = rx * 5; 
+                    pz = rz * 5;
+                    
+                    if (!isOpen && mazeMap[rz][rx] === 1) continue;
+                    if (isOpen && (rx === 0 || rx === mazeSize-1 || rz === 0 || rz === mazeSize-1)) continue;
+
+                    let insideWall = false;
+                    for (let w of walls) {
+                        let wdx = 2.8, wdz = 2.8;
+                        if (w.geometry && w.geometry.parameters) {
+                            wdx = (w.geometry.parameters.width / 2) + 1.2;
+                            wdz = (w.geometry.parameters.depth / 2) + 1.2;
+                        }
+                        if (Math.abs(px - w.position.x) < wdx && Math.abs(pz - w.position.z) < wdz) {
+                            insideWall = true;
+                            break;
+                        }
+                    }
+                    if (!insideWall) valid = true;
+                }
+
+                const enemy = createEnemyMesh(px, pz, level, i);
                 enemies.push(enemy);
                 scene.add(enemy);
-                enemyData[i] = { x: rx * 5, z: rz * 5, rot: 0, hp: ehp, dead: false };
+                enemyData[i] = { x: px, z: pz, rot: 0, hp: ehp, dead: false };
             }
             if (isMultiplayerMode && isMasterClient) {
                 update(ref(db, `${roomPath}/state/enemies`), enemyData);
@@ -3892,7 +3916,7 @@
                     }
                 }
                 
-                // FIX: Colisão com Inimigos (AGORA FUNCIONA EM QUALQUER MODO, INCLUINDO PVP)
+                // FIX: Colisão com Inimigos (AGORA FUNCIONA EM QUALQUER MODO, INCLUINDO PVP E COOP)
                 if (!hit) {
                     // 1. Raycast Check (Trajeto da bala)
                     const hits = bulletRaycaster.intersectObjects(enemies, true);
@@ -4006,7 +4030,7 @@
                 let target = playerGroup;
                 let minDist = e.position.distanceTo(playerGroup.position);
 
-                if (isCoopMode) {
+                if (isMultiplayerMode) {
                     Object.values(remotePlayers).forEach(rp => {
                         const dist = e.position.distanceTo(rp.mesh.position);
                         if (dist < minDist) {
@@ -4017,128 +4041,110 @@
                 }
 
                 const d = minDist;
-                if (d < 25 && d > 1.5) {
+                // FIX: O raio de deteção de ataque foi reestruturado para ser ativo mesmo se colar no inimigo
+                if (d < 35) {
                     const dir = new THREE.Vector3().subVectors(target.position, e.position).normalize();
-                    // NEW AI LOGIC: Speed boost if low HP
-                    let moveSpeed = 0.075;
-                    if (e.userData.hp <= 50) moveSpeed *= 1.5;
-
-                    const np = e.position.clone().add(dir.clone().multiplyScalar(moveSpeed));
-
-                    // GRAVITY FOR BOTS
-                    if (e.userData.velocityY === undefined) e.userData.velocityY = 0;
-                    if (e.userData.isGrounded === undefined) e.userData.isGrounded = true;
-
-                    e.userData.velocityY -= 0.015; // Gravity
-                    np.y += e.userData.velocityY;
-
-                    if (np.y <= 0) {
-                        np.y = 0;
-                        e.userData.velocityY = 0;
-                        e.userData.isGrounded = true;
-                    } else {
-                        e.userData.isGrounded = false;
-                    }
-
+                    
                     // Bot rotation (facing target)
                     const targetYaw = Math.atan2(dir.x, dir.z) + Math.PI;
                     e.rotation.y = targetYaw;
 
-                    // NEW AI LOGIC: Jump if low HP (evasion) or stuck
-                    if (e.userData.hp <= 50 && e.userData.isGrounded && Math.random() < 0.02) {
-                         e.userData.velocityY = 0.25; // Jump
+                    // Aim arms at target
+                    if (e.userData.pivots && e.userData.pivots.rArm) {
+                        let finalPitch = Math.atan2(target.position.y - (e.position.y + 1.5), d);
+                        if (d < 3.0) finalPitch = 0; // Se estiver muito perto, aponta reto
+                        e.userData.pivots.rArm.rotation.x = Math.max(1.0, Math.min(2.0, (Math.PI / 2) - finalPitch));
+                        e.userData.pivots.lArm.rotation.x = Math.max(1.0, Math.min(2.0, (Math.PI / 2) - finalPitch));
                     }
 
-                    if (!checkWall(np.x, np.z)) {
-                        e.position.copy(np);
-                        // Leg animation
-                        e.userData.walkCycle += 0.2;
-                        const wc = e.userData.walkCycle;
+                    if (d > 1.5) { // Movimento (só anda se não estiver encostado no player)
+                        // NEW AI LOGIC: Speed boost if low HP
+                        let moveSpeed = 0.075;
+                        if (e.userData.hp <= 50) moveSpeed *= 1.5;
 
-                        // NEW REALISTIC WALK LOGIC (Cautious/Crouched)
-                        // INVERTED LOGIC AS PER USER REQUEST (Prev: baseCrouch=-0.4, baseKnee=0.8)
-                        // New: baseCrouch=0.3, baseKnee=-0.6 to bend forward correctly
-                        const baseCrouch = 0.3;
-                        const baseKnee = -0.6;
-                        const legSwing = Math.sin(wc) * 0.5;
+                        const np = e.position.clone().add(dir.clone().multiplyScalar(moveSpeed));
 
-                        if (e.userData.pivots) {
-                            e.userData.pivots.lLeg.rotation.x = baseCrouch + legSwing;
-                            e.userData.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
-                            e.userData.pivots.rLeg.rotation.x = baseCrouch - legSwing;
-                            e.userData.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
+                        // GRAVITY FOR BOTS
+                        e.userData.velocityY = (e.userData.velocityY || 0) - 0.015;
+                        np.y += e.userData.velocityY;
+
+                        if (np.y <= 0) {
+                            np.y = 0;
+                            e.userData.velocityY = 0;
+                            e.userData.isGrounded = true;
+                        } else {
+                            e.userData.isGrounded = false;
                         }
-                    } else {
-                        // Stuck on wall -> try Jump
-                         if (e.userData.isGrounded) e.userData.velocityY = 0.25;
 
-                        // Reset legs when stopped (Still crouched)
-                        if (e.userData.pivots) {
+                        // NEW AI LOGIC: Jump if low HP (evasion) or stuck
+                        if (e.userData.hp <= 50 && e.userData.isGrounded && Math.random() < 0.02) {
+                             e.userData.velocityY = 0.25; // Jump
+                        }
+
+                        if (!checkWall(np.x, np.z)) {
+                            e.position.copy(np);
+                            // Leg animation
+                            e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2;
+                            const wc = e.userData.walkCycle;
+
                             const baseCrouch = 0.3;
                             const baseKnee = -0.6;
-                            e.userData.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lLeg.rotation.x, baseCrouch, 0.1);
-                            e.userData.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lCanela.rotation.x, baseKnee, 0.1);
-                            e.userData.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rLeg.rotation.x, baseCrouch, 0.1);
-                            e.userData.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rCanela.rotation.x, baseKnee, 0.1);
+                            const legSwing = Math.sin(wc) * 0.5;
+
+                            if (e.userData.pivots) {
+                                e.userData.pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                                e.userData.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
+                                e.userData.pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                                e.userData.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
+                            }
+                        } else {
+                            // Stuck on wall -> try Jump
+                             if (e.userData.isGrounded) e.userData.velocityY = 0.25;
+
+                            // Reset legs when stopped
+                            if (e.userData.pivots) {
+                                e.userData.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lLeg.rotation.x, 0.3, 0.1);
+                                e.userData.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lCanela.rotation.x, -0.6, 0.1);
+                                e.userData.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rLeg.rotation.x, 0.3, 0.1);
+                                e.userData.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rCanela.rotation.x, -0.6, 0.1);
+                            }
                         }
                     }
 
-                    // Aim arms at target (pointing forward and slightly at player)
-                    if (e.userData.pivots && e.userData.pivots.rArm) {
-                        // Calculate pitch to target
-                        const targetPitch = Math.atan2(target.position.y - (e.position.y + 1.5), d);
-
-                        // Fix: Se o bot estiver muito perto, não levanta o braço, mantém apontado para frente
-                        let finalPitch = targetPitch;
-                        if (d < 3.0) finalPitch = 0; // Se estiver a menos de 3 metros, aponta reto
-
-                        e.userData.pivots.rArm.rotation.x = (Math.PI / 2) - finalPitch;
-                        e.userData.pivots.lArm.rotation.x = (Math.PI / 2) - finalPitch;
-
-                        // Limit rotation to prevent weird poses
-                        e.userData.pivots.rArm.rotation.x = Math.max(1.0, Math.min(2.0, e.userData.pivots.rArm.rotation.x));
-                        e.userData.pivots.lArm.rotation.x = Math.max(1.0, Math.min(2.0, e.userData.pivots.lArm.rotation.x));
-                    }
-
-                    if (isCoopMode && isMasterClient) {
-                        // Sincronização de rede (throttle para não sobrecarregar o Firebase)
+                    // FIX: Sincronização de rede (Para PVP E COOP) movida para garantir que envia as posições ativamente
+                    if (isMultiplayerMode && isMasterClient) {
                         if (Math.random() < 0.15) {
                             update(ref(db, `${roomPath}/state/enemies/${e.userData.index}`), {
                                 x: parseFloat(e.position.x.toFixed(2)),
                                 z: parseFloat(e.position.z.toFixed(2)),
                                 rot: parseFloat(e.rotation.y.toFixed(2)),
                                 dead: false,
-                                hp: e.userData.hp // Sincroniza HP também para o novo host
+                                hp: e.userData.hp 
                             });
                         }
                     }
 
-                    if (d < 15 && now - e.userData.lastShot > e.userData.reactionTime) {
-                        // Posição de origem do tiro (olhos/arma do bot)
-                        // Usamos um ponto ligeiramente à frente do bot para evitar colisão com o próprio corpo
+                    // Tiro: Agora funciona independente de estar colado ou não, desde que esteja no alcance
+                    if (now - e.userData.lastShot > e.userData.reactionTime) {
+                        // Posição de origem do tiro
                         const sp = e.position.clone().add(new THREE.Vector3(0, 1.5, 0));
                         const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(e.quaternion);
                         sp.add(forwardDir.multiplyScalar(0.5));
 
-                        // Verificação de Linha de Visão (Line of Sight)
-                        // Ajustamos o alvo para o centro do player (altura 1.0)
+                        // Verificação de Linha de Visão
                         const targetPos = target.position.clone().add(new THREE.Vector3(0, 1.0, 0));
-                        const dist = sp.distanceTo(targetPos);
+                        const distToTarget = sp.distanceTo(targetPos);
                         const shootDir = new THREE.Vector3().subVectors(targetPos, sp).normalize();
 
-                        // Raycaster para checar se há paredes no caminho
-                        const losRay = new THREE.Raycaster(sp, shootDir, 0, dist);
-                        // Importante: checar apenas contra as paredes
+                        const losRay = new THREE.Raycaster(sp, shootDir, 0, distToTarget);
                         const hits = losRay.intersectObjects(walls, false);
 
                         if (hits.length === 0) {
                             e.userData.lastShot = now;
                             playSound('shoot');
 
-                            // Dano instantâneo (lógica original)
                             if (target === playerGroup) {
-                                if (isInvincible) return; 
-                                applyDamage(5); // Bot damage
+                                if (!isInvincible) applyDamage(5); 
                             } else {
                                 const remoteId = target.userData.id;
                                 const remoteRef = ref(db, `${roomPath}/players/${remoteId}`);
@@ -4146,7 +4152,6 @@
                             }
 
                             // Efeito visual do laser saindo da arma
-                            // Tentar pegar a posição real da arma para o efeito visual
                             let visualOrigin = sp;
                             const gun = e.getObjectByName("gun");
                             if (gun) {
