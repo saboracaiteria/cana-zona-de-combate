@@ -1039,7 +1039,8 @@
             hasResetLobbyState = false; // Reset the flag so we can reset game state once connected
 
             // Lógica de Sala Fixa para garantir que todos entrem na mesma partida
-            const roomID = 'global'; // FIX: Forçando sala global para todos se encontrarem sempre
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomID = urlParams.get('room') || 'global';
 
             if (mode === 'coop') {
                 roomPath = `rooms/coop/${roomID}`; isCoopMode = true;
@@ -1236,7 +1237,9 @@
                         z: parseFloat(p.z.toFixed(2)),
                         rot: parseFloat(r.toFixed(2)),
                         pitch: parseFloat(pitch.toFixed(2)),
-                        isMoving: currentMoving, invincible: isInvincible,
+                        isMoving: currentMoving, 
+                        isGrounded: isGrounded, // <--- FIX: Estado de chão enviado para animação
+                        invincible: isInvincible,
                         lastUpdate: serverTimestamp(),
                         armor: playerArmor // Sync armor
                     });
@@ -1282,41 +1285,8 @@
                     }
                 });
             });
-        }
 
-        function setupCoopPresence() {
-            setupPresence();
-            if (unsubCoopLevel) unsubCoopLevel();
-            unsubCoopLevel = onValue(ref(db, `${roomPath}/state`), (s) => {
-                const state = s.val();
-                if (!state) {
-                    if (isMasterClient) update(ref(db, `${roomPath}/state`), { level: 1, kills: 0, enemies: {}, kits: {} });
-                    return;
-                }
-                const l = state.level || 1;
-                const k = state.kills || 0;
-                if (l !== currentLevel) {
-                    currentLevel = l; score = k;
-                    const scoreEl = document.getElementById('score');
-                    if (scoreEl) scoreEl.innerText = score;
-                    const levelDisplay = document.getElementById('level-display');
-                    if (levelDisplay) levelDisplay.innerText = currentLevel;
-                    const levelInd = document.getElementById('level-indicator');
-                    if (levelInd) {
-                        levelInd.innerText = "ZONA COOP " + currentLevel;
-                        levelInd.style.display = 'block';
-                        setTimeout(() => levelInd.style.display = 'none', 3000);
-                    }
-                    // Se mudou de nível, limpar inimigos locais para forçar respawn/sync
-                    enemies.forEach(e => scene.remove(e)); enemies = [];
-                } else if (k !== score) {
-                    score = k;
-                    const scoreEl = document.getElementById('score');
-                    if (scoreEl) scoreEl.innerText = score;
-                }
-            });
-
-            // Sincronização de Inimigos (Correção "Manus")
+            // Sincronização de Inimigos (AGORA PARA PVP E COOP)
             if (unsubCoopEnemies) unsubCoopEnemies();
             unsubCoopEnemies = onValue(ref(db, `${roomPath}/state/enemies`), (s) => {
                 const data = s.val();
@@ -1355,6 +1325,39 @@
             });
         }
 
+        function setupCoopPresence() {
+            setupPresence();
+            if (unsubCoopLevel) unsubCoopLevel();
+            unsubCoopLevel = onValue(ref(db, `${roomPath}/state`), (s) => {
+                const state = s.val();
+                if (!state) {
+                    if (isMasterClient) update(ref(db, `${roomPath}/state`), { level: 1, kills: 0, enemies: {}, kits: {} });
+                    return;
+                }
+                const l = state.level || 1;
+                const k = state.kills || 0;
+                if (l !== currentLevel) {
+                    currentLevel = l; score = k;
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = score;
+                    const levelDisplay = document.getElementById('level-display');
+                    if (levelDisplay) levelDisplay.innerText = currentLevel;
+                    const levelInd = document.getElementById('level-indicator');
+                    if (levelInd) {
+                        levelInd.innerText = "ZONA COOP " + currentLevel;
+                        levelInd.style.display = 'block';
+                        setTimeout(() => levelInd.style.display = 'none', 3000);
+                    }
+                    // Se mudou de nível, limpar inimigos locais para forçar respawn/sync
+                    enemies.forEach(e => scene.remove(e)); enemies = [];
+                } else if (k !== score) {
+                    score = k;
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = score;
+                }
+            });
+        }
+
         function syncEnemiesFromData(data, level) {
             enemies.forEach(e => scene.remove(e)); enemies = [];
             Object.keys(data).forEach(key => {
@@ -1375,13 +1378,23 @@
                 m.position.set(d.x, d.y, d.z);
                 m.userData = { id: id, isPlayer: true };
                 scene.add(m);
-                remotePlayers[id] = { mesh: m, targetPos: new THREE.Vector3(d.x, d.y, d.z), targetRot: d.rot, targetPitch: d.pitch || 0, isMoving: d.isMoving || false, invincible: d.invincible || false };
+                remotePlayers[id] = { 
+                    mesh: m, 
+                    targetPos: new THREE.Vector3(d.x, d.y, d.z), 
+                    targetRot: d.rot, 
+                    targetPitch: d.pitch || 0, 
+                    isMoving: d.isMoving || false, 
+                    isGrounded: d.isGrounded !== false, // FIX: Recupera o estado de chão do Firebase
+                    invincible: d.invincible || false 
+                };
             } else {
                 const r = remotePlayers[id];
                 r.targetPos.set(d.x, d.y, d.z);
                 r.targetRot = d.rot;
                 r.targetPitch = d.pitch || 0;
-                r.isMoving = d.isMoving || false; r.invincible = d.invincible || false;
+                r.isMoving = d.isMoving || false; 
+                r.isGrounded = d.isGrounded !== false; // FIX: Atualiza se está no chão
+                r.invincible = d.invincible || false;
             }
         }
 
@@ -2803,9 +2816,11 @@
             const b = en.getObjectByName("body"); if (b) b.material.color.setHex(0x333333);
 
             if (dbUpdate) {
+                if (isMultiplayerMode) {
+                    update(ref(db, `${roomPath}/state/enemies/${en.userData.index}`), { dead: true });
+                }
                 if (isCoopMode) {
                     registerTeamKill();
-                    update(ref(db, `${roomPath}/state/enemies/${en.userData.index}`), { dead: true });
                 } else {
                     registerKill();
                 }
@@ -2900,7 +2915,8 @@
                 rCanela: rCanelaPivot,
                 rArm: rArmPivot,
                 lArm: lArmPivot,
-                head: headR // Add head reference
+                head: headR, // Add head reference
+                torso: peito // FIX: Added torso to allow bobbing/shoulder swing
             };
             
             // Fix: Larger Hitbox for better hit registration
@@ -2945,7 +2961,7 @@
                 scene.add(enemy);
                 enemyData[i] = { x: rx * 5, z: rz * 5, rot: 0, hp: ehp, dead: false };
             }
-            if (isCoopMode && isMasterClient) {
+            if (isMultiplayerMode && isMasterClient) {
                 update(ref(db, `${roomPath}/state/enemies`), enemyData);
             }
         }
@@ -3066,18 +3082,11 @@
                 }
 
                 // Spawn enemies logic:
-                // 1. Single Player: Always spawn
-                // 2. Coop: Only Host spawns (syncs to others)
-                // 3. PvP: NEVER spawn bots
                 if (!isMultiplayerMode) {
-                    // Single Player: Always spawn immediately
                     const botCount = 15 + (currentLevel - 1) * 2;
                     spawnEnemies(botCount, currentLevel);
-                } else if (isCoopMode) {
-                    // Coop: Host spawns bots
-                    if (isMasterClient) { spawnEnemies(15 + (currentLevel - 1) * 2, currentLevel); }
-                } else {
-                    console.log("PvP Mode: No bots.");
+                } else if (isMasterClient) { 
+                    spawnEnemies(15 + (currentLevel - 1) * 2, currentLevel); 
                 }
 
                 const kitCount = currentLevel <= 2 ? 6 : 8;
