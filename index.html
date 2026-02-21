@@ -3891,8 +3891,9 @@
                         }
                     }
                 }
-                // Colisão com Inimigos (Single/Coop)
-                if ((!isMultiplayerMode || isCoopMode) && !hit) {
+                
+                // FIX: Colisão com Inimigos (AGORA FUNCIONA EM QUALQUER MODO, INCLUINDO PVP)
+                if (!hit) {
                     // 1. Raycast Check (Trajeto da bala)
                     const hits = bulletRaycaster.intersectObjects(enemies, true);
 
@@ -3953,17 +3954,49 @@
         }
 
         function updateEnemies() {
-            if (isMultiplayerMode && !isCoopMode) return;
-            if (isCoopMode && !isMasterClient) {
+            if (isMultiplayerMode && !isMasterClient) {
                 enemies.forEach(e => {
                     if (!e.userData.dead && e.userData.targetPos) {
+                        const prevPos = e.position.clone();
                         e.position.lerp(e.userData.targetPos, 0.1);
-                        if (e.userData.targetRot) e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, e.userData.targetRot, 0.1);
+                        if (e.userData.targetRot !== undefined) e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, e.userData.targetRot, 0.1);
+                        
+                        // FIX: ANIMATION FOR CLIENT BOTS (Aplica a animação visualmente pelo deslocamento)
+                        const distMoved = prevPos.distanceTo(e.position);
+                        if (e.userData.pivots) {
+                            const isMoving = distMoved > 0.005;
+                            if (isMoving) {
+                                e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2;
+                            } else {
+                                e.userData.walkCycle = 0;
+                            }
+                            const wc = e.userData.walkCycle;
+
+                            const baseCrouch = 0.3;
+                            const baseKnee = -0.6;
+                            const legSwing = Math.sin(wc) * 0.5;
+
+                            if (isMoving) {
+                                e.userData.pivots.lLeg.rotation.x = baseCrouch + legSwing;
+                                e.userData.pivots.lCanela.rotation.x = baseKnee - Math.abs(Math.cos(wc)) * 0.5;
+                                e.userData.pivots.rLeg.rotation.x = baseCrouch - legSwing;
+                                e.userData.pivots.rCanela.rotation.x = baseKnee - Math.abs(Math.sin(wc)) * 0.5;
+                            } else {
+                                e.userData.pivots.lLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lLeg.rotation.x, baseCrouch, 0.1);
+                                e.userData.pivots.lCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.lCanela.rotation.x, baseKnee, 0.1);
+                                e.userData.pivots.rLeg.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rLeg.rotation.x, baseCrouch, 0.1);
+                                e.userData.pivots.rCanela.rotation.x = THREE.MathUtils.lerp(e.userData.pivots.rCanela.rotation.x, baseKnee, 0.1);
+                            }
+                            
+                            // Braços levemente levantados para frente
+                            e.userData.pivots.rArm.rotation.x = Math.PI / 2;
+                            e.userData.pivots.lArm.rotation.x = Math.PI / 2;
+                        }
                     }
                 });
                 return;
             }
-            // Em coop, apenas master client controla inimigos e faz eles atirarem
+            // Em coop/pvp, apenas master client controla inimigos e faz eles atirarem
 
             const now = performance.now();
             enemies.forEach(e => {
