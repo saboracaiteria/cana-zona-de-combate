@@ -47,6 +47,7 @@
         .start-season { font-family: 'Rajdhani', sans-serif; color: var(--canaa-gold); font-size: clamp(14px, 4vw, 24px); font-weight: bold; letter-spacing: 6px; text-transform: uppercase; margin-top: 10px; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
         .press-text { font-family: 'Orbitron', sans-serif; font-size: clamp(30px, 6vw, 60px); font-weight: 900; color: var(--canaa-gold); text-transform: uppercase; letter-spacing: 6px; animation: pulseText 0.8s infinite alternate ease-in-out; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5), 2px 2px 5px #000; text-align: center; padding: 20px; }
         @keyframes pulseText { 0% { transform: scale(1); opacity: 0.8; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5), 2px 2px 5px #000; } 100% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 30px rgba(255, 215, 0, 1), 0 0 60px rgba(255, 215, 0, 0.8), 2px 2px 5px #000; } }
+        
         #html-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 10; }
         #main-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; color: white; z-index: 200; background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.9) 100%); overflow: hidden; transition: background 0.3s ease; }
         #main-menu.paused-mode { background: rgba(0, 0, 0, 0.95) !important; }
@@ -390,8 +391,14 @@
             cleanupMultiplayer(); document.getElementById("start-view").style.display = "none"; document.getElementById("lobby-screen").style.display = "flex";
             const title = document.getElementById("lobby-title"), btn = document.getElementById("start-mp-btn"), levelSelectDiv = document.getElementById("pvp-level-selection");
             hasResetLobbyState = false; const roomID = 'global';
-            if (mode === 'coop') { roomPath = `rooms/coop/${roomID}`; isCoopMode = true; title.innerText = "CO-OP PVE"; title.style.color = "#FF00FF"; btn.style.borderColor = "#FF00FF"; btn.style.color = "#FF00FF"; levelSelectDiv.style.display = "none"; btn.onclick = () => { update(ref(db, `${roomPath}/state`), { gameRunning: true }); resetGame('coop'); }; } 
-            else { btn.onclick = () => { const selectedLevel = parseInt(document.getElementById("pvp-level-select").value); currentLevel = selectedLevel; const trueNow = Date.now() + serverTimeOffset; const seed = Math.floor(Math.random() * 999999); window.currentMapSeed = seed; update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, mapSeed: seed, endTime: trueNow + 240000 }); resetGame('multi'); }; roomPath = `rooms/pvp/${roomID}`; isCoopMode = false; title.innerText = "PVP ONLINE"; title.style.color = "#00f3ff"; btn.style.borderColor = "#00f3ff"; btn.style.color = "#00f3ff"; levelSelectDiv.style.display = "block"; }
+            if (mode === 'coop') { 
+                roomPath = `rooms/coop/${roomID}`; isCoopMode = true; title.innerText = "CO-OP PVE"; title.style.color = "#FF00FF"; btn.style.borderColor = "#FF00FF"; btn.style.color = "#FF00FF"; levelSelectDiv.style.display = "none"; 
+                btn.onclick = () => { window.currentMapSeed = Math.floor(Math.random() * 999999); update(ref(db, `${roomPath}/state`), { gameRunning: true, mapSeed: window.currentMapSeed }); resetGame('coop'); }; 
+            } 
+            else { 
+                roomPath = `rooms/pvp/${roomID}`; isCoopMode = false; title.innerText = "PVP ONLINE"; title.style.color = "#00f3ff"; btn.style.borderColor = "#00f3ff"; btn.style.color = "#00f3ff"; levelSelectDiv.style.display = "block"; 
+                btn.onclick = () => { const selectedLevel = parseInt(document.getElementById("pvp-level-select").value); currentLevel = selectedLevel; const trueNow = Date.now() + serverTimeOffset; const seed = Math.floor(Math.random() * 999999); window.currentMapSeed = seed; update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, mapSeed: seed, endTime: trueNow + 240000 }); resetGame('multi'); }; 
+            }
             connectLobby();
         }
 
@@ -408,24 +415,14 @@
                     onValue(ref(db, `${roomPath}/state`), (snapshot) => {
                         const state = snapshot.val(); const trueNow = Date.now() + serverTimeOffset;
                         if (state && state.endTime) { if (state.endTime > trueNow - 10000) { pvpMatchEndTime = state.endTime; } }
-                        if (state && state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
-                            if (state.level) currentLevel = state.level; if (state.mapSeed) window.currentMapSeed = state.mapSeed; setTimeout(() => { resetGame(isCoopMode ? 'coop' : 'multi'); }, 500);
-                        }
-                        if (state && state.gameRunning === true && isPlaying && isMultiplayerMode && !isMasterClient) {
+                        if (state && state.gameRunning === true) {
                             if (state.mapSeed !== undefined) window.currentMapSeed = state.mapSeed;
-                            if (state.level && state.level > currentLevel) {
+                            if (state.level && state.level > currentLevel && isPlaying) {
                                 currentLevel = state.level;
-                                document.getElementById('level-complete-screen').style.display = 'none';
-                                document.getElementById('pause-btn').style.display = 'flex';
-                                playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100;
-                                const hpEl = document.getElementById('hp'); if (hpEl) hpEl.innerText = 100;
-                                camera.rotation.set(0, 0, 0); camera.quaternion.identity();
-                                createWorld(currentLevel);
-                                const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel;
-                                spawnHealthKits(6); spawnArmorVests(); spawnGrenadePacks();
-                                isPlaying = true;
-                                if (invincibilityTimeout) clearTimeout(invincibilityTimeout); isInvincible = true; if (myRef) update(myRef, { invincible: true }); invincibilityTimeout = setTimeout(() => { isInvincible = false; if (myRef) update(myRef, { invincible: false }); }, 6000);
-                                const o = document.getElementById('damage-overlay'); if (o) { o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; setTimeout(() => o.style.backgroundColor = "transparent", 300); }
+                                if (!isMasterClient) { startNextLevelLocal(); }
+                            } else if (!isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
+                                if (state.level) currentLevel = state.level;
+                                setTimeout(() => { resetGame(isCoopMode ? 'coop' : 'multi'); }, 500);
                             }
                         }
                     });
@@ -780,7 +777,7 @@
                 }, 30);
             } else {
                 const color = 0x777777; const particles = []; const pCount = 8; const sGeo = new THREE.SphereGeometry(1, 12, 12);
-                for(let i = 0; i < pCount; i++) { const mat = new MeshBasicMaterial({ color: color, transparent: false, opacity: 1.0, side: THREE.DoubleSide }); const mesh = new THREE.Mesh(sGeo, mat); mesh.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.5); mesh.scale.setScalar(0.8 + Math.random() * 0.6); effectGroup.add(mesh); particles.push(mat); }
+                for(let i = 0; i < pCount; i++) { const mat = new THREE.MeshBasicMaterial({ color: color, transparent: false, opacity: 1.0, side: THREE.DoubleSide }); const mesh = new THREE.Mesh(sGeo, mat); mesh.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.5); mesh.scale.setScalar(0.8 + Math.random() * 0.6); effectGroup.add(mesh); particles.push(mat); }
                 let expand = 0;
                 const interval = setInterval(() => { expand++; const expandRate = 0.02; effectGroup.scale.setScalar(1 + expand * expandRate); if (expand > 190) { particles.forEach(m => { m.transparent = true; m.opacity -= 0.02; }); if (particles[0].opacity <= 0) { clearInterval(interval); scene.remove(effectGroup); particles.forEach(m => m.dispose()); sGeo.dispose(); } } }, 50);
             }
@@ -958,7 +955,7 @@
             const rLegPivot = new THREE.Object3D(); rLegPivot.name = "rLegPivot"; rLegPivot.position.set(0.12, -0.1, 0); pelve.add(rLegPivot); const rCoxa = new THREE.Mesh(LegGeo, matCamo); rCoxa.position.y = -0.2; rLegPivot.add(rCoxa); const rCanelaPivot = new THREE.Object3D(); rCanelaPivot.position.y = -0.22; rCoxa.add(rCanelaPivot); const rCanela = new THREE.Mesh(LegGeo, matCamo); rCanela.position.y = -0.2; rCanelaPivot.add(rCanela); const rBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); rBota.position.set(0, -0.25, -0.1); rCanela.add(rBota);
             const lLegPivot = new THREE.Object3D(); lLegPivot.name = "lLegPivot"; lLegPivot.position.set(-0.12, -0.1, 0); pelve.add(lLegPivot); const lCoxa = new THREE.Mesh(LegGeo, matCamo); lCoxa.position.y = -0.2; lLegPivot.add(lCoxa); const lCanelaPivot = new THREE.Object3D(); lCanelaPivot.position.y = -0.22; lCoxa.add(lCanelaPivot); const lCanela = new THREE.Mesh(LegGeo, matCamo); lCanela.position.y = -0.2; lCanelaPivot.add(lCanela); const lBota = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), matBota); lBota.position.set(0, -0.25, -0.1); lCanela.add(lBota);
             const rArmPivot = new THREE.Object3D(); rArmPivot.name = "rArmPivot"; rArmPivot.position.set(0.32, 0.1, 0); peito.add(rArmPivot); const rBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.35), matSkin); rBiceps.position.y = -0.15; rArmPivot.add(rBiceps); const rElbow = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); rElbow.position.y = -0.33; rBiceps.add(rElbow);
-            const lArmPivot = new THREE.Object3D(); lArmPivot.name = "lArmPivot"; lArmPivot.position.set(-0.32, 0.1, 0); peito.add(lArmPivot); const lBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.35), matSkin); lBiceps.position.y = -0.15; lArmPivot.add(lBiceps); const lElbow = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); lElbow.position.y = -0.33; lBiceps.add(lElbow);
+            const lArmPivot = new THREE.Object3D(); lArmPivot.name = "lArmPivot"; lArmPivot.position.set(-0.32, 0.1, 0); peito.add(lArmPivot); const lBiceps = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.35), matSkin); lBiceps.position.y = -0.15; lArmPivot.add(lBiceps); const lElbow = new Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35), matSkin); lElbow.position.y = -0.33; lBiceps.add(lElbow);
             const gun = new THREE.Group(); const wMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); gun.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.6), wMat)); const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4), wMat); barrel.rotation.x = Math.PI / 2; barrel.position.z = -0.4; gun.add(barrel); gun.position.set(0, -0.15, 0); gun.rotation.x = -Math.PI / 2; gun.name = "gun"; rElbow.add(gun);
             rArmPivot.rotation.x = Math.PI / 2; lArmPivot.rotation.x = Math.PI / 2; lArmPivot.rotation.y = 0.5;
             g.userData.pivots = { lLeg: lLegPivot, rLeg: rLegPivot, lCanela: lCanelaPivot, rCanela: rCanelaPivot, rArm: rArmPivot, lArm: lArmPivot, head: headR, torso: peito };
@@ -969,7 +966,7 @@
         function spawnEnemies(count, level) {
             enemies.forEach(e => { scene.remove(e); e.traverse(child => { if (child.isMesh) { if (child.geometry) child.geometry.dispose(); if (child.material) { if (Array.isArray(child.material)) child.material.forEach(m => m.dispose()); else child.material.dispose(); } } }); });
             enemies = [];
-            const ehp = 100 + ((level - 1) * 25), ec = count, rng = mulberry32(level + 5000); const enemyData = {};
+            const ehp = 100 + ((level - 1) * 25), ec = (isMultiplayerMode && !isCoopMode) ? 5 : count, rng = mulberry32(level + 5000); const enemyData = {};
             for (let i = 0; i < ec; i++) {
                 let px, pz; const openLevels = [1, 2, 3, 4, 8, 9, 10]; const isPVP = isMultiplayerMode && !isCoopMode; const isOpen = isPVP && openLevels.includes(level);
                 let valid = false; let attempts = 0;
@@ -1049,6 +1046,33 @@
             document.getElementById('game-over-screen').style.display = 'flex'; document.getElementById('mobile-ui').style.display = 'none'; document.getElementById('pause-btn').style.display = 'none';
         }
 
+        function startNextLevelLocal() {
+            document.getElementById('level-complete-screen').style.display = 'none';
+            document.getElementById('pause-btn').style.display = 'flex';
+            playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100;
+            const hpEl = document.getElementById('hp'); if (hpEl) hpEl.innerText = 100;
+            camera.rotation.set(0, 0, 0); camera.quaternion.identity();
+            
+            if (!isMultiplayerMode || isCoopMode) { score = 0; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = 0; }
+            
+            createWorld(currentLevel);
+            const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel;
+            
+            let targetBotCount = 15 + (currentLevel - 1) * 2; if (isMultiplayerMode && !isCoopMode) targetBotCount = 5;
+            if (isMasterClient || !isMultiplayerMode) spawnEnemies(targetBotCount, currentLevel);
+            
+            spawnHealthKits(6); spawnArmorVests(); spawnGrenadePacks(); isPlaying = true;
+            
+            const ind = document.getElementById('level-indicator'); if (ind) { ind.innerText = isCoopMode ? "COOP ZONE " + currentLevel : (isMultiplayerMode ? "PVP ZONE " + currentLevel : "LEVEL " + currentLevel); ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000); }
+            
+            if (invincibilityTimeout) clearTimeout(invincibilityTimeout); isInvincible = true; if (myRef) update(myRef, { invincible: true, hp: 100 });
+            invincibilityTimeout = setTimeout(() => { isInvincible = false; if (myRef) update(myRef, { invincible: false }); }, 6000);
+            
+            const o = document.getElementById('damage-overlay'); if (o) { o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; setTimeout(() => o.style.backgroundColor = "transparent", 300); }
+            if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
+            if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
+        }
+
         function nextLevel() {
             if (currentLevel >= maxLevels) {
                 isPlaying = false; document.exitPointerLock(); if (bgmPlayer) bgmPlayer.pause();
@@ -1056,11 +1080,16 @@
                 document.getElementById('mobile-ui').style.display = 'none'; return;
             }
             isPlaying = false; if (bgmPlayer) bgmPlayer.pause();
-            document.getElementById('level-complete-screen').style.display = 'flex'; 
-            document.getElementById('continue-btn').innerText = (isMultiplayerMode && !isMasterClient) ? "AGUARDANDO HOST..." : "NEXT LEVEL";
+            document.getElementById('level-complete-screen').style.display = 'flex';
             document.getElementById('pause-btn').style.display = 'none'; document.exitPointerLock();
-            if (!isMultiplayerMode || isMasterClient) {
-                currentLevel++; 
+            
+            const contBtn = document.getElementById('continue-btn');
+            if (isMultiplayerMode && !isMasterClient) {
+                contBtn.innerText = "AGUARDANDO HOST...";
+                contBtn.style.opacity = "0.5";
+            } else {
+                contBtn.innerText = "NEXT LEVEL";
+                contBtn.style.opacity = "1";
             }
         }
 
@@ -1109,22 +1138,13 @@
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('continue-btn').onclick = () => {
-                if (isMultiplayerMode && !isMasterClient) return;
-                
-                document.getElementById('level-complete-screen').style.display = 'none'; document.getElementById('pause-btn').style.display = 'flex'; playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100; const hpEl = document.getElementById('hp'); if (hpEl) hpEl.innerText = 100; camera.rotation.set(0, 0, 0); camera.quaternion.identity();
-                
-                if (isMultiplayerMode && isMasterClient) { window.currentMapSeed = Math.floor(Math.random() * 999999); }
-                
-                if (isCoopMode) { if (myRef) update(myRef, { hp: 100 }); if (isMasterClient) { update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: {}, kits: {}, mapSeed: window.currentMapSeed }); } } else { score = 0; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = 0; if (isMultiplayerMode && isMasterClient) { update(ref(db, `${roomPath}/state`), { level: currentLevel, mapSeed: window.currentMapSeed }); } }
-                
-                createWorld(currentLevel); const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel;
-                let targetBotCount = 15 + (currentLevel - 1) * 2; if (isMultiplayerMode && !isCoopMode) targetBotCount = 5;
-                if (isMasterClient || !isMultiplayerMode) spawnEnemies(targetBotCount, currentLevel);
-                spawnHealthKits(6); spawnArmorVests(); isPlaying = true;
-                if (invincibilityTimeout) clearTimeout(invincibilityTimeout); isInvincible = true; if (myRef) update(myRef, { invincible: true }); invincibilityTimeout = setTimeout(() => { isInvincible = false; if (myRef) update(myRef, { invincible: false }); }, 6000);
-                const o = document.getElementById('damage-overlay'); if (o) { o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; setTimeout(() => o.style.backgroundColor = "transparent", 300); }
-                if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
-                if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
+                if (isMultiplayerMode && !isMasterClient) return; 
+                currentLevel++;
+                if (isMultiplayerMode && isMasterClient) {
+                    window.currentMapSeed = Math.floor(Math.random() * 999999);
+                    update(ref(db, `${roomPath}/state`), { level: currentLevel, mapSeed: window.currentMapSeed, kills: 0, gameRunning: true });
+                }
+                startNextLevelLocal();
             };
             document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
