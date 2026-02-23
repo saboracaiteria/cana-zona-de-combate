@@ -47,7 +47,6 @@
         .start-season { font-family: 'Rajdhani', sans-serif; color: var(--canaa-gold); font-size: clamp(14px, 4vw, 24px); font-weight: bold; letter-spacing: 6px; text-transform: uppercase; margin-top: 10px; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
         .press-text { font-family: 'Orbitron', sans-serif; font-size: clamp(30px, 6vw, 60px); font-weight: 900; color: var(--canaa-gold); text-transform: uppercase; letter-spacing: 6px; animation: pulseText 0.8s infinite alternate ease-in-out; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5), 2px 2px 5px #000; text-align: center; padding: 20px; }
         @keyframes pulseText { 0% { transform: scale(1); opacity: 0.8; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5), 2px 2px 5px #000; } 100% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 30px rgba(255, 215, 0, 1), 0 0 60px rgba(255, 215, 0, 0.8), 2px 2px 5px #000; } }
-        
         #html-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 10; }
         #main-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; color: white; z-index: 200; background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.9) 100%); overflow: hidden; transition: background 0.3s ease; }
         #main-menu.paused-mode { background: rgba(0, 0, 0, 0.95) !important; }
@@ -392,7 +391,7 @@
             const title = document.getElementById("lobby-title"), btn = document.getElementById("start-mp-btn"), levelSelectDiv = document.getElementById("pvp-level-selection");
             hasResetLobbyState = false; const roomID = 'global';
             if (mode === 'coop') { roomPath = `rooms/coop/${roomID}`; isCoopMode = true; title.innerText = "CO-OP PVE"; title.style.color = "#FF00FF"; btn.style.borderColor = "#FF00FF"; btn.style.color = "#FF00FF"; levelSelectDiv.style.display = "none"; btn.onclick = () => { update(ref(db, `${roomPath}/state`), { gameRunning: true }); resetGame('coop'); }; } 
-            else { roomPath = `rooms/pvp/${roomID}`; isCoopMode = false; title.innerText = "PVP ONLINE"; title.style.color = "#00f3ff"; btn.style.borderColor = "#00f3ff"; btn.style.color = "#00f3ff"; levelSelectDiv.style.display = "block"; btn.onclick = () => { const selectedLevel = parseInt(document.getElementById("pvp-level-select").value); currentLevel = selectedLevel; const trueNow = Date.now() + serverTimeOffset; update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, endTime: trueNow + 240000 }); resetGame('multi'); }; }
+            else { btn.onclick = () => { const selectedLevel = parseInt(document.getElementById("pvp-level-select").value); currentLevel = selectedLevel; const trueNow = Date.now() + serverTimeOffset; const seed = Math.floor(Math.random() * 999999); window.currentMapSeed = seed; update(ref(db, `${roomPath}/state`), { gameRunning: true, level: selectedLevel, mapSeed: seed, endTime: trueNow + 240000 }); resetGame('multi'); }; roomPath = `rooms/pvp/${roomID}`; isCoopMode = false; title.innerText = "PVP ONLINE"; title.style.color = "#00f3ff"; btn.style.borderColor = "#00f3ff"; btn.style.color = "#00f3ff"; levelSelectDiv.style.display = "block"; }
             connectLobby();
         }
 
@@ -410,7 +409,24 @@
                         const state = snapshot.val(); const trueNow = Date.now() + serverTimeOffset;
                         if (state && state.endTime) { if (state.endTime > trueNow - 10000) { pvpMatchEndTime = state.endTime; } }
                         if (state && state.gameRunning === true && !isPlaying && !isMasterClient && document.getElementById("lobby-screen").style.display !== "none") {
-                            if (state.level) currentLevel = state.level; setTimeout(() => { resetGame(isCoopMode ? 'coop' : 'multi'); }, 500);
+                            if (state.level) currentLevel = state.level; if (state.mapSeed) window.currentMapSeed = state.mapSeed; setTimeout(() => { resetGame(isCoopMode ? 'coop' : 'multi'); }, 500);
+                        }
+                        if (state && state.gameRunning === true && isPlaying && isMultiplayerMode && !isMasterClient) {
+                            if (state.mapSeed !== undefined) window.currentMapSeed = state.mapSeed;
+                            if (state.level && state.level > currentLevel) {
+                                currentLevel = state.level;
+                                document.getElementById('level-complete-screen').style.display = 'none';
+                                document.getElementById('pause-btn').style.display = 'flex';
+                                playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100;
+                                const hpEl = document.getElementById('hp'); if (hpEl) hpEl.innerText = 100;
+                                camera.rotation.set(0, 0, 0); camera.quaternion.identity();
+                                createWorld(currentLevel);
+                                const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel;
+                                spawnHealthKits(6); spawnArmorVests(); spawnGrenadePacks();
+                                isPlaying = true;
+                                if (invincibilityTimeout) clearTimeout(invincibilityTimeout); isInvincible = true; if (myRef) update(myRef, { invincible: true }); invincibilityTimeout = setTimeout(() => { isInvincible = false; if (myRef) update(myRef, { invincible: false }); }, 6000);
+                                const o = document.getElementById('damage-overlay'); if (o) { o.style.backgroundColor = "rgba(0, 255, 255, 0.3)"; setTimeout(() => o.style.backgroundColor = "transparent", 300); }
+                            }
                         }
                     });
                     unsubAuth();
@@ -524,13 +540,8 @@
             unsubCoopLevel = onValue(ref(db, `${roomPath}/state`), (s) => {
                 const state = s.val();
                 if (!state) { if (isMasterClient) update(ref(db, `${roomPath}/state`), { level: 1, kills: 0, enemies: {}, kits: {} }); return; }
-                const l = state.level || 1; const k = state.kills || 0;
-                if (l !== currentLevel) {
-                    currentLevel = l; score = k; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = score;
-                    const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel;
-                    const levelInd = document.getElementById('level-indicator'); if (levelInd) { levelInd.innerText = "ZONA COOP " + currentLevel; levelInd.style.display = 'block'; setTimeout(() => levelInd.style.display = 'none', 3000); }
-                    enemies.forEach(e => scene.remove(e)); enemies = [];
-                } else if (k !== score) { score = k; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = score; }
+                const k = state.kills || 0;
+                if (k !== score) { score = k; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = score; }
             });
         }
 
@@ -709,14 +720,16 @@
         function updateGrenadeUI() { const gCount = document.getElementById('grenade-count'); if (gCount) gCount.innerText = grenades.explosive; const sCount = document.getElementById('smoke-count'); if (sCount) sCount.innerText = grenades.smoke; }
 
         function spawnArmorVests() {
-            armorVests.forEach(k => scene.remove(k)); armorVests = []; const rng = mulberry32(currentLevel + 222);
+            armorVests.forEach(k => scene.remove(k)); armorVests = []; const rng = mulberry32((window.currentMapSeed || currentLevel) + 222);
             for (let i = 0; i < 4; i++) { let rx, rz; do { rx = Math.floor(rng() * mazeSize); rz = Math.floor(rng() * mazeSize); } while (mazeMap[rz][rx] === 1); const k = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x0088FF, emissive: 0x002288 })); k.position.set(rx * 5, 0.5, rz * 5); k.userData = { active: true }; scene.add(k); armorVests.push(k); }
         }
 
         function spawnGrenadePacks() {
             grenadePacks.forEach(k => scene.remove(k)); grenadePacks = [];
-            const internalWalls = walls.filter(w => { const px = w.position.x; const pz = w.position.z; return px > 5 && px < 90 && pz > 5 && pz < 90 && w.geometry && w.geometry.parameters && w.geometry.parameters.height === 6; });
-            const shuffledWalls = internalWalls.sort(() => 0.5 - Math.random()); const selectedWalls = shuffledWalls.slice(0, Math.min(12, shuffledWalls.length));
+            let internalWalls = walls.filter(w => { const px = w.position.x; const pz = w.position.z; return px > 5 && px < 90 && pz > 5 && pz < 90 && w.geometry && w.geometry.parameters && w.geometry.parameters.height === 6; });
+            const rng = mulberry32((window.currentMapSeed || currentLevel) + 1234);
+            for (let i = internalWalls.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [internalWalls[i], internalWalls[j]] = [internalWalls[j], internalWalls[i]]; }
+            const selectedWalls = internalWalls.slice(0, Math.min(12, internalWalls.length));
             selectedWalls.forEach((w) => { const k = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x556B2F, emissive: 0x223311 })); k.position.set(w.position.x, 6.2, w.position.z); k.userData = { active: true }; scene.add(k); grenadePacks.push(k); });
         }
         
@@ -767,7 +780,7 @@
                 }, 30);
             } else {
                 const color = 0x777777; const particles = []; const pCount = 8; const sGeo = new THREE.SphereGeometry(1, 12, 12);
-                for(let i = 0; i < pCount; i++) { const mat = new THREE.MeshBasicMaterial({ color: color, transparent: false, opacity: 1.0, side: THREE.DoubleSide }); const mesh = new THREE.Mesh(sGeo, mat); mesh.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.5); mesh.scale.setScalar(0.8 + Math.random() * 0.6); effectGroup.add(mesh); particles.push(mat); }
+                for(let i = 0; i < pCount; i++) { const mat = new MeshBasicMaterial({ color: color, transparent: false, opacity: 1.0, side: THREE.DoubleSide }); const mesh = new THREE.Mesh(sGeo, mat); mesh.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.5); mesh.scale.setScalar(0.8 + Math.random() * 0.6); effectGroup.add(mesh); particles.push(mat); }
                 let expand = 0;
                 const interval = setInterval(() => { expand++; const expandRate = 0.02; effectGroup.scale.setScalar(1 + expand * expandRate); if (expand > 190) { particles.forEach(m => { m.transparent = true; m.opacity -= 0.02; }); if (particles[0].opacity <= 0) { clearInterval(interval); scene.remove(effectGroup); particles.forEach(m => m.dispose()); sGeo.dispose(); } } }, 50);
             }
@@ -852,7 +865,10 @@
             const rampShape = new THREE.Shape(); rampShape.moveTo(0, 0); rampShape.lineTo(0, 6); rampShape.lineTo(10, 0); rampShape.lineTo(0, 0);
             const rampExtrudeSettings = { steps: 1, depth: 5, bevelEnabled: false }; const rampGeo = new THREE.ExtrudeGeometry(rampShape, rampExtrudeSettings);
             rampGeo.center(); rampGeo.translate(0, 3, 0); const rampMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9, map: floorTexture, side: THREE.DoubleSide });
-            const wallRNG = mulberry32(level * 777); 
+            
+            const seedToUse = (isOpenLevel && window.currentMapSeed) ? window.currentMapSeed : (level * 777);
+            const wallRNG = mulberry32(seedToUse); 
+            
             if (isOpenLevel) {
                  const centralPlat = new THREE.Mesh(new THREE.BoxGeometry(15, 4, 15), wallMat); centralPlat.position.set(50, 2, 50); centralPlat.receiveShadow = true; centralPlat.castShadow = true; scene.add(centralPlat); walls.push(centralPlat);
                  const rN = new THREE.Mesh(rampGeo, rampMat); rN.position.set(47.5, 0, 40); rN.rotation.y = 0; rN.castShadow = true; rN.receiveShadow = true; scene.add(rN); ramps.push(rN);
@@ -877,7 +893,7 @@
         }
 
         function spawnHealthKits(count) {
-            healthKits.forEach(k => scene.remove(k)); healthKits = []; const rng = mulberry32(currentLevel + 999); const kitsData = {};
+            healthKits.forEach(k => scene.remove(k)); healthKits = []; const rng = mulberry32((window.currentMapSeed || currentLevel) + 999); const kitsData = {};
             for (let i = 0; i < count; i++) { let rx, rz; const openLevels = [1, 2, 3, 4, 8, 9, 10]; const isPVP = isMultiplayerMode && !isCoopMode; const isOpen = isPVP && openLevels.includes(currentLevel); do { rx = Math.floor(rng() * mazeSize); rz = Math.floor(rng() * mazeSize); } while (isOpen ? (rx === 0 || rx === mazeSize-1 || rz === 0 || rz === mazeSize-1 || (rx === 7 && rz === 7) || (rx === 12 && rz === 12)) : mazeMap[rz][rx] === 1); const k = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x00FF41, emissive: 0x004400 })); k.position.set(rx * 5, 0.5, rz * 5); k.userData = { index: i, taken: false }; scene.add(k); healthKits.push(k); kitsData[i] = { x: rx * 5, z: rz * 5, taken: false }; }
             if (isCoopMode && isMasterClient) { update(ref(db, `${roomPath}/state/kits`), kitsData); }
         }
@@ -1039,9 +1055,13 @@
                 const winScreen = document.getElementById('win-screen'); if (winScreen) { winScreen.querySelector('h1').innerText = 'MISSION ACCOMPLISHED'; const pEl = winScreen.querySelector('p'); if(pEl) pEl.innerText = 'You conquered all 10 levels! Mission accomplished successfully!'; winScreen.style.display = 'flex'; }
                 document.getElementById('mobile-ui').style.display = 'none'; return;
             }
-            currentLevel++; isPlaying = false; if (bgmPlayer) bgmPlayer.pause();
-            document.getElementById('level-complete-screen').style.display = 'flex'; document.getElementById('pause-btn').style.display = 'none'; document.exitPointerLock();
-            if (isCoopMode && isMasterClient) { update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0 }); }
+            isPlaying = false; if (bgmPlayer) bgmPlayer.pause();
+            document.getElementById('level-complete-screen').style.display = 'flex'; 
+            document.getElementById('continue-btn').innerText = (isMultiplayerMode && !isMasterClient) ? "AGUARDANDO HOST..." : "NEXT LEVEL";
+            document.getElementById('pause-btn').style.display = 'none'; document.exitPointerLock();
+            if (!isMultiplayerMode || isMasterClient) {
+                currentLevel++; 
+            }
         }
 
         function setupUI() {
@@ -1089,8 +1109,14 @@
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('continue-btn').onclick = () => {
+                if (isMultiplayerMode && !isMasterClient) return;
+                
                 document.getElementById('level-complete-screen').style.display = 'none'; document.getElementById('pause-btn').style.display = 'flex'; playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100; const hpEl = document.getElementById('hp'); if (hpEl) hpEl.innerText = 100; camera.rotation.set(0, 0, 0); camera.quaternion.identity();
-                if (isCoopMode) { if (myRef) update(myRef, { hp: 100 }); if (isMasterClient) { update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: {}, kits: {} }); } } else { score = 0; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = 0; }
+                
+                if (isMultiplayerMode && isMasterClient) { window.currentMapSeed = Math.floor(Math.random() * 999999); }
+                
+                if (isCoopMode) { if (myRef) update(myRef, { hp: 100 }); if (isMasterClient) { update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: {}, kits: {}, mapSeed: window.currentMapSeed }); } } else { score = 0; const scoreEl = document.getElementById('score'); if (scoreEl) scoreEl.innerText = 0; if (isMultiplayerMode && isMasterClient) { update(ref(db, `${roomPath}/state`), { level: currentLevel, mapSeed: window.currentMapSeed }); } }
+                
                 createWorld(currentLevel); const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel;
                 let targetBotCount = 15 + (currentLevel - 1) * 2; if (isMultiplayerMode && !isCoopMode) targetBotCount = 5;
                 if (isMasterClient || !isMultiplayerMode) spawnEnemies(targetBotCount, currentLevel);
