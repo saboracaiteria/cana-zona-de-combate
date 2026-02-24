@@ -2558,6 +2558,13 @@
                     } else {
                         // Layout Labirinto (Co-op, Single Player ou Níveis não abertos)
                         shouldPlaceWall = (mazeMap[i][j] === 1);
+                        
+                        // FIX: Variação procedural no labirinto para dar sensação de progressão
+                        if (level > 1 && !shouldPlaceWall && i > 2 && i < mazeSize - 3 && j > 2 && j < mazeSize - 3) {
+                            if (wallRNG() < (level * 0.04)) { 
+                                shouldPlaceWall = true;
+                            }
+                        }
                     }
 
                     if (shouldPlaceWall) {
@@ -3113,10 +3120,6 @@
                 document.getElementById('level-complete-screen').style.display = 'flex';
                 document.getElementById('pause-btn').style.display = 'none';
                 document.exitPointerLock();
-                if (isCoopMode && isMasterClient) {
-                    // FIX: Garantir que os bots antigos sejam apagados no servidor para gerar nova onda
-                    update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: null });
-                }
             
         }
 
@@ -3322,6 +3325,7 @@
             };
             document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
             document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
+            
             document.getElementById('continue-btn').onclick = () => {
                 document.getElementById('level-complete-screen').style.display = 'none';
                 document.getElementById('pause-btn').style.display = 'flex';
@@ -3332,16 +3336,25 @@
                 
                 camera.rotation.set(0, 0, 0); camera.quaternion.identity();
 
-                // O nível já foi incrementado na função nextLevel()
-                if (isCoopMode) {
-                    if (myRef) update(myRef, { hp: 100 });
+                // FIX 1: Limpeza profunda das arrays antigas (Garante que o mapa esvazia a memória)
+                enemies.forEach(e => scene.remove(e)); enemies = [];
+                bullets.forEach(b => scene.remove(b)); bullets = [];
+                activeGrenades.forEach(g => scene.remove(g.mesh)); activeGrenades = [];
+
+                // FIX 2: Zerar o contador de KILLS local e visualmente
+                score = 0; 
+                const scoreEl = document.getElementById('score');
+                if (scoreEl) scoreEl.innerText = 0;
+
+                // FIX 3: Resetar Multiplayer e Firebase
+                if (isMultiplayerMode) {
+                    if (myRef) update(myRef, { hp: 100, kills: 0 }); // Zera kills no server para o PVP e CO-OP
                     if (isMasterClient) {
-                        update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: {}, kits: {} });
+                        // Host apaga tudo do servidor e cria nova ronda
+                        update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: null, kits: null });
+                        const botCount = 15 + (currentLevel - 1) * 2;
+                        spawnEnemies(botCount, currentLevel);
                     }
-                } else {
-                    score = 0; 
-                    const scoreEl = document.getElementById('score');
-                    if (scoreEl) scoreEl.innerText = 0;
                 }
 
                 createWorld(currentLevel);
@@ -3349,7 +3362,14 @@
                 const levelDisplay = document.getElementById('level-display');
                 if (levelDisplay) levelDisplay.innerText = currentLevel;
                 
-                // FIX: Remover chamada local de spawnEnemies no multiplayer, deixar o Firebase Listener criar
+                // Mostrar texto central de novo nível
+                const ind = document.getElementById('level-indicator'); 
+                if (ind) {
+                    ind.innerText = isCoopMode ? "COOP ZONE " + currentLevel : (isMultiplayerMode ? "PVP ZONE " + currentLevel : "LEVEL " + currentLevel); 
+                    ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000);
+                }
+                
+                // FIX 4: Single player cria inimigos locais de forma garantida
                 if (!isMultiplayerMode) {
                     const botCount = 15 + (currentLevel - 1) * 2;
                     spawnEnemies(botCount, currentLevel);
@@ -3357,10 +3377,13 @@
                 
                 spawnHealthKits(6);
                 spawnArmorVests();
+                spawnGrenadePacks(); // Faltava gerar as caixas de granadas na transição
+                
                 isPlaying = true;
                 if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
+            
             document.getElementById('menu-return-btn').onclick = () => { document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
             document.getElementById('win-menu-btn').onclick = () => { document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); };
 
