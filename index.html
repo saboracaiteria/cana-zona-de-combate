@@ -3348,7 +3348,7 @@
 
                 // FIX 3: Resetar Multiplayer e Firebase
                 if (isMultiplayerMode) {
-                    if (myRef) update(myRef, { hp: 100, kills: 0 }); // Zera kills no server para o PVP e CO-OP
+                    if (myRef) update(myRef, { hp: 100, kills: 0 }); // Zera kills no server
                     if (isMasterClient) {
                         // Host apaga tudo do servidor e cria nova ronda
                         update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: null, kits: null });
@@ -3975,22 +3975,46 @@
 
                     if (isMultiplayerMode) {
                         Object.values(remotePlayers).forEach(rp => {
-                            const dist = e.position.distanceTo(rp.mesh.position);
-                            if (dist < minDist) {
-                                minDist = dist;
-                                target = rp.mesh;
+                            if (rp.mesh) {
+                                const dist = e.position.distanceTo(rp.mesh.position);
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    target = rp.mesh;
+                                }
                             }
                         });
                     }
 
                     const d = minDist;
-                    // FIX: O raio de deteção de ataque foi reestruturado para ser ativo mesmo se colar no inimigo
-                    if (d < 35) {
-                        const dir = new THREE.Vector3().subVectors(target.position, e.position).normalize();
+                    
+                    // FIX 1: GRAVIDADE INDEPENDENTE (Garante que nunca ficam a levitar ou presos na parede)
+                    let botGroundY = 0;
+                    const botDownRay = new THREE.Raycaster(new THREE.Vector3(e.position.x, e.position.y + 2, e.position.z), new THREE.Vector3(0, -1, 0), 0, 10);
+                    const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false);
+                    if (rampHits.length > 0 && rampHits[0].point.y > botGroundY) {
+                        botGroundY = rampHits[0].point.y;
+                    }
+
+                    e.userData.velocityY = (e.userData.velocityY || 0) - 0.015;
+                    e.position.y += e.userData.velocityY;
+
+                    if (e.position.y <= botGroundY) {
+                        e.position.y = botGroundY;
+                        e.userData.velocityY = 0;
+                        e.userData.isGrounded = true;
+                    } else {
+                        e.userData.isGrounded = false;
+                    }
+
+                    // FIX 2: AUMENTAR RAIO DE VISÃO PARA 100 (Para não ficarem parados e congelados ao longe)
+                    if (d < 100) {
+                        const dir = new THREE.Vector3().subVectors(target.position, e.position);
+                        dir.y = 0; // FIX 3: Anular Y na direção para o bot não tentar voar atrás do jogador
+                        if (dir.lengthSq() > 0) dir.normalize();
                         
                         // Bot rotation (facing target)
                         const targetYaw = Math.atan2(dir.x, dir.z) + Math.PI;
-                        e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, targetYaw, 0.15); // Utiliza lerp para a rotação suave
+                        e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, targetYaw, 0.15); 
 
                         // Aim arms at target
                         if (e.userData.pivots && e.userData.pivots.rArm) {
@@ -4005,35 +4029,14 @@
                             let moveSpeed = 0.075;
                             if (e.userData.hp <= 50) moveSpeed *= 1.5;
 
-                            const np = e.position.clone().add(dir.clone().multiplyScalar(moveSpeed));
+                            const nx = e.position.x + dir.x * moveSpeed;
+                            const nz = e.position.z + dir.z * moveSpeed;
 
-                            // FIX: Detectar a altura do chão para o bot (permite subir rampas e não passar por dentro)
-                            let botGroundY = 0;
-                            const botDownRay = new THREE.Raycaster(new THREE.Vector3(np.x, e.position.y + 2, np.z), new THREE.Vector3(0, -1, 0), 0, 10);
-                            const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false);
-                            if (rampHits.length > 0 && rampHits[0].point.y > botGroundY) {
-                                botGroundY = rampHits[0].point.y;
-                            }
-
-                            // GRAVITY FOR BOTS
-                            e.userData.velocityY = (e.userData.velocityY || 0) - 0.015;
-                            np.y += e.userData.velocityY;
-
-                            if (np.y <= botGroundY) {
-                                np.y = botGroundY;
-                                e.userData.velocityY = 0;
-                                e.userData.isGrounded = true;
-                            } else {
-                                e.userData.isGrounded = false;
-                            }
-
-                            // NEW AI LOGIC: Jump if low HP (evasion) or stuck
-                            if (e.userData.hp <= 50 && e.userData.isGrounded && Math.random() < 0.02) {
-                                 e.userData.velocityY = 0.25; // Jump
-                            }
-
-                            if (!checkWall(np.x, np.z, e.position.x, e.position.z, e.position.y)) {
-                                e.position.copy(np);
+                            if (!checkWall(nx, nz, e.position.x, e.position.z, e.position.y)) {
+                                // Aplica apenas X e Z, o Y já foi tratado na gravidade
+                                e.position.x = nx;
+                                e.position.z = nz;
+                                
                                 // Leg animation
                                 e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2;
                                 const wc = e.userData.walkCycle;
@@ -4050,7 +4053,7 @@
                                 }
                             } else {
                                 // Stuck on wall -> try Jump
-                                 if (e.userData.isGrounded) e.userData.velocityY = 0.25;
+                                 if (e.userData.isGrounded && Math.random() < 0.05) e.userData.velocityY = 0.25;
 
                                 // Reset legs when stopped
                                 if (e.userData.pivots) {
