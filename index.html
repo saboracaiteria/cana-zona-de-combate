@@ -877,6 +877,7 @@
         let pvpMatchEndTime = 0; // Alteração implementada para sincronização do Timer
         let pvpTimer = 0, pvpTimerInterval = null, isInvincible = false;
         let invincibilityTimeout = null; // Variable to manage invincibility timer
+        let levelStartTime = 0; // Tempo de inicio do nível para atrasar os bots
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
         const mazeMap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
@@ -3061,6 +3062,7 @@
                 spawnGrenadePacks(); // Spawn Grenade Packs
 
                 isPlaying = true; gamePaused = false;
+                levelStartTime = performance.now(); // NOVO: Inicia o relógio de segurança do nível
                 const ind = document.getElementById('level-indicator'); 
                 if (ind) {
                     ind.innerText = isCoopMode ? "COOP ZONE 1" : (isMultiplayerMode ? "PVP ZONE" : "LEVEL 1"); 
@@ -3380,6 +3382,7 @@
                 spawnGrenadePacks(); // Faltava gerar as caixas de granadas na transição
                 
                 isPlaying = true;
+                levelStartTime = performance.now(); // NOVO: Reinicia o relógio de segurança na nova ronda
                 if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
@@ -4029,16 +4032,46 @@
                             let moveSpeed = 0.075;
                             if (e.userData.hp <= 50) moveSpeed *= 1.5;
 
-                            const nx = e.position.x + dir.x * moveSpeed;
-                            const nz = e.position.z + dir.z * moveSpeed;
+                            // NOVA REGRA: Bots não avançam nos primeiros 20 segundos do jogo
+                            if (now - levelStartTime < 20000) {
+                                moveSpeed = 0;
+                            }
 
-                            if (!checkWall(nx, nz, e.position.x, e.position.z, e.position.y)) {
-                                // Aplica apenas X e Z, o Y já foi tratado na gravidade
-                                e.position.x = nx;
-                                e.position.z = nz;
-                                
-                                // Leg animation
-                                e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2;
+                            const np = e.position.clone().add(dir.clone().multiplyScalar(moveSpeed));
+
+                            // FIX: Detectar a altura do chão para o bot (permite subir rampas e não passar por dentro)
+                            let botGroundY = 0;
+                            const botDownRay = new THREE.Raycaster(new THREE.Vector3(np.x, e.position.y + 2, np.z), new THREE.Vector3(0, -1, 0), 0, 10);
+                            const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false);
+                            if (rampHits.length > 0 && rampHits[0].point.y > botGroundY) {
+                                botGroundY = rampHits[0].point.y;
+                            }
+
+                            // GRAVITY FOR BOTS
+                            e.userData.velocityY = (e.userData.velocityY || 0) - 0.015;
+                            np.y += e.userData.velocityY;
+
+                            if (np.y <= botGroundY) {
+                                np.y = botGroundY;
+                                e.userData.velocityY = 0;
+                                e.userData.isGrounded = true;
+                            } else {
+                                e.userData.isGrounded = false;
+                            }
+
+                            // NEW AI LOGIC: Jump if low HP (evasion) or stuck
+                            if (e.userData.hp <= 50 && e.userData.isGrounded && Math.random() < 0.02) {
+                                 e.userData.velocityY = 0.25; // Jump
+                            }
+
+                            if (!checkWall(np.x, np.z, e.position.x, e.position.z, e.position.y)) {
+                                e.position.copy(np);
+                                // Leg animation (apenas se estiverem em movimento)
+                                if (moveSpeed > 0) {
+                                    e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2;
+                                } else {
+                                    e.userData.walkCycle = 0; // Fica com as pernas paradas
+                                }
                                 const wc = e.userData.walkCycle;
 
                                 const baseCrouch = 0.3;
@@ -4079,20 +4112,23 @@
                         }
 
                         // Tiro: Agora funciona independente de estar colado ou não, desde que esteja no alcance
-                        if (now - e.userData.lastShot > e.userData.reactionTime) {
-                            // Posição de origem do tiro
+                        // NOVA REGRA: Bots não atiram nos primeiros 20 segundos do nível
+                        if (now - levelStartTime >= 20000 && now - e.userData.lastShot > e.userData.reactionTime) {
+                            
+                            // FIX: O ponto de origem da visão deve ser o EXATO centro do bot, sem offsets para a frente!
+                            // Se avançarmos a origem, o raio nasce DENTRO da parede quando o bot está colado a ela (Wallhack)
                             const sp = e.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-                            const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(e.quaternion);
-                            sp.add(forwardDir.multiplyScalar(0.5));
 
                             // Verificação de Linha de Visão
                             const targetPos = target.position.clone().add(new THREE.Vector3(0, 1.0, 0));
                             const distToTarget = sp.distanceTo(targetPos);
                             const shootDir = new THREE.Vector3().subVectors(targetPos, sp).normalize();
 
+                            // Lança o raio para ver se há paredes pelo caminho
                             const losRay = new THREE.Raycaster(sp, shootDir, 0, distToTarget);
-                            const hits = losRay.intersectObjects([...walls, ...ramps], true); // FIX: Tiros não atravessam rampas e paredes
+                            const hits = losRay.intersectObjects([...walls, ...ramps], true); 
 
+                            // Se hits.length === 0, significa que não bateu em nenhuma parede, o caminho está limpo!
                             if (hits.length === 0) {
                                 e.userData.lastShot = now;
                                 playSound('shoot');
@@ -4102,10 +4138,10 @@
                                 } else {
                                     const remoteId = target.userData.id;
                                     const remoteRef = ref(db, `${roomPath}/players/${remoteId}`);
-                                    runTransaction(remoteRef, (p) => { if (p) p.hp = (p.hp || 100) - 2; return p; }); // Dano reduzido para 2
+                                    runTransaction(remoteRef, (p) => { if (p) p.hp = (p.hp || 100) - 2; return p; }); 
                                 }
 
-                                // Efeito visual do laser saindo da arma
+                                // Efeito visual do laser saindo da arma (Apenas visual, não afeta a física)
                                 let visualOrigin = sp;
                                 const gun = e.getObjectByName("gun");
                                 if (gun) {
