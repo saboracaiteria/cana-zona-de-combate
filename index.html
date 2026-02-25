@@ -1237,28 +1237,31 @@
                     return;
                 }
 
-                // FIX 2: Se sou CLIENTE ou se acabei de nascer/entrar na sala (lista local vazia), sincronizar!
-                if (!isMasterClient || enemies.length === 0) {
-                    const dataKeys = Object.keys(data);
-                    if (enemies.length === 0 || dataKeys.length !== enemies.length) {
-                        syncEnemiesFromData(data, currentLevel);
-                    } else if (!isMasterClient) {
-                        // Atualizar posições dos inimigos existentes (apenas clientes)
-                        dataKeys.forEach(key => {
-                            const d = data[key];
-                            const idx = parseInt(key);
-                            const enemy = enemies.find(e => e.userData.index === idx);
-                            if (enemy) {
-                                if (d.dead) {
-                                    if (!enemy.userData.dead) killEnemyLocal(enemy, false);
-                                } else {
-                                    enemy.userData.targetPos = new THREE.Vector3(d.x, enemy.position.y, d.z);
-                                    enemy.userData.targetRot = d.rot;
-                                    enemy.userData.hp = d.hp;
-                                }
+                const dataKeys = Object.keys(data);
+                
+                // FIX: Garantir que a array tem o mesmo tamanho, mesmo com bots mortos na base de dados
+                if (enemies.length === 0 || dataKeys.length !== enemies.length) {
+                    syncEnemiesFromData(data, currentLevel);
+                } else {
+                    // Atualizar posições, vida e mortes (Tanto HOST como CLIENTES precisam ver a vida/morte)
+                    dataKeys.forEach(key => {
+                        const d = data[key];
+                        const idx = parseInt(key);
+                        const enemy = enemies.find(e => e.userData.index === idx);
+                        if (enemy) {
+                            // Todos atualizam a vida e o estado de morte para evitar "zombies"
+                            enemy.userData.hp = d.hp;
+                            if (d.dead && !enemy.userData.dead) {
+                                killEnemyLocal(enemy, false); // false para não disparar loop no DB
                             }
-                        });
-                    }
+                            
+                            // Apenas os clientes copiam a posição (o Host já os move localmente)
+                            if (!isMasterClient && !d.dead) {
+                                enemy.userData.targetPos = new THREE.Vector3(d.x, enemy.position.y, d.z);
+                                enemy.userData.targetRot = d.rot;
+                            }
+                        }
+                    });
                 }
             });
         }
@@ -1300,12 +1303,18 @@
             enemies.forEach(e => scene.remove(e)); enemies = [];
             Object.keys(data).forEach(key => {
                 const d = data[key];
-                if (!d.dead) {
-                    const idx = parseInt(key);
-                    const enemy = createEnemyMesh(d.x, d.z, level, idx);
-                    enemy.userData.hp = d.hp || 100;
-                    enemies.push(enemy);
-                    scene.add(enemy);
+                const idx = parseInt(key);
+                const enemy = createEnemyMesh(d.x, d.z, level, idx);
+                enemy.userData.hp = d.hp !== undefined ? d.hp : 100;
+                enemies.push(enemy);
+                scene.add(enemy);
+
+                if (d.dead) {
+                    // Se o bot já está morto no Firebase, ele nasce esmagado
+                    killEnemyLocal(enemy, false);
+                } else if (!isMasterClient) {
+                    enemy.userData.targetPos = new THREE.Vector3(d.x, enemy.position.y, d.z);
+                    enemy.userData.targetRot = d.rot;
                 }
             });
         }
@@ -3043,9 +3052,6 @@
                 if (isMultiplayerMode) {
                     if (isCoopMode) {
                         setupCoopPresence();
-                        if (isMasterClient) {
-                            // REMOVIDO: A limpeza do CO-OP aqui foi retirada para não excluir bots se o host clicar em RETRY
-                        }
                     } else setupPresence();
                 }
 
@@ -3325,8 +3331,16 @@
                 cleanupMultiplayer(); 
                 playMenuMusic(); 
             };
-            document.getElementById('retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
-            document.getElementById('win-retry-btn').onclick = () => { resetGame(isMultiplayerMode ? (isCoopMode ? 'coop' : 'multi') : 'single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; };
+            
+            // FIX: No modo Multiplayer, "Retry" e "New Operation" devolvem o jogador ao Lobby para evitar desincronização de tempo com o Host.
+            document.getElementById('retry-btn').onclick = () => { 
+                if (isMultiplayerMode) { document.getElementById('game-over-screen').style.display = 'none'; showLobby(isCoopMode ? 'coop' : 'pvp'); }
+                else { resetGame('single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; }
+            };
+            document.getElementById('win-retry-btn').onclick = () => { 
+                if (isMultiplayerMode) { document.getElementById('win-screen').style.display = 'none'; showLobby(isCoopMode ? 'coop' : 'pvp'); }
+                else { resetGame('single'); document.getElementById('hud').style.display = 'block'; if (!isPC) document.getElementById('mobile-ui').style.display = 'block'; }
+            };
             
             document.getElementById('continue-btn').onclick = () => {
                 document.getElementById('level-complete-screen').style.display = 'none';
@@ -3343,17 +3357,22 @@
                 bullets.forEach(b => scene.remove(b)); bullets = [];
                 activeGrenades.forEach(g => scene.remove(g.mesh)); activeGrenades = [];
 
-                // FIX 2: Zerar o contador de KILLS local e visualmente
-                score = 0; 
-                const scoreEl = document.getElementById('score');
-                if (scoreEl) scoreEl.innerText = 0;
+                // FIX 2: Zerar o contador de KILLS *APENAS* se NÃO for PVP! (Para não perder os pontos da partida)
+                if (!isMultiplayerMode || isCoopMode) {
+                    score = 0; 
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = 0;
+                }
 
-                // FIX 3: Resetar Multiplayer e Firebase
+                // FIX 3: Resetar Multiplayer e Firebase (mantendo as kills se for modo PVP)
                 if (isMultiplayerMode) {
-                    if (myRef) update(myRef, { hp: 100, kills: 0 }); // Zera kills no server
+                    if (myRef) {
+                        if (isCoopMode) update(myRef, { hp: 100, kills: 0 }); // Zera no Coop
+                        else update(myRef, { hp: 100 }); // Mantém as KILLS no PVP para o final da partida
+                    }
                     if (isMasterClient) {
-                        // Host apaga tudo do servidor e cria nova ronda
-                        update(ref(db, `${roomPath}/state`), { level: currentLevel, kills: 0, enemies: null, kits: null });
+                        // Host apaga bots mortos do servidor e cria nova vaga limpa
+                        update(ref(db, `${roomPath}/state`), { level: currentLevel, enemies: null, kits: null });
                         const botCount = 15 + (currentLevel - 1) * 2;
                         spawnEnemies(botCount, currentLevel);
                     }
@@ -3379,10 +3398,10 @@
                 
                 spawnHealthKits(6);
                 spawnArmorVests();
-                spawnGrenadePacks(); // Faltava gerar as caixas de granadas na transição
+                spawnGrenadePacks(); 
                 
                 isPlaying = true;
-                levelStartTime = performance.now(); // NOVO: Reinicia o relógio de segurança na nova ronda
+                levelStartTime = performance.now(); // Reinicia o relógio de segurança na nova ronda
                 if (isPC) { try { const pl = document.body.requestPointerLock(); if (pl) pl.catch(() => {}); } catch(e){} }
                 if (!isPC) document.getElementById('mobile-ui').style.display = 'block';
             };
@@ -3579,7 +3598,6 @@
                 const vis = isThirdPerson;
                 playerMeshParts.torso.material.visible = vis;
                 playerMeshParts.vest.material.visible = vis;
-                // head.visible = vis; // Head is not a simple var anymore, it's inside playerMeshParts logic
 
                 // Ensure arms are visible and not clipped in FPS
                 playerMeshParts.rArmPivot.traverse(c => { if (c.material) c.material.depthTest = true; });
@@ -3604,9 +3622,6 @@
                 }
             }
         }
-
-
-
 
         function processShooting() {
             const now = performance.now(); 
@@ -3635,8 +3650,7 @@
             
             lastShotTime = now; playSound('shoot'); recoilAngle = 0.05; pitch = Math.min(1.4, pitch + 0.01);
 
-            // --- ATUALIZAÇÃO SOLICITADA ---
-            // Simular o tranco da arma (Movimento rápido para frente/trás) - AUMENTADO
+            // Simular o tranco da arma (Movimento rápido para frente/trás)
             gunRecoil = currentWeapon === 1 ? 0.6 : 0.15; // Impulso instantâneo mais forte apenas na sniper
 
             // Apply kick zoom in both modes
@@ -3645,6 +3659,7 @@
             const f = gunGroup.getObjectByName("flash"); if (f) { f.visible = true; setTimeout(() => f.visible = false, 40); }
             muzzleFlashLight.intensity = 3; setTimeout(() => muzzleFlashLight.intensity = 0, 50); spawnBullet(null, null, false, currentWeapon);
         }
+
         function checkWall(nx, nz, cx, cz, cy) {
             const playerY = cy; // Get current height
 
@@ -3693,6 +3708,7 @@
             
             return false; 
         }
+
         function handleRemoteShoot(data) {
             const pos = new THREE.Vector3(data.x, data.y, data.z);
             const dir = new THREE.Vector3(data.dir.x, data.dir.y, data.dir.z);
@@ -3889,8 +3905,8 @@
                         }
 
                         if (o && o.userData && o.userData.isEnemyRoot && !o.userData.dead) {
-                            const dmg = b.userData.weaponType === 1 ? 100 : 15; // Dano do Rifle reduzido de 25 para 15 nos Bots
-                            o.userData.hp -= dmg;
+                            const dmg = b.userData.weaponType === 1 ? 100 : 15; 
+                            
                             triggerHitMarker();
                             const hitPoint = (hits.length > 0 && hits[0].point) ? hits[0].point : b.position.clone();
                             createBloodEffect(hitPoint, b.userData.velocity.clone().multiplyScalar(-1).normalize());
@@ -3901,7 +3917,27 @@
                                     setTimeout(() => { if (child.material) child.material.emissive.setHex(oldColor); }, 100);
                                 }
                             });
-                            if (o.userData.hp <= 0) killEnemyLocal(o, true);
+
+                            // FIX: Nova lógica de dano em Transação Segura (Nenhum "Zumbi" vai ressuscitar)
+                            if (isMultiplayerMode) {
+                                runTransaction(ref(db, `${roomPath}/state/enemies/${o.userData.index}`), (ed) => {
+                                    if (ed && !ed.dead) {
+                                        ed.hp -= dmg;
+                                        if (ed.hp <= 0) { ed.hp = 0; ed.dead = true; }
+                                    }
+                                    return ed;
+                                }).then((res) => {
+                                    // Apenas quem deu o tiro final ganha o ponto e esmaga o modelo
+                                    if (res.committed && res.snapshot.val().dead && !o.userData.dead) {
+                                        killEnemyLocal(o, false);
+                                        if (isCoopMode) registerTeamKill();
+                                        else registerKill();
+                                    }
+                                });
+                            } else {
+                                o.userData.hp -= dmg;
+                                if (o.userData.hp <= 0) killEnemyLocal(o, true);
+                            }
                             hit = true;
                         }
                     }
@@ -4032,40 +4068,19 @@
                             let moveSpeed = 0.075;
                             if (e.userData.hp <= 50) moveSpeed *= 1.5;
 
-                            // NOVA REGRA: Bots não avançam nos primeiros 20 segundos do jogo
-                            if (now - levelStartTime < 20000) {
+                            // NOVA REGRA: Bots não avançam nos primeiros 3 SEGUNDOS do jogo (Warmup rápido)
+                            if (now - levelStartTime < 3000) {
                                 moveSpeed = 0;
                             }
 
-                            const np = e.position.clone().add(dir.clone().multiplyScalar(moveSpeed));
+                            const nx = e.position.x + dir.x * moveSpeed;
+                            const nz = e.position.z + dir.z * moveSpeed;
 
-                            // FIX: Detectar a altura do chão para o bot (permite subir rampas e não passar por dentro)
-                            let botGroundY = 0;
-                            const botDownRay = new THREE.Raycaster(new THREE.Vector3(np.x, e.position.y + 2, np.z), new THREE.Vector3(0, -1, 0), 0, 10);
-                            const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false);
-                            if (rampHits.length > 0 && rampHits[0].point.y > botGroundY) {
-                                botGroundY = rampHits[0].point.y;
-                            }
-
-                            // GRAVITY FOR BOTS
-                            e.userData.velocityY = (e.userData.velocityY || 0) - 0.015;
-                            np.y += e.userData.velocityY;
-
-                            if (np.y <= botGroundY) {
-                                np.y = botGroundY;
-                                e.userData.velocityY = 0;
-                                e.userData.isGrounded = true;
-                            } else {
-                                e.userData.isGrounded = false;
-                            }
-
-                            // NEW AI LOGIC: Jump if low HP (evasion) or stuck
-                            if (e.userData.hp <= 50 && e.userData.isGrounded && Math.random() < 0.02) {
-                                 e.userData.velocityY = 0.25; // Jump
-                            }
-
-                            if (!checkWall(np.x, np.z, e.position.x, e.position.z, e.position.y)) {
-                                e.position.copy(np);
+                            if (!checkWall(nx, nz, e.position.x, e.position.z, e.position.y)) {
+                                // Aplica apenas X e Z, o Y já foi tratado na gravidade
+                                e.position.x = nx;
+                                e.position.z = nz;
+                                
                                 // Leg animation (apenas se estiverem em movimento)
                                 if (moveSpeed > 0) {
                                     e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2;
@@ -4098,22 +4113,20 @@
                             }
                         }
 
-                        // FIX: Sincronização de rede (Para PVP E COOP) movida para garantir que envia as posições ativamente
+                        // FIX: O Host partilha a POSIÇÃO mas NUNCA sobreescreve se o bot está vivo ou morto. Isso resolve o "Zumbi"!
                         if (isMultiplayerMode && isMasterClient) {
                             if (Math.random() < 0.15) {
                                 update(ref(db, `${roomPath}/state/enemies/${e.userData.index}`), {
                                     x: parseFloat(e.position.x.toFixed(2)),
                                     z: parseFloat(e.position.z.toFixed(2)),
-                                    rot: parseFloat(e.rotation.y.toFixed(2)),
-                                    dead: false,
-                                    hp: e.userData.hp 
+                                    rot: parseFloat(e.rotation.y.toFixed(2))
                                 });
                             }
                         }
 
-                        // Tiro: Agora funciona independente de estar colado ou não, desde que esteja no alcance
-                        // NOVA REGRA: Bots não atiram nos primeiros 20 segundos do nível
-                        if (now - levelStartTime >= 20000 && now - e.userData.lastShot > e.userData.reactionTime) {
+                        // Tiro: Agora funciona independente de estar colado ou não, mas LIMITADO PELA NEBLINA
+                        // NOVA REGRA: Bots não atiram nos primeiros 3 SEGUNDOS e atiram se d < 40
+                        if (now - levelStartTime >= 3000 && now - e.userData.lastShot > e.userData.reactionTime && d < 40) {
                             
                             // FIX: O ponto de origem da visão deve ser o EXATO centro do bot, sem offsets para a frente!
                             // Se avançarmos a origem, o raio nasce DENTRO da parede quando o bot está colado a ela (Wallhack)
@@ -4205,6 +4218,7 @@
         
         function drawMinimap() {
             if (isMultiplayerMode && !isCoopMode) return; // Não processa o minimapa no PVP
+            if (!minimapCtx) return;
             minimapCtx.clearRect(0, 0, 100, 100); const s = 100 / (mazeSize * cellSize); minimapCtx.fillStyle = '#111'; minimapCtx.fillRect(0, 0, 100, 100); minimapCtx.fillStyle = '#555';
             for (let i = 0; i < mazeSize; i++) for (let j = 0; j < mazeSize; j++) if (mazeMap[i][j] === 1) minimapCtx.fillRect(j * cellSize * s, i * cellSize * s, cellSize * s, cellSize * s);
             
@@ -4227,8 +4241,8 @@
                 renderer.shadowMap.enabled = false;
                 renderer.setPixelRatio(1);
                 scene.traverse(child => {
-                    if (child.isMesh && child.material) {
-                        if (child.material.map) child.material.map.generateMipmaps = false;
+                    if (child.isMesh && child.material && child.material.map) {
+                        child.material.map.generateMipmaps = false;
                     }
                 });
                 if (muzzleFlashLight) muzzleFlashLight.visible = false;
@@ -4236,8 +4250,8 @@
                 renderer.shadowMap.enabled = true;
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 scene.traverse(child => {
-                    if (child.isMesh && child.material) {
-                        if (child.material.map) child.material.map.generateMipmaps = true;
+                    if (child.isMesh && child.material && child.material.map) {
+                        child.material.map.generateMipmaps = true;
                     }
                 });
                 if (muzzleFlashLight) muzzleFlashLight.visible = true;
