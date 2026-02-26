@@ -4026,7 +4026,7 @@
 
                     const d = minDist;
                     
-                    // FIX 1: GRAVIDADE INDEPENDENTE (Garante que nunca ficam a levitar ou presos na parede)
+                    // FIX 1: GRAVIDADE INDEPENDENTE E AJUSTE DE CHÃO
                     let botGroundY = 0;
                     const botDownRay = new THREE.Raycaster(new THREE.Vector3(e.position.x, e.position.y + 2, e.position.z), new THREE.Vector3(0, -1, 0), 0, 10);
                     const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false);
@@ -4037,8 +4037,9 @@
                     e.userData.velocityY = (e.userData.velocityY || 0) - 0.015;
                     e.position.y += e.userData.velocityY;
 
-                    if (e.position.y <= botGroundY) {
-                        e.position.y = botGroundY;
+                    // Aplica margem extra de 0.05 para os pés não colidirem por baixo do chão
+                    if (e.position.y <= botGroundY + 0.05) {
+                        e.position.y = botGroundY + 0.05;
                         e.userData.velocityY = 0;
                         e.userData.isGrounded = true;
                     } else {
