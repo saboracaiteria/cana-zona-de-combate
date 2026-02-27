@@ -908,6 +908,61 @@
             }
         }
 
+        // NOVO: Função para calcular posição segura longe de outros players e bots
+        function getSafeSpawnPosition(isPVP) {
+            let px = 5, pz = 5;
+            let min = 1, max = mazeSize - 1;
+            let attempts = 0;
+            let safe = false;
+            let safePlayerDist = isPVP ? 40 : 15; // PVP exige 40 unidades de distância!
+
+            while (!safe && attempts < 200) {
+                attempts++;
+                let rx = Math.floor(Math.random() * (max - min) + min);
+                let rz = Math.floor(Math.random() * (max - min) + min);
+                px = rx * 5;
+                pz = rz * 5;
+                let insideWall = false;
+
+                for (let w of walls) {
+                    let wdx = 2.8, wdz = 2.8;
+                    if (w.geometry && w.geometry.parameters) {
+                        wdx = (w.geometry.parameters.width / 2) + 1.2;
+                        wdz = (w.geometry.parameters.depth / 2) + 1.2;
+                    }
+                    if (Math.abs(px - w.position.x) < wdx && Math.abs(pz - w.position.z) < wdz) {
+                        insideWall = true; break;
+                    }
+                }
+
+                if (insideWall) continue;
+
+                if (isPVP) {
+                    // Evitar nascer na fortaleza central ou rampas principais
+                    if (Math.abs(px - 50) < 15 && Math.abs(pz - 50) < 15) continue;
+                    if (Math.abs(px - 20) < 6 && Math.abs(pz - 30) < 6) continue;
+                    if (Math.abs(px - 80) < 6 && Math.abs(pz - 70) < 6) continue;
+                }
+
+                let tooClose = false;
+                
+                // Reduz as exigências se tiver dificuldade em achar espaço no mapa cheio
+                if (attempts > 100) safePlayerDist = 20; 
+                if (attempts > 150) safePlayerDist = 10;
+
+                Object.values(remotePlayers).forEach(rp => {
+                    if (rp.mesh && rp.mesh.position.distanceTo(new THREE.Vector3(px, 0, pz)) < safePlayerDist) tooClose = true;
+                });
+                enemies.forEach(e => {
+                    if (!e.userData.dead && e.position.distanceTo(new THREE.Vector3(px, 0, pz)) < 15) tooClose = true;
+                });
+
+                if (tooClose && attempts < 190) continue;
+                safe = true;
+            }
+            return new THREE.Vector3(px, 2, pz);
+        }
+
         function respawnPvP() {
             if (isMultiplayerMode && isCoopMode) { 
                 playerLives--; 
@@ -915,50 +970,9 @@
                 if (livesEl) livesEl.innerText = playerLives; 
                 if (playerLives <= 0) { showGameOver(); return; } 
             }
-            let rx, rz; 
-            let min = 1, max = mazeSize - 1; 
-            const isPVP = isMultiplayerMode && !isCoopMode; 
-            let attempts = 0; 
-            let safe = false;
             
-            while(!safe && attempts < 200) {
-                attempts++; 
-                rx = Math.floor(Math.random() * (max - min) + min); 
-                rz = Math.floor(Math.random() * (max - min) + min); 
-                const px = rx * 5; 
-                const pz = rz * 5; 
-                let insideWall = false;
-                
-                for (let w of walls) { 
-                    let wdx = 2.8, wdz = 2.8; 
-                    if (w.geometry && w.geometry.parameters) { 
-                        wdx = (w.geometry.parameters.width / 2) + 1.2; 
-                        wdz = (w.geometry.parameters.depth / 2) + 1.2; 
-                    } 
-                    if (Math.abs(px - w.position.x) < wdx && Math.abs(pz - w.position.z) < wdz) { 
-                        insideWall = true; break; 
-                    } 
-                }
-                
-                if (insideWall) continue;
-                
-                if (isPVP) { 
-                    if (Math.abs(px - 50) < 15 && Math.abs(pz - 50) < 15) continue; 
-                    if (Math.abs(px - 20) < 6 && Math.abs(pz - 30) < 6) continue; 
-                    if (Math.abs(px - 80) < 6 && Math.abs(pz - 70) < 6) continue; 
-                }
-                
-                let tooClose = false; 
-                Object.values(remotePlayers).forEach(rp => { 
-                    if (rp.mesh.position.distanceTo(new THREE.Vector3(px, 0, pz)) < 15) tooClose = true; 
-                }); 
-                enemies.forEach(e => { 
-                    if (!e.userData.dead && e.position.distanceTo(new THREE.Vector3(px, 0, pz)) < 15) tooClose = true; 
-                }); 
-                
-                if (tooClose && attempts < 150) continue; 
-                safe = true;
-            }
+            const isPVP = isMultiplayerMode && !isCoopMode; 
+            const spawnPos = getSafeSpawnPosition(isPVP);
 
             playerHP = 100; 
             playerArmor = 0; 
@@ -975,7 +989,7 @@
             updateGrenadeUI();
             velocityY = 0; 
             isGrounded = true; 
-            playerGroup.position.set(rx * 5, 2, rz * 5); 
+            playerGroup.position.copy(spawnPos); 
             pitch = 0; 
             yaw = Math.random() * Math.PI * 2;
             
@@ -983,7 +997,7 @@
             isInvincible = true; 
             
             if (myRef) { 
-                update(myRef, { hp: 100, armor: 0, x: rx * 5, z: rz * 5, invincible: true, lastRespawn: Date.now() }); 
+                update(myRef, { hp: 100, armor: 0, x: spawnPos.x, z: spawnPos.z, invincible: true, lastRespawn: Date.now() }); 
             }
             
             invincibilityTimeout = setTimeout(() => { 
@@ -2572,8 +2586,11 @@
                 } 
                 document.getElementById('master-status').style.display = 'none';
 
-                playerGroup.position.set(5, 0, 5); 
                 createWorld(currentLevel);
+                
+                // NOVO: Usar o sistema de spawn seguro no início da partida também!
+                const spawnPos = getSafeSpawnPosition(isMultiplayerMode && !isCoopMode);
+                playerGroup.position.copy(spawnPos);
                 
                 activeEffectIntervals.forEach(clearInterval);
                 activeEffectIntervals = [];
@@ -2812,7 +2829,7 @@
             document.getElementById('continue-btn').onclick = () => {
                 document.getElementById('level-complete-screen').style.display = 'none'; 
                 document.getElementById('pause-btn').style.display = 'flex'; 
-                playerGroup.position.set(5, 0, 5); pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100; 
+                pitch = 0; yaw = 0; velocityY = 0; isGrounded = true; playerHP = 100; 
                 const hpEl = document.getElementById('hp'); if (hpEl) hpEl.innerText = 100; 
                 camera.rotation.set(0, 0, 0); camera.quaternion.identity(); 
                 enemies.forEach(e => scene.remove(e)); enemies = []; bullets.forEach(b => scene.remove(b)); bullets = []; activeGrenades.forEach(g => scene.remove(g.mesh)); activeGrenades = [];
@@ -2826,6 +2843,11 @@
                 }
                 
                 createWorld(currentLevel); 
+                
+                // NOVO: Usar spawn seguro ao avançar de nível
+                const spawnPos = getSafeSpawnPosition(isMultiplayerMode && !isCoopMode);
+                playerGroup.position.copy(spawnPos);
+
                 const levelDisplay = document.getElementById('level-display'); if (levelDisplay) levelDisplay.innerText = currentLevel; 
                 const ind = document.getElementById('level-indicator'); if (ind) { ind.innerText = isCoopMode ? "COOP ZONE " + currentLevel : (isMultiplayerMode ? "PVP ZONE " + currentLevel : "LEVEL " + currentLevel); ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 3000); }
                 
@@ -3397,59 +3419,74 @@
                 });
             } else {
                 const now = performance.now();
+                
+                // NOVO: Sistema de limite de atacantes simultâneos (Max 3 bots por player no PVP)
+                const isPVP = isMultiplayerMode && !isCoopMode;
+                const targetAttackers = new Map();
+                const allTargets = [{ mesh: playerGroup, id: 'local' }];
+                
+                if (isMultiplayerMode) { 
+                    Object.keys(remotePlayers).forEach(id => { 
+                        if (remotePlayers[id].mesh) { 
+                            allTargets.push({ mesh: remotePlayers[id].mesh, id: id }); 
+                        } 
+                    }); 
+                }
+
                 enemies.forEach(e => {
                     if (e.userData.dead) return;
-                    let target = playerGroup; 
-                    let minDist = e.position.distanceTo(playerGroup.position);
                     
-                    if (isMultiplayerMode) { 
-                        Object.values(remotePlayers).forEach(rp => { 
-                            if (rp.mesh) { 
-                                const dist = e.position.distanceTo(rp.mesh.position); 
-                                if (dist < minDist) { minDist = dist; target = rp.mesh; } 
-                            } 
-                        }); 
+                    // Ordena todos os alvos por distância para este bot
+                    allTargets.forEach(t => t.dist = e.position.distanceTo(t.mesh.position));
+                    allTargets.sort((a, b) => a.dist - b.dist);
+
+                    let target = allTargets[0].mesh; 
+                    let minDist = allTargets[0].dist;
+                    let canAttack = true;
+
+                    if (isPVP) {
+                        let foundTarget = false;
+                        for (let t of allTargets) {
+                            let currentAttackers = targetAttackers.get(t.id) || 0;
+                            // Mantém o alvo se já estava focado nele ou se há "vagas" (< 3 atacantes)
+                            if (currentAttackers < 3 || e.userData.lockedTargetId === t.id) {
+                                target = t.mesh;
+                                minDist = t.dist;
+                                targetAttackers.set(t.id, currentAttackers + 1);
+                                e.userData.lockedTargetId = t.id;
+                                foundTarget = true;
+                                break;
+                            }
+                        }
+                        // Se todos têm >= 3 atacantes, segue o mais próximo mas fica passivo
+                        if (!foundTarget) {
+                            target = allTargets[0].mesh;
+                            minDist = allTargets[0].dist;
+                            canAttack = false;
+                            e.userData.lockedTargetId = null;
+                        }
                     }
+
                     const d = minDist;
                     
-                    let botGroundY = 0; 
-                    const botDownRay = new THREE.Raycaster(new THREE.Vector3(e.position.x, e.position.y + 2, e.position.z), new THREE.Vector3(0, -1, 0), 0, 10);
-                    const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false); 
-                    if (rampHits.length > 0 && rampHits[0].point.y > botGroundY) { botGroundY = rampHits[0].point.y; }
+                    let botGroundY = 0; const botDownRay = new THREE.Raycaster(new THREE.Vector3(e.position.x, e.position.y + 2, e.position.z), new THREE.Vector3(0, -1, 0), 0, 10);
+                    const rampHits = botDownRay.intersectObjects([...ramps, ...walls], false); if (rampHits.length > 0 && rampHits[0].point.y > botGroundY) { botGroundY = rampHits[0].point.y; }
                     
-                    e.userData.velocityY = (e.userData.velocityY || 0) - 0.015; 
-                    e.position.y += e.userData.velocityY;
-                    
-                    if (e.position.y <= botGroundY + 0.05) { 
-                        e.position.y = botGroundY + 0.05; 
-                        e.userData.velocityY = 0; 
-                        e.userData.isGrounded = true; 
-                    } else { 
-                        e.userData.isGrounded = false; 
-                    }
+                    e.userData.velocityY = (e.userData.velocityY || 0) - 0.015; e.position.y += e.userData.velocityY;
+                    if (e.position.y <= botGroundY + 0.05) { e.position.y = botGroundY + 0.05; e.userData.velocityY = 0; e.userData.isGrounded = true; } else { e.userData.isGrounded = false; }
 
                     if (d < 100) {
-                        const dir = new THREE.Vector3().subVectors(target.position, e.position); 
-                        dir.y = 0; 
-                        if (dir.lengthSq() > 0) dir.normalize();
+                        const dir = new THREE.Vector3().subVectors(target.position, e.position); dir.y = 0; if (dir.lengthSq() > 0) dir.normalize();
                         
-                        const targetYaw = Math.atan2(dir.x, dir.z) + Math.PI; 
-                        e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, targetYaw, 0.15); 
+                        const targetYaw = Math.atan2(dir.x, dir.z) + Math.PI; e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, targetYaw, 0.15); 
                         
-                        if (e.userData.pivots && e.userData.pivots.rArm) { 
-                            let finalPitch = Math.atan2(target.position.y - (e.position.y + 1.5), d); 
-                            if (d < 3.0) finalPitch = 0; 
-                            e.userData.pivots.rArm.rotation.x = Math.max(1.0, Math.min(2.0, (Math.PI / 2) - finalPitch)); 
-                            e.userData.pivots.lArm.rotation.x = Math.max(1.0, Math.min(2.0, (Math.PI / 2) - finalPitch)); 
-                        }
+                        if (e.userData.pivots && e.userData.pivots.rArm) { let finalPitch = Math.atan2(target.position.y - (e.position.y + 1.5), d); if (d < 3.0) finalPitch = 0; e.userData.pivots.rArm.rotation.x = Math.max(1.0, Math.min(2.0, (Math.PI / 2) - finalPitch)); e.userData.pivots.lArm.rotation.x = Math.max(1.0, Math.min(2.0, (Math.PI / 2) - finalPitch)); }
 
                         if (d > 1.5) { 
-                            let moveSpeed = 0.075; 
-                            if (e.userData.hp <= 50) moveSpeed *= 1.5;
+                            let moveSpeed = 0.075; if (e.userData.hp <= 50) moveSpeed *= 1.5;
                             if (now - levelStartTime < 3000) { moveSpeed = 0; }
                             
-                            const nx = e.position.x + dir.x * moveSpeed; 
-                            const nz = e.position.z + dir.z * moveSpeed;
+                            const nx = e.position.x + dir.x * moveSpeed; const nz = e.position.z + dir.z * moveSpeed;
                             
                             if (!checkWall(nx, nz, e.position.x, e.position.z, e.position.y)) {
                                 e.position.x = nx; e.position.z = nz;
@@ -3474,7 +3511,6 @@
                             }
                         }
 
-                        // FIX ANTI-LAG: Envia dados para o Firebase apenas algumas vezes por segundo, mantendo o movimento sincronizado sem spam
                         if (isMultiplayerMode && isMasterClient) { 
                             if (now - (e.userData.lastSyncTime || 0) > 200 + Math.random() * 100) { 
                                 e.userData.lastSyncTime = now;
@@ -3486,7 +3522,8 @@
                             } 
                         }
                         
-                        if (now - levelStartTime >= 3000 && now - e.userData.lastShot > e.userData.reactionTime && d < 40) {
+                        // Apenas ataca se a variável canAttack for verdadeira (respeitando o limite de 3 no PVP)
+                        if (canAttack && now - levelStartTime >= 3000 && now - e.userData.lastShot > e.userData.reactionTime && d < 40) {
                             const sp = e.position.clone().add(new THREE.Vector3(0, 1.5, 0));
                             const targetPos = target.position.clone().add(new THREE.Vector3(0, 1.0, 0)); 
                             const distToTarget = sp.distanceTo(targetPos); 
