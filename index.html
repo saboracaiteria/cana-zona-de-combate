@@ -732,7 +732,7 @@
                         invincible: isInvincible, 
                         lastUpdate: serverTimestamp(), 
                         armor: playerArmor 
-                    }); 
+                    }).catch(() => {}); 
                     lastSentPosition.copy(p); 
                     lastSentRotation = r; 
                     lastSentTime = now; 
@@ -743,26 +743,41 @@
             if (unsubGamePlayers) unsubGamePlayers();
             unsubGamePlayers = onValue(ref(db, roomPath + '/players'), (s) => {
                 const d = s.val(); if (!d) return; 
-                const now = Date.now() + serverTimeOffset, active = new Set(); let c = 0; 
-                const allIds = Object.keys(d).sort(); 
-                const newMasterStatus = (allIds[0] === myUserId);
-                if (isCoopMode && newMasterStatus !== isMasterClient) { 
-                    isMasterClient = newMasterStatus; 
-                    document.getElementById('master-status').style.display = isMasterClient ? 'block' : 'none'; 
-                }
+                const now = Date.now() + serverTimeOffset;
+                const activeIds = [];
+                let c = 0; 
+
+                // 1. Identificar jogadores ativos (com posição válida e comunicação recente)
                 Object.keys(d).forEach(k => { 
-                    if (k !== myUserId && now - (d[k].lastUpdate || 0) < 10000) { 
+                    if (now - (d[k].lastUpdate || 0) < 10000) { 
                         if (d[k].x !== undefined) { 
-                            active.add(k); 
-                            c++; 
-                            updateRemotePlayer(k, d[k]); 
-                            if (remotePlayers[k]) remotePlayers[k].kills = d[k].kills || 0; 
+                            activeIds.push(k);
+                            if (k !== myUserId) {
+                                c++; 
+                                updateRemotePlayer(k, d[k]); 
+                                if (remotePlayers[k]) remotePlayers[k].kills = d[k].kills || 0; 
+                            }
                         } 
                     } 
                 });
                 document.getElementById('mp-count').innerText = c; 
+
+                // 2. MIGRAÇÃO DE HOST (Host Migration)
+                // Ordena os IDs ativos. Se o Host antigo (posição 0) cair, o próximo jogador mais antigo assume automaticamente a sincronização dos bots.
+                activeIds.sort(); 
+                const newMasterStatus = (activeIds.length > 0 && activeIds[0] === myUserId);
+                
+                // Aplica a migração tanto no PVP quanto no Co-op
+                if (newMasterStatus !== isMasterClient) { 
+                    isMasterClient = newMasterStatus; 
+                    document.getElementById('master-status').style.display = isMasterClient ? 'block' : 'none'; 
+                    if (isMasterClient) logSystem("HOST SAIU. A SINCRONIZAÇÃO MIGROU PARA VOCÊ.", "success");
+                }
+
+                // 3. Limpeza de jogadores que se desconectaram
+                const activeSet = new Set(activeIds);
                 Object.keys(remotePlayers).forEach(k => { 
-                    if (!active.has(k)) { 
+                    if (!activeSet.has(k)) { 
                         scene.remove(remotePlayers[k].mesh); 
                         delete remotePlayers[k]; 
                     } 
@@ -1521,10 +1536,10 @@
                 const hpBar = document.getElementById('hp-bar'); 
                 if (hpBar) hpBar.style.width = playerHP + "%"; 
 
-                if (myRef) update(myRef, { hp: playerHP }); 
+                if (myRef) update(myRef, { hp: playerHP }).catch(() => {}); 
 
                 if (isCoopMode) { 
-                    update(ref(db, `${roomPath}/state/kits/${k.userData.index}`), { taken: true }); 
+                    update(ref(db, `${roomPath}/state/kits/${k.userData.index}`), { taken: true }).catch(() => {}); 
                 } 
 
                 scene.remove(k); 
@@ -1541,7 +1556,7 @@
                 if (armorBar) armorBar.style.width = playerArmor + "%"; 
                 const armorEl = document.getElementById('armor'); 
                 if (armorEl) armorEl.innerText = playerArmor; 
-                if (myRef) update(myRef, { armor: playerArmor }); 
+                if (myRef) update(myRef, { armor: playerArmor }).catch(() => {}); 
                 scene.remove(k); 
                 k.userData.active = false; 
             }); 
