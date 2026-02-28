@@ -399,7 +399,14 @@
         let isThirdPerson = true, isAiming = false, isManualFiring = false, wasManualFiring = false, currentWeapon = 0;
         let moveInput = { x: 0, y: 0 }, keyState = { w: false, a: false, s: false, d: false };
         let pitch = 0, yaw = 0, velocityY = 0, isGrounded = true, recoil = 0, gunRecoilZ = 0, lastShotTime = 0, lastStepTime = 0;
-        let walkCycle = 0, recoilAngle = 0, fovKick = 0, gunRecoil = 0; // RESTORED
+        
+        // FIX: Garantia de declaração explícita e isolada para evitar o erro "is not defined" no animate
+        window.walkCycle = 0;
+        let walkCycle = 0;
+        let recoilAngle = 0;
+        let fovKick = 0;
+        let gunRecoil = 0; 
+        
         let minimapCanvas, minimapCtx;
 
         let scene, camera, renderer, skyMesh, skyUniforms;
@@ -3621,12 +3628,13 @@
                         // Apenas ataca se a variável canAttack for verdadeira (respeitando o limite de 3 no PVP)
                         // REGRA DOS 20 SEGUNDOS: Bots só começam a atirar 20000ms após o início do nível
                         if (canAttack && now - levelStartTime >= 20000 && now - e.userData.lastShot > e.userData.reactionTime && d < 40) {
-                            const sp = e.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-                            const targetPos = target.position.clone().add(new THREE.Vector3(0, 1.0, 0)); 
-                            const distToTarget = sp.distanceTo(targetPos); 
-                            const shootDir = new THREE.Vector3().subVectors(targetPos, sp).normalize();
-                            const losRay = new THREE.Raycaster(sp, shootDir, 0, distToTarget); 
-                            const hits = losRay.intersectObjects([...walls, ...ramps], true); 
+                            _sp.copy(e.position); _sp.y += 1.5;
+                            _targetPos.copy(target.position); _targetPos.y += 1.0;
+                            const distToTarget = _sp.distanceTo(_targetPos); 
+                            _enemyDir.subVectors(_targetPos, _sp).normalize();
+                            _losRay.set(_sp, _enemyDir); 
+                            _losRay.far = distToTarget;
+                            const hits = _losRay.intersectObjects([...walls, ...ramps], true); 
                             
                             if (hits.length === 0) {
                                 e.userData.lastShot = now; 
