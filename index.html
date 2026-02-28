@@ -2641,9 +2641,14 @@
                 
                 if (mode === 'multi') { 
                     roomPath = `rooms/pvp/global`; 
-                    const trueNow = Date.now() + serverTimeOffset; 
-                    pvpMatchEndTime = trueNow + 240000; 
-                    if (isMasterClient) { update(ref(db, `${roomPath}/state`), { endTime: pvpMatchEndTime }); } 
+                    
+                    // FIX: Não sobrescrever o tempo se o jogador entrou a meio da partida!
+                    // O tempo já foi sincronizado a partir do Firebase no Lobby.
+                    if (!pvpMatchEndTime || pvpMatchEndTime < (Date.now() + serverTimeOffset)) {
+                        const trueNow = Date.now() + serverTimeOffset; 
+                        pvpMatchEndTime = trueNow + 240000; 
+                    }
+                    
                     startPVPTimer(); 
                 }
                 if (mode === 'coop') { 
