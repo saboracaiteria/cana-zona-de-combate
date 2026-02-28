@@ -3457,40 +3457,41 @@
                 }
                 
                 if (!hit) {
-                    const hits = bulletRaycaster.intersectObjects(enemies, true); 
+                    // FIX LAG 1: Filtra apenas os bots VIVOS. Ignorar cadáveres poupa milhares de cálculos ao Android!
+                    const aliveEnemies = enemies.filter(e => !e.userData.dead);
+                    const hits = bulletRaycaster.intersectObjects(aliveEnemies, true); 
+                    
                     let volumeHit = null;
                     if (b.userData.life > 295) { 
-                        for (let e of enemies) { 
-                            if (e.userData.dead) continue; 
+                        for (let e of aliveEnemies) { 
                             const dist = b.position.distanceTo(e.position); 
                             if (dist < 1.5) { volumeHit = e; break; } 
                         } 
                     }
+                    
                     if (hits.length > 0 || volumeHit) {
                         let o = volumeHit; 
                         if (!o) { 
                             let hitObj = hits[0].object; o = hitObj; 
                             while (o && o.parent && !o.userData.isEnemyRoot) o = o.parent; 
                         }
+                        
                         if (o && o.userData && o.userData.isEnemyRoot && !o.userData.dead) {
                             const dmg = b.userData.weaponType === 1 ? 100 : 15; 
                             hit = true; 
                             triggerHitMarker();
                             const hitPoint = (hits.length > 0 && hits[0].point) ? hits[0].point : b.position.clone(); 
                             createBloodEffect(hitPoint, b.userData.velocity.clone().multiplyScalar(-1).normalize());
-                            o.traverse(child => { 
-                                if (child.isMesh && child.material && child.material.emissive) { 
-                                    const oldColor = child.material.emissive.getHex(); 
-                                    child.material.emissive.setHex(0xff0000); 
-                                    setTimeout(() => { if (child.material) child.material.emissive.setHex(oldColor); }, 100); 
-                                } 
-                            });
+                            
+                            // FIX LAG 2: Removido o o.traverse que alterava a cor emissiva e causava freeze brutal na GPU dos telemóveis.
+                            
                             if (isMultiplayerMode) { 
                                 runTransaction(ref(db, `${roomPath}/state/enemies/${o.userData.index}`), (ed) => { 
                                     if (ed && !ed.dead) { ed.hp -= dmg; if (ed.hp <= 0) { ed.hp = 0; ed.dead = true; } } 
                                     return ed; 
                                 }).then((res) => { 
-                                    if (res.committed && res.snapshot.val().dead && !o.userData.dead) { 
+                                    const val = res.snapshot.val(); // FIX ERRO: Proteção contra leitura de null
+                                    if (res.committed && val && val.dead && !o.userData.dead) { 
                                         killEnemyLocal(o, false); 
                                         if (isCoopMode) registerTeamKill(); 
                                         else registerKill(); 
