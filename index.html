@@ -2381,7 +2381,8 @@
             
             if (dbUpdate) { 
                 if (isMultiplayerMode) { 
-                    update(ref(db, `${roomPath}/state/enemies/${en.userData.index}`), { dead: true }); 
+                    // CORREÇÃO: Adicionado .catch(() => {}) para ignorar o conflito com a transação de dano!
+                    update(ref(db, `${roomPath}/state/enemies/${en.userData.index}`), { dead: true }).catch(() => {}); 
                 } 
                 if (isCoopMode) { 
                     registerTeamKill(); 
