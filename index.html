@@ -264,32 +264,47 @@
             <div class="char-details">UNIT: SPECIAL FORCES</div>
         </div>
 
-        <div class="menu-content" id="settings-view" style="display: none;">
-            <h2>SYSTEM</h2>
-            <div class="setting-row">
-                <label>VOLUME</label>
-                <input type="range" id="vol-slider" min="0" max="100" value="50" style="width: 100%; height: 3px;">
+        <div class="menu-content" id="settings-view" style="display: none; padding: 10px;">
+            <h2 style="margin-bottom: 2px; padding-bottom: 2px; font-size: 0.9em;">SYSTEM</h2>
+            
+            <!-- Grelha compacta de 2 colunas para as barras de configuração -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 8px; text-align: left;">
+                <div class="setting-row" style="margin: 0;">
+                    <label style="font-size: 9px;">VOLUME</label>
+                    <input type="range" id="vol-slider" min="0" max="100" value="50" style="width: 100%; height: 3px;">
+                </div>
+                <div class="setting-row" style="margin: 0;">
+                    <label style="font-size: 9px;">FOV</label>
+                    <input type="range" id="fov-slider" min="50" max="110" value="70" style="width: 100%; height: 3px;">
+                </div>
+                <div class="setting-row" style="margin: 0;">
+                    <label style="font-size: 9px;">SENSITIVITY</label>
+                    <input type="range" id="sens-slider" min="1" max="100" value="50" style="width: 100%; height: 3px;">
+                </div>
+                <div class="setting-row" style="margin: 0;">
+                    <label style="font-size: 9px;">GRAPHICS</label>
+                    <select id="graphics-select" style="background: #000; color: var(--canaa-green); border: 1px solid var(--canaa-green); font-family: 'Rajdhani'; padding: 0 2px; width: 100%; box-sizing: border-box; font-size: 10px; height: 16px;">
+                        <option value="high">HIGH</option>
+                        <option value="low" selected>LOW</option>
+                    </select>
+                </div>
             </div>
-            <div class="setting-row">
-                <label>FOV</label>
-                <input type="range" id="fov-slider" min="50" max="110" value="70" style="width: 100%; height: 3px;">
+            
+            <!-- Botões compactos -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <button class="menu-btn secondary" id="edit-hud-btn" style="padding: 5px 8px; margin: 0; font-size: 11px;">EDIT HUD</button>
+                <button class="menu-btn" id="pause-invite-btn" style="border-color: #00FF41; color: #00FF41; padding: 5px 8px; margin: 0; font-size: 11px;">INVITE SQUAD</button>
+                
+                <!-- Botões de ação lado a lado para poupar espaço -->
+                <div style="display: flex; gap: 5px;">
+                    <button class="menu-btn danger" id="abort-mission-btn" style="margin: 0; padding: 5px; font-size: 11px; flex: 1; text-align: center;">ABORT</button>
+                    <button class="menu-btn" id="back-btn" style="border-color: #666; color: #ccc; margin: 0; padding: 5px; font-size: 11px; flex: 1; text-align: center;">BACK</button>
+                </div>
             </div>
-            <div class="setting-row">
-                <label>SENSITIVITY</label>
-                <input type="range" id="sens-slider" min="1" max="100" value="50" style="width: 100%; height: 3px;">
+            
+            <div style="margin-top: 6px; font-size: 8px; color: #666; font-family: 'Rajdhani'; border-top: 1px solid #222; padding-top: 3px; text-align: center;">
+                MUSIC BY: PATRICK DE ARTEAGA
             </div>
-            <div class="setting-row">
-                <label>GRAPHICS</label>
-                <select id="graphics-select" style="background: #000; color: var(--canaa-green); border: 1px solid var(--canaa-green); font-family: 'Rajdhani'; padding: 0 5px; width: 100%; box-sizing: border-box; font-size: 12px; height: 25px;">
-                    <option value="high">HIGH</option>
-                    <option value="low" selected>LOW</option>
-                </select>
-            </div>
-            <button class="menu-btn secondary" id="edit-hud-btn">EDIT HUD</button>
-            <button class="menu-btn" id="pause-invite-btn" style="border-color: #00FF41; color: #00FF41;">INVITE SQUAD</button>
-            <button class="menu-btn danger" id="abort-mission-btn">ABORT</button>
-            <div style="margin-top: 15px; font-size: 10px; color: #aaa; font-family: 'Rajdhani'; border-top: 1px solid #333; padding-top: 10px; text-align: center;">MUSIC BY: PATRICK DE ARTEAGA</div>
-            <button class="menu-btn" id="back-btn" style="border-color: #666; color: #ccc; margin-top: 10px;">BACK</button>
         </div>
     </div>
 
