@@ -4,6 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- FIX IPHONE: Tags para permitir modo Ecrã Inteiro Nativo no iOS (Add to Home Screen) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <title>Canaan: Combat Zone</title>
     <link rel="icon" href="data:,">
     
@@ -479,6 +484,27 @@
         let bgmPlayer = null; 
         let currentBgmTrack = 0; 
         const TOTAL_TRACKS = 6;
+
+        // FIX IPHONE: Função centralizada e segura para Ecrã Inteiro (Lida com o bloqueio da Apple)
+        function goFullscreen() {
+            const doc = document.documentElement;
+            if (doc.requestFullscreen) {
+                doc.requestFullscreen().catch(()=>{});
+            } else if (doc.webkitRequestFullscreen) {
+                doc.webkitRequestFullscreen();
+            } else if (doc.mozRequestFullScreen) {
+                doc.mozRequestFullScreen();
+            } else if (doc.msRequestFullscreen) {
+                doc.msRequestFullscreen();
+            } else {
+                // Fallback de aviso exclusivo para iPhone Safari
+                const isIPhone = /iPhone|iPod/.test(navigator.userAgent);
+                if (isIPhone && !window.navigator.standalone) {
+                    alert("⚠️ A Apple bloqueia o Ecrã Inteiro no navegador.\n\nPara jogar sem bordas, partilhe esta página e clique em 'Adicionar ao Ecrã Principal' (Add to Home Screen). Depois abra o jogo pela nova aplicação!");
+                    window.scrollTo(0, 1);
+                }
+            }
+        }
 
         function initAudio() { 
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
@@ -1379,13 +1405,7 @@
             startOverlay.style.display = 'flex';
             
             const unlockAndStart = (e) => { 
-                const doc = document.documentElement; 
-                if (!document.fullscreenElement) { 
-                    try { 
-                        if (doc.requestFullscreen) doc.requestFullscreen().catch(() => {}); 
-                        else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen(); 
-                    } catch(err) {} 
-                } 
+                goFullscreen(); // FIX IPHONE: Chamada segura da função centralizada
                 startOverlay.style.display = 'none'; 
                 document.getElementById('main-menu').style.display = 'block'; 
                 
@@ -2984,12 +3004,13 @@
                 document.getElementById('win-screen').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; document.getElementById('start-view').style.removeProperty('display'); document.getElementById('start-view').style.display = 'flex'; document.getElementById('hud').style.display = 'none'; document.getElementById('crosshair').style.display = 'none'; scene.add(camera); playMenuMusic(); 
             };
             
+            // FIX IPHONE: Os botões de Fullscreen agora usam o fallback inteligente
             document.getElementById('mobile-fs-btn').onclick = () => { 
-                try { if (!document.fullscreenElement) { const doc = document.documentElement; if (doc.requestFullscreen) doc.requestFullscreen().catch(()=>{}); else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen(); } } catch(e){} 
+                goFullscreen(); 
             };
             
             document.getElementById('fullscreen-btn').onclick = () => { 
-                try { if (!document.fullscreenElement) { const doc = document.documentElement; if (doc.requestFullscreen) doc.requestFullscreen().catch(()=>{}); else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen(); } } catch(e){} 
+                goFullscreen(); 
             };
             
             document.getElementById('mode-switch-btn').onclick = () => { 
