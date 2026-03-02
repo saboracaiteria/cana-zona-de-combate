@@ -437,6 +437,10 @@
         let settings = { fov: 70, sens: 0.005, volume: 0.5, isEditing: false, graphics: 'low' };
         const GRAVITY = 0.015, JUMP_FORCE = 0.25, mazeSize = 20, cellSize = 5;
 
+        // FIX IPHONE LAG: Constantes de otimização de rede. Aumenta o tempo entre envios para não explodir o Firebase.
+        const PLAYER_SYNC_RATE = 150; // ms entre cada envio de posição do jogador (antes era 50)
+        const BOT_SYNC_RATE = 500;    // ms entre cada envio em lote dos bots (antes era 200~300)
+
         let activeEffectIntervals = [];
         let hitMarkerTimeout = null; 
         let activeTextures = []; 
@@ -791,7 +795,11 @@
                 if (!myRef || !isPlaying) return; 
                 const p = playerGroup.position, r = yaw, now = Date.now(); 
                 const currentMoving = (Math.abs(moveInput.x) > 0.1 || Math.abs(moveInput.y) > 0.1 || keyState.w || keyState.a || keyState.s || keyState.d);
-                if (p.distanceTo(lastSentPosition) > 0.01 || Math.abs(r - lastSentRotation) > 0.01 || (now - lastSentTime > 2000) || window.lastSentMoving !== currentMoving) { 
+                
+                // FIX IPHONE LAG: Usa PLAYER_SYNC_RATE para evitar flood na rede
+                if (p.distanceTo(lastSentPosition) > 0.05 || Math.abs(r - lastSentRotation) > 0.05 || (now - lastSentTime > 2000) || window.lastSentMoving !== currentMoving) { 
+                    if (now - lastSentTime < PLAYER_SYNC_RATE) return; // Força limite de envio
+                    
                     update(myRef, { 
                         x: parseFloat(p.x.toFixed(2)), 
                         y: parseFloat(p.y.toFixed(2)), 
@@ -809,7 +817,7 @@
                     lastSentTime = now; 
                     window.lastSentMoving = currentMoving; 
                 }
-            }, 50);
+            }, PLAYER_SYNC_RATE / 2); // Roda o check na metade do tempo, mas o envio é travado pelo PLAYER_SYNC_RATE
 
             if (unsubGamePlayers) unsubGamePlayers();
             unsubGamePlayers = onValue(ref(db, roomPath + '/players'), (s) => {
@@ -1755,7 +1763,8 @@
         const _enemyDir = new THREE.Vector3(), _sp = new THREE.Vector3(), _targetPos = new THREE.Vector3(), _losRay = new THREE.Raycaster();
 
         function updateEnemies(dt = 0.016) {
-            const lerpSpeed = Math.min(1.0, dt * 14.0);
+            // FIX IPHONE LAG: Aumentada a velocidade de interpolação para compensar a rede mais lenta (dados vêm com menos frequência)
+            const lerpSpeed = Math.min(1.0, dt * 5.0); 
             
             // Batch update variables
             const enemyUpdates = {};
@@ -1766,12 +1775,22 @@
                 enemies.forEach(e => {
                     if (!e.userData.dead && e.userData.targetPos) {
                         const prevPos = e.position.clone(); 
+                        
+                        // Suaviza muito mais a interpolação para evitar teletransportes bruscos
                         e.position.lerp(e.userData.targetPos, lerpSpeed); 
-                        if (e.userData.targetRot !== undefined) e.rotation.y = THREE.MathUtils.lerp(e.rotation.y, e.userData.targetRot, lerpSpeed);
+                        
+                        if (e.userData.targetRot !== undefined) {
+                            // Interpolação de rotação com atalho para o caminho mais curto
+                            let diff = e.userData.targetRot - e.rotation.y;
+                            while (diff > Math.PI) diff -= Math.PI * 2;
+                            while (diff < -Math.PI) diff += Math.PI * 2;
+                            e.rotation.y += diff * lerpSpeed;
+                        }
+                        
                         const distMoved = prevPos.distanceTo(e.position);
                         
                         if (e.userData.pivots) {
-                            const isMoving = distMoved > 0.005; 
+                            const isMoving = distMoved > 0.002; // Sensibilidade ajustada
                             if (isMoving) { e.userData.walkCycle = (e.userData.walkCycle || 0) + 0.2; } 
                             else { e.userData.walkCycle = 0; }
                             const wc = e.userData.walkCycle; 
@@ -1892,9 +1911,9 @@
                             }
                         }
 
-                        // FIX ANTI-LAG: Envia dados para o Firebase em Lote para não sobrecarregar conexões
+                        // FIX ANTI-LAG: Envia dados para o Firebase em Lote E limitados por tempo (BOT_SYNC_RATE)
                         if (isMultiplayerMode && isMasterClient) { 
-                            if (now - (e.userData.lastSyncTime || 0) > 400 + Math.random() * 100) { 
+                            if (now - (e.userData.lastSyncTime || 0) > BOT_SYNC_RATE + (e.userData.index * 10)) { // Desfasamento natural por bot
                                 e.userData.lastSyncTime = now;
                                 enemyUpdates[`${e.userData.index}/x`] = parseFloat(e.position.x.toFixed(2));
                                 enemyUpdates[`${e.userData.index}/z`] = parseFloat(e.position.z.toFixed(2));
