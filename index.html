@@ -3831,7 +3831,10 @@
             const inviteBtn = document.getElementById('invite-btn'); 
             if (inviteBtn) inviteBtn.onclick = () => inviteAction(inviteBtn); 
             const pauseInviteBtn = document.getElementById('pause-invite-btn'); 
-            if (pauseInviteBtn) pauseInviteBtn.onclick = () => inviteAction(pauseInviteBtn);
+            if (pauseInviteBtn) {
+                pauseInviteBtn.addEventListener('click', () => inviteAction(pauseInviteBtn));
+                pauseInviteBtn.addEventListener('touchstart', (e) => { e.preventDefault(); inviteAction(pauseInviteBtn); }, { passive: false });
+            }
             
             document.getElementById('lobby-back-btn').onclick = () => {  
                 document.getElementById('lobby-screen').style.display = 'none'; 
@@ -3839,30 +3842,40 @@
                 document.getElementById('start-view').style.display = 'flex'; 
             };
             
-            document.getElementById('pause-btn').addEventListener('click', (e) => { 
+            // FIX IPHONE PAUSE: Usando touchstart para garantir que o painel de aim não roube o evento
+            const pauseBtnEl = document.getElementById('pause-btn');
+            const pauseGameHandler = (e) => { 
                 e.stopPropagation(); 
+                if (e.type === 'touchstart') e.preventDefault();
                 if (!isPlaying) return; 
                 isPlaying = false; 
                 gamePaused = true; 
-                document.exitPointerLock(); 
+                if (document.exitPointerLock) document.exitPointerLock(); 
                 document.getElementById('settings-view').style.display = 'block'; 
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important'); 
                 document.getElementById('main-menu').style.display = 'block'; 
                 document.getElementById('main-menu').classList.add('paused-mode'); 
                 document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.opacity = '0'); 
                 document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.pointerEvents = 'none'); 
-            });
+            };
+            pauseBtnEl.addEventListener('click', pauseGameHandler);
+            pauseBtnEl.addEventListener('touchstart', pauseGameHandler, { passive: false });
             
             document.getElementById('main-menu').addEventListener('click', (e) => { 
                 if (gamePaused && e.target.id === 'main-menu') { resumeGame(); } 
             });
+            document.getElementById('main-menu').addEventListener('touchstart', (e) => { 
+                if (gamePaused && e.target.id === 'main-menu') { resumeGame(); } 
+            }, { passive: true });
             
             document.getElementById('settings-btn').onclick = () => { 
                 document.getElementById('start-view').style.setProperty('display', 'none', 'important'); 
                 document.getElementById('settings-view').style.display = 'block'; 
             };
             
-            document.getElementById('back-btn').onclick = () => { 
+            const backBtnEl = document.getElementById('back-btn');
+            const backBtnHandler = (e) => { 
+                if (e.type === 'touchstart' && e.cancelable) e.preventDefault();
                 if (gamePaused) { resumeGame(); } 
                 else { 
                     document.getElementById('settings-view').style.display = 'none'; 
@@ -3870,8 +3883,13 @@
                     document.getElementById('start-view').style.display = 'flex'; 
                 } 
             };
+            backBtnEl.onclick = null;
+            backBtnEl.addEventListener('click', backBtnHandler);
+            backBtnEl.addEventListener('touchstart', backBtnHandler, { passive: false });
             
-            document.getElementById('edit-hud-btn').onclick = () => { 
+            const editHudBtnEl = document.getElementById('edit-hud-btn');
+            const editHudHandler = (e) => { 
+                if (e.type === 'touchstart' && e.cancelable) e.preventDefault();
                 settings.isEditing = true; 
                 document.getElementById('settings-view').style.display = 'none'; 
                 document.getElementById('main-menu').style.display = 'none'; 
@@ -3880,8 +3898,13 @@
                 document.getElementById('mobile-ui').style.display = 'block'; 
                 document.getElementById('save-hud-btn').style.display = 'block'; 
             };
+            editHudBtnEl.onclick = null;
+            editHudBtnEl.addEventListener('click', editHudHandler);
+            editHudBtnEl.addEventListener('touchstart', editHudHandler, { passive: false });
             
-            document.getElementById('save-hud-btn').onclick = () => { 
+            const saveHudBtnEl = document.getElementById('save-hud-btn');
+            const saveHudHandler = (e) => { 
+                if (e.type === 'touchstart' && e.cancelable) e.preventDefault();
                 settings.isEditing = false; 
                 document.getElementById('save-hud-btn').style.display = 'none'; 
                 document.getElementById('hud').style.display = 'none'; 
@@ -3897,8 +3920,13 @@
                 }); 
                 localStorage.setItem('canaa_hud_pos', JSON.stringify(pos)); 
             };
+            saveHudBtnEl.onclick = null;
+            saveHudBtnEl.addEventListener('click', saveHudHandler);
+            saveHudBtnEl.addEventListener('touchstart', saveHudHandler, { passive: false });
             
-            document.getElementById('abort-mission-btn').onclick = () => { 
+            const abortBtnEl = document.getElementById('abort-mission-btn');
+            const abortBtnHandler = (e) => { 
+                if (e.type === 'touchstart' && e.cancelable) e.preventDefault();
                 document.getElementById('settings-view').style.display = 'none'; 
                 document.getElementById('hud').style.display = 'none'; 
                 document.getElementById('mobile-ui').style.display = 'none'; 
@@ -3911,6 +3939,9 @@
                 document.querySelectorAll('.menu-sidebar, .menu-header, .char-info').forEach(el => el.style.pointerEvents = 'auto'); 
                 isPlaying = false; gamePaused = false; scene.add(camera); cleanupMultiplayer(); playMenuMusic(); 
             };
+            abortBtnEl.onclick = null;
+            abortBtnEl.addEventListener('click', abortBtnHandler);
+            abortBtnEl.addEventListener('touchstart', abortBtnHandler, { passive: false });
             
             document.getElementById('retry-btn').onclick = () => { 
                 if (isMultiplayerMode) { document.getElementById('game-over-screen').style.display = 'none'; showLobby(isCoopMode ? 'coop' : 'pvp'); } 
